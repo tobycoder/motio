@@ -1,6 +1,18 @@
+# Python / Flask
 venv/
-__pycache__/
 .env
-*.pyc
 instance/
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+*.sqlite3
+.mypy_cache/
+.pytest_cache/
+migrations/
+
+# Editors/OS
+.vscode/
+.idea/
 .DS_Store
+Thumbs.db
