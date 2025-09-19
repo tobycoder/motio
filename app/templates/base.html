@@ -1,0 +1,92 @@
+<html>
+    <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <meta name="color-scheme" content="light dark">
+        <title>{% block title %}Motio{% endblock %}</title>
+        <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/7.0.1/css/all.min.css">
+        <!-- Tailwind via CDN -->
+        <script src="https://cdn.tailwindcss.com"></script>
+        <script>
+            // Optionele config (kleuren, container, fonts, safelist, dark mode, etc.)
+            tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                container: { center: true, padding: '1rem' },
+                extend: {
+                colors: {
+                    brand: {
+                    DEFAULT: '#0ea5e9',
+                    dark: '#0369a1'
+                    }
+                },
+                fontFamily: {
+                    sans: ['Inter', 'ui-sans-serif', 'system-ui', 'Segoe UI', 'Roboto', 'Arial', 'sans-serif']
+                }
+                }
+            },
+            safelist: [
+                // classes die je dynamisch toevoegt vanuit Flask/Jinja
+                'text-green-600','text-red-600','bg-yellow-100','bg-green-100','bg-red-100'
+            ]
+            }
+        </script>        
+    </head>
+    <body>
+<div class="fixed top-0 left-0 w-full z-50 bg-white border-b backdrop-blur-lg bg-opacity-80">
+    <div class="mx-auto max-w-7xl px-6 sm:px-6 lg:px-8 ">
+        <div class="relative flex h-16 justify-between">
+            <div class="flex flex-1 items-stretch justify-start">
+                <a class="flex flex-shrink-0 items-center" href="#">
+                    <img class="block h-12 w-auto" src="https://www.svgrepo.com/show/501888/donut.svg" >
+                </a>
+            </div>
+            <div class="flex-shrink-0 flex px-2 py-3 items-center space-x-8">
+                <a class="text-gray-700 hover:text-indigo-700 text-sm font-medium" href="#">Login</a>
+                <a class="text-gray-800 bg-indigo-100 hover:bg-indigo-200 inline-flex items-center justify-center px-3 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm "
+                    href="#">Sign up
+                </a>
+            </div>
+        </div>
+    </div>
+</div>
+      <div class="relative">
+    <!-- Sidebar -->
+    <aside id="sidebar" class="fixed inset-y-0 pt-20 left-0 w-64 bg-white border-r shadow z-30 transform -translate-x-full lg:translate-x-0 transition-transform duration-200 overflow-y-auto scroll-thin">
+      <div class="p-4">
+        <p class="px-3 text-xs uppercase tracking-wide text-gray-500">Algemeen</p>
+        <nav class="mt-2 space-y-1">
+          <a class="flex items-center gap-3 px-3 py-2 rounded hover:bg-gray-50" href="#">
+            <i class="fa-solid fa-gauge w-5 text-center"></i><span>Dashboard</span>
+          </a>
+          <a class="inactive flex items-center gap-3 px-3 py-2 rounded hover:bg-gray-50" href="#">
+            <i class="fa-solid fa-user"></i><span>Profielinstellingen</span>
+          </a>
+          <a href="{{ url_for('instrumenten.index') }}" class="flex items-center gap-3 px-3 py-2 rounded hover:bg-gray-50" href="#">
+            <i class="fa-solid fa-scroll w-5 text-center"></i><span>Moties</span>
+          </a>
+          <a class="inactive flex items-center gap-3 px-3 py-2 rounded hover:bg-gray-50" href="#">
+            <i class="fa-solid fa-pen-nib w-5 text-center"></i><span>Amendementen</span>
+          </a>
+        </nav>
+
+        <p class="px-3 mt-6 text-xs uppercase tracking-wide text-gray-500">Beheer</p>
+        <nav class="mt-2 space-y-1">
+          <a class="flex items-center gap-3 px-3 py-2 rounded hover:bg-gray-50" href="#">
+            <i class="fa-solid fa-users w-5 text-center"></i><span>Fracties & raadsleden</span>
+          </a>
+
+          <a class="flex items-center gap-3 px-3 py-2 rounded hover:bg-gray-50" href="#">
+            <i class="fa-solid fa-gear w-5 text-center"></i><span>Instellingen</span>
+          </a>
+        </nav>
+      </div>
+    </aside>
+
+<div class="container mt-20 pl-64">
+
+        {% block content %}{% endblock %} 
+    </div>
+</div>
+    </body>
+    </html> 

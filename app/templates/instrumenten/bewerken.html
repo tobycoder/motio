@@ -1,0 +1,169 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="sticky top-0 z-10 bg-white/80 backdrop-blur border-b print:hidden">
+    <div class="mx-auto max-w-4xl px-4 py-2 flex items-center justify-between">
+      <div class="text-sm text-gray-600">Motie {{ motie.titel }}</div>
+      <div class="inline-flex rounded-md shadow-xs" role="group">
+        <a href="{{ url_for('instrumenten.index') }}" type="button" class="px-4 py-2 text-sm font-medium text-gray-900 bg-white border border-gray-200 rounded-s-lg hover:bg-gray-100 hover:text-blue-700 focus:z-10 focus:ring-2 focus:ring-blue-700 focus:text-blue-700 dark:bg-gray-800 dark:border-gray-700 dark:text-white dark:hover:text-white dark:hover:bg-gray-700 dark:focus:ring-blue-500 dark:focus:text-white">
+          Terug naar overzicht
+        </a>
+        <a href="{{ url_for('instrumenten.verwijderen', motie_id=motie.id) }}" type="button" class="px-4 py-2 text-sm font-medium text-white bg-red-500 border border-gray-200 rounded-e-lg hover:bg-red-900 hover:text-white-700 focus:z-10 focus:ring-2 focus:ring-blue-700 focus:text-blue-700 dark:bg-gray-800 dark:border-gray-700 dark:text-white dark:hover:text-white dark:hover:bg-gray-700 dark:focus:ring-blue-500 dark:focus:text-white">
+          Verwijder motie
+        </a>
+      </div>
+    </div>
+  </div>
+  <main class="max-w-4xl mx-auto px-4 py-8">
+    <h1 class="text-2xl font-semibold mb-6">Motie bewerken</h1>
+
+    <form method="POST" action="" class="space-y-8 bg-white p-6 rounded-xl shadow">
+    <div>
+        <label class="block text-sm font-medium text-gray-700">Datum raadsvergadering</label>
+        <select name="gemeenteraad_datum" class="w-full bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-2.5 dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white dark:focus:ring-blue-500 dark:focus:border-blue-500">
+          {% set d = (motie.gemeenteraad_datum or 'Gemeenteraad 27 september 2025') %}
+            <option value="Gemeenteraad 27 september 2025" {{ 'selected' if s=='Gemeenteraad 27 september 2025' else '' }}>Gemeenteraad 27 september 2025</option>
+          <option value="Gemeenteraad 27 oktober 2025" {{ 'selected' if s=='Gemeenteraad 27 oktober 2025' else '' }}>Gemeenteraad 27 oktober 2025</option>
+          <option value="Gemeenteraad 3 november 2025" {{ 'selected' if s=='Gemeenteraad 3 november 2025' else '' }}>Gemeenteraad 3 november 2025</option>
+          <option value="Gemeenteraad 6 november 2025" {{ 'selected' if s=='Gemeenteraad 6 november 2025' else '' }}>Gemeenteraad 6 november 2025</option>
+        </select>
+      </div>
+      <!-- Titel -->
+      <div>
+        <label class="text-lg font-semibold mb-2">Titel</label>
+        <input name="titel" value="{{ motie.titel or '' }}"
+               class="w-full rounded-md border border-gray-300 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-gray-900"/>
+      </div>
+
+      <!-- CONSTATERENDE DAT -->
+      <section>
+        <h2 class="text-lg font-semibold mb-2">Constaterende dat</h2>
+        <p class="text-sm text-gray-500 mb-2">Typ in de onderste regel om automatisch een nieuwe toe te voegen.</p>
+        <div id="constaterende-list" class="space-y-2"></div>
+        <input type="hidden" name="constaterende_dat_json" id="constaterende-json">
+      </section>
+
+      <!-- OVERWEGENDE DAT -->
+      <section>
+        <h2 class="text-lg font-semibold mb-2">Overwegende dat</h2>
+        <div id="overwegende-list" class="space-y-2"></div>
+        <input type="hidden" name="overwegende_dat_json" id="overwegende-json">
+      </section>
+            <!-- Opdracht formulering (vrije tekst boven de bullets) -->
+      
+            <div>
+        <label class="text-lg font-semibold mb-2">Opdracht formulering</label>
+        <input name="opdracht_formulering" rows="3"
+          class="w-full rounded-md border border-gray-300 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-gray-900" value="{{ motie.opdracht_formulering or '' }}">
+      </div>
+
+      <!-- DRAAGT HET COLLEGE OP -->
+      <section>
+        <h2 class="text-lg font-semibold mb-2">Draagt het college op</h2>
+        <div id="draagt-list" class="space-y-2"></div>
+        <input type="hidden" name="draagt_json" id="draagt-json">
+      </section>
+
+      <!-- Status -->
+      <div>
+        <label class="block text-sm font-medium text-gray-700">Status</label>
+        <select name="status" class="w-full bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-2.5 dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white dark:focus:ring-blue-500 dark:focus:border-blue-500">
+          {% set s = (motie.status or 'Concept') %}
+          <option value="Concept" {{ 'selected' if s=='Concept' else '' }}>Concept</option>
+          <option value="GereedAdvies" {{ 'selected' if s=='GereedAdvies' else '' }}>Gereed voor advies griffie</option>
+          <option value="GereedPublicatie" {{ 'selected' if s=='GereedPublicatie' else '' }}>Gereed voor publicatie</option>
+        </select>
+      </div>
+
+      <!-- Acties -->
+      <div class="flex gap-3">
+        <button type="submit" class="inline-flex items-center px-4 py-2 rounded-md bg-gray-900 text-white hover:bg-black">
+          Opslaan
+        </button>
+        <a href="{{ url_for('instrumenten.index', motie_id=motie.id) }}"
+           class="inline-flex items-center px-4 py-2 rounded-md border border-gray-300 hover:bg-gray-50">
+          Annuleren
+        </a>
+      </div>
+    </form>
+  </main>
+
+  <script>
+    // ===== Dynamische lijsten =====
+    function setupDynamicList({containerId, hiddenId, initial = []}) {
+      const container = document.getElementById(containerId);
+      const hidden = document.getElementById(hiddenId);
+
+      function rowTemplate(val="") {
+        const div = document.createElement("div");
+        div.className = "flex gap-2";
+        div.innerHTML = `
+          <input type="text" class="flex-1 rounded-md border border-gray-300 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-gray-900"
+                 value="${(val ?? "").replace(/"/g, "&quot;")}">
+          <button type="button" class="px-3 py-2 rounded-md border border-gray-300 hover:bg-gray-50 remove" aria-label="Verwijderen">×</button>
+        `;
+        const input = div.querySelector("input");
+        const removeBtn = div.querySelector(".remove");
+
+        input.addEventListener("input", maybeAddBlank);
+        input.addEventListener("blur", () => { pruneExtraBlanks(); ensureTrailingBlank(); syncHidden(); });
+        removeBtn.addEventListener("click", () => { div.remove(); ensureTrailingBlank(); syncHidden(); });
+
+        return div;
+      }
+
+      function ensureTrailingBlank() {
+        const inputs = container.querySelectorAll("input");
+        if (inputs.length === 0 || inputs[inputs.length - 1].value.trim() !== "") {
+          container.appendChild(rowTemplate(""));
+        }
+      }
+
+      function maybeAddBlank() {
+        const inputs = container.querySelectorAll("input");
+        if (inputs.length && inputs[inputs.length - 1].value.trim() !== "") {
+          container.appendChild(rowTemplate(""));
+        }
+        syncHidden();
+      }
+
+      function pruneExtraBlanks() {
+        const inputs = Array.from(container.querySelectorAll("input"));
+        inputs.slice(0, -1).forEach(inp => {
+          if (inp.value.trim() === "") inp.parentElement.remove();
+        });
+      }
+
+      function syncHidden() {
+        const values = Array.from(container.querySelectorAll("input"))
+          .map(i => i.value.trim())
+          .filter(v => v !== "");
+        hidden.value = JSON.stringify(values);
+      }
+
+      // init
+      container.innerHTML = "";
+      const seed = (initial && initial.length) ? [...initial] : [""];
+      seed.forEach(v => container.appendChild(rowTemplate(v)));
+      ensureTrailingBlank();
+      syncHidden();
+
+      return { syncHidden };
+    }
+
+    document.addEventListener("DOMContentLoaded", () => {
+      // Initial arrays vanuit Jinja
+      const initConstaterende = {{ constaterende_dat|tojson|safe }};
+      const initOverwegende   = {{ overwegende_dat|tojson|safe }};
+      const initDraagt        = {{ draagt_op|tojson|safe }};
+
+      const list1 = setupDynamicList({ containerId: "constaterende-list", hiddenId: "constaterende-json", initial: initConstaterende });
+      const list2 = setupDynamicList({ containerId: "overwegende-list",   hiddenId: "overwegende-json",   initial: initOverwegende   });
+      const list3 = setupDynamicList({ containerId: "draagt-list",        hiddenId: "draagt-json",        initial: initDraagt        });
+
+      // laatste sync op submit
+      document.querySelector("form").addEventListener("submit", () => {
+        list1?.syncHidden(); list2?.syncHidden(); list3?.syncHidden();
+      });
+    });
+  </script>
+  {% endblock %}
