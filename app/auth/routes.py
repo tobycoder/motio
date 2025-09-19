@@ -8,7 +8,7 @@ from app import db
 @bp.route('/login', methods=['GET', 'POST'])
 def login():
     if current_user.is_authenticated:
-        return redirect(url_for('main.dashboard'))
+        return redirect(url_for('dashboard'))
     
     form = LoginForm()
     if form.validate_on_submit():
@@ -17,7 +17,7 @@ def login():
             login_user(user, remember=form.remember_me.data)
             next_page = request.args.get('next')
             if not next_page or not next_page.startswith('/'):
-                next_page = url_for('main.dashboard')
+                next_page = url_for('dashboard')
             flash(f'Welkom terug, {user.naam}!', 'success')
             return redirect(next_page)
         flash('Ongeldige gebruikersnaam of wachtwoord', 'error')
@@ -27,12 +27,12 @@ def login():
 def logout():
     logout_user()
     flash('Je bent uitgelogd', 'info')
-    return redirect(url_for('main.index'))
+    return redirect(url_for('front.index'))
 
 @bp.route('/register', methods=['GET', 'POST'])
 def register():
     if current_user.is_authenticated:
-        return redirect(url_for('main.dashboard'))
+        return redirect(url_for('dashboard.index'))
     
     form = RegistrationForm()
     if form.validate_on_submit():

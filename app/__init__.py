@@ -7,7 +7,7 @@ from app.config import Config
 
 # Initialiseer extensions
 db = SQLAlchemy()
-#login_manager = LoginManager()
+login_manager = LoginManager()
 
 def create_app(config_class=Config):
     app = Flask(__name__)
@@ -16,17 +16,17 @@ def create_app(config_class=Config):
     # Initialiseer extensions met app
     db.init_app(app)
     migrate = Migrate(app, db)
-    #login_manager.init_app(app)
-    #login_manager.login_view = 'main.login'
-    #login_manager.login_message = 'Log in om toegang te krijgen tot deze pagina.'
+    login_manager.init_app(app)
+    login_manager.login_view = 'app.login'
+    login_manager.login_message = 'Log in om toegang te krijgen tot deze pagina.'
     
     # Importeer models
     from app.models import User, Party, Motie
     
     # User loader voor Flask-Login
-    #@login_manager.user_loader
-    #def load_user(user_id):
-        #return User.query.get(int(user_id))
+    @login_manager.user_loader
+    def load_user(user_id):
+        return User.query.get(int(user_id))
     
     # Registreer blueprints
     from app.instrumenten import bp as instrumenten_bp
@@ -48,7 +48,10 @@ def create_app(config_class=Config):
     app.register_blueprint(profielen_bp, url_prefix='/profiel')
 
     from app.dashboard import bp as dashboard_bp
-    app.register_blueprint(dashboard_bp)
+    app.register_blueprint(dashboard_bp, url_prefix='/dashboard')
+
+    from app.front import bp as front_bp
+    app.register_blueprint(front_bp)
     
     return app
 

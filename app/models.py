@@ -57,21 +57,39 @@ class JSONEncodedList(TypeDecorator):
 class Motie(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     titel = db.Column(db.String(200), nullable=False)
-    #constaterende_dat = db.Column(db.Text, nullable=False)
     constaterende_dat = db.Column(JSONEncodedList)
-    #overwegende_dat = db.Column(db.Text, nullable=False)
     overwegende_dat = db.Column(JSONEncodedList)
     opdracht_formulering = db.Column(db.Text, nullable=False)
-    #draagt_college_op = db.Column(db.Text, nullable=False)
     draagt_college_op = db.Column(JSONEncodedList)
     status = db.Column(db.String(20), default='concept')
     gemeenteraad_datum = db.Column(db.String(40), default='Gemeenteraad')
+    agendapunt = db.Column(db.String(40), default='Agendapunt')
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
     created_by = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False, default=1)
     
     # Many-to-many relationship with parties
     partijen = db.relationship('Party', secondary=motie_partijen, lazy='subquery', backref=db.backref('moties', lazy=True))
+    
+    def __repr__(self):
+        return f'<Motie {self.titel}>'
+    
+class Amendementen(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    titel = db.Column(db.String(200), nullable=False)
+    constaterende_dat = db.Column(JSONEncodedList)
+    overwegende_dat = db.Column(JSONEncodedList)
+    opdracht_formulering = db.Column(db.Text, nullable=False)
+    wijzigingen = db.Column(JSONEncodedList)
+    status = db.Column(db.String(20), default='concept')
+    gemeenteraad_datum = db.Column(db.String(40), default='Gemeenteraad')
+    agendapunt = db.Column(db.String(40), default='Agendapunt')
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    created_by = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False, default=1)
+    
+    # Many-to-many relationship with parties
+    #partijen = db.relationship('Party', secondary=motie_partijen, lazy='subquery', backref=db.backref('moties', lazy=True))
     
     def __repr__(self):
         return f'<Motie {self.titel}>'

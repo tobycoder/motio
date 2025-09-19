@@ -97,6 +97,8 @@ def index():
 @bp.route('/toevoegen', methods=['GET', 'POST'])
 def toevoegen():
     if request.method == 'POST':
+        gemeenteraad_datum = request.form.get('gemeenteraad_datum')
+        agendapunt = request.form.get('agendapunt')
         titel = request.form.get('titel')
         const_json = request.form.get('constaterende_dat_json') or "[]"
         overw_dat = request.form.get('overwegende_dat_json') or "[]"
@@ -105,6 +107,8 @@ def toevoegen():
         status = request.form.get('status')
         # Verwerk het formulier hier
         motie = Motie(
+            gemeenteraad_datum=gemeenteraad_datum,
+            agendapunt=agendapunt,
             titel=titel,
             constaterende_dat=json.loads(const_json),
             overwegende_dat=json.loads(overw_dat),
@@ -147,6 +151,7 @@ def bewerken_post(motie_id):
     opdracht_formulering = request.form.get('opdracht_formulering').strip()
     status = request.form.get('status')
     gemeenteraad_datum = request.form.get('gemeenteraad_datum')
+    agendapunt = request.form.get('agendapunt')
     
     motie.titel = titel
     motie.constaterende_dat = json.loads(const_json)
@@ -155,6 +160,7 @@ def bewerken_post(motie_id):
     motie.opdracht_formulering = opdracht_formulering
     motie.status = status
     motie.gemeenteraad_datum = gemeenteraad_datum
+    motie.agendapunt = agendapunt
     
     db.session.commit()
     flash('Is bijgewerkt.', 'success')
