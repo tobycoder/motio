@@ -24,7 +24,7 @@ def as_list(value):
         except Exception:
             return []
 
-@bp.route('/', methods=['GET', 'POST'])
+@bp.route('/moties', methods=['GET', 'POST'])
 def index():
     q = request.args.get('q')
     status = request.args.get('status')
@@ -94,7 +94,7 @@ def index():
         direction=direction,
 )   
 
-@bp.route('/toevoegen', methods=['GET', 'POST'])
+@bp.route('/moties/toevoegen', methods=['GET', 'POST'])
 def toevoegen():
     if request.method == 'POST':
         gemeenteraad_datum = request.form.get('gemeenteraad_datum')
@@ -124,12 +124,12 @@ def toevoegen():
     
     return render_template('instrumenten/toevoegen.html', title="Instrumenten")
 
-@bp.route('<int:motie_id>/bekijken', methods=['GET', 'POST'])
+@bp.route('/moties/<int:motie_id>/bekijken', methods=['GET', 'POST'])
 def bekijken(motie_id):
     motie = Motie.query.get_or_404(motie_id)
     return render_template('instrumenten/bekijken.html', motie=motie, title="Bekijk Motie")
 
-@bp.route('/<int:motie_id>/bewerken')
+@bp.route('/moties/<int:motie_id>/bewerken')
 def bewerken(motie_id):
     motie = Motie.query.get_or_404(motie_id)
     
@@ -140,7 +140,7 @@ def bewerken(motie_id):
                            draagt_op=as_list(motie.draagt_college_op), 
                            title="Bewerk Motie")
 
-@bp.post('/<int:motie_id>/bewerken')
+@bp.post('/moties/<int:motie_id>/bewerken')
 def bewerken_post(motie_id):
     motie = Motie.query.get_or_404(motie_id)
     
@@ -167,7 +167,7 @@ def bewerken_post(motie_id):
     return redirect(url_for('instrumenten.bekijken', motie_id=motie.id))
 
 
-@bp.route('/<int:motie_id>/verwijderen', methods=['POST', 'GET'])
+@bp.route('/moties/<int:motie_id>/verwijderen', methods=['POST', 'GET'])
 def verwijderen(motie_id):
     motie = Motie.query.get_or_404(motie_id)
     db.session.delete(motie)

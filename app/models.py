@@ -36,12 +36,28 @@ class Party(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     naam = db.Column(db.String(100), nullable=False, unique=True)
     afkorting = db.Column(db.String(10), nullable=False, unique=True)
-    kleur = db.Column(db.String(7), nullable=True)  # Hex color code
     actief = db.Column(db.Boolean, default=True)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
-    
+    logo_url = db.Column(db.String(512), nullable=True)
+    logo_filename = db.Column(db.String(255), nullable=True)
+
     def __repr__(self):
         return f'<Party {self.naam}>'
+
+    @property
+    def logo_src(self):
+        """Geeft een bruikbare <img src> terug (lokaal of extern)."""
+        if self.logo_url:
+            return self.logo_url
+        if self.logo_filename:
+            from flask import url_for
+            return url_for('static', filename=f'img/partijen/{self.logo_filename}', _external=False)
+        return None
+    def __repr__(self):
+        return f'<Partij {self.naam}>'
+
+
+
 
 class JSONEncodedList(TypeDecorator):
     impl = Text

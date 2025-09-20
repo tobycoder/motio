@@ -1,0 +1,26 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="sticky top-0 z-10 bg-white/80 backdrop-blur border-b print:hidden mb-6">
+    <div class="mx-auto max-w-7xl px-4 py-2 flex items-center justify-between">
+        <h1 class="text-2xl font-semibold mb-4">{{ title }}</h1>
+      <div class="inline-flex rounded-md shadow-xs" role="group">
+        <a href="{{ url_for('partijen.index') }}" type="button" class="px-4 py-2 text-sm font-medium text-gray-900 bg-white border border-gray-200 rounded-s-lg hover:bg-gray-100 hover:text-blue-700 focus:z-10 focus:ring-2 focus:ring-blue-700 focus:text-blue-700 dark:bg-gray-800 dark:border-gray-700 dark:text-white dark:hover:text-white dark:hover:bg-gray-700 dark:focus:ring-blue-500 dark:focus:text-white">
+          Terug naar overzicht
+        </a>
+        <a href="{{ url_for('partijen.index') }}" type="button" class="px-4 py-2 text-sm font-medium text-gray-900 bg-white border-t border-b border-gray-200 hover:bg-gray-100 hover:text-blue-700 focus:z-10 focus:ring-2 focus:ring-blue-700 focus:text-blue-700 dark:bg-gray-800 dark:border-gray-700 dark:text-white dark:hover:text-white dark:hover:bg-gray-700 dark:focus:ring-blue-500 dark:focus:text-white">
+          Partij verwijderen
+        </a>
+        <a href="{{ url_for('partijen.index') }}" type="button" class="px-4 py-2 text-sm font-medium text-white bg-green-500 border border-gray-200 rounded-e-lg hover:bg-green-900 hover:text-white-700 focus:z-10 focus:ring-2 focus:ring-blue-700 focus:text-blue-700 dark:bg-gray-800 dark:border-gray-700 dark:text-white dark:hover:text-white dark:hover:bg-gray-700 dark:focus:ring-blue-500 dark:focus:text-white">
+          Partij bewerken
+        </a>
+      </div>
+    </div>
+  </div>
+<h1 class="text-2xl font-semibold mb-4">{{ partij.naam }} ({{ partij.afkorting }})</h1>
+<p>Status: {{ "Actief" if partij.actief else "Inactief" }}</p>
+{% if partij.logo_src %}
+  <img src="{{ partij.logo_src }}" alt="Logo van {{ partij.naam }}" class="h-24 mt-4">
+{% else %}
+  <p class="text-gray-500 mt-4">Geen logo beschikbaar</p>
+{% endif %}
+{% endblock %}

@@ -37,6 +37,11 @@ class Config:
     APP_NAME = 'Motio'
     GEMEENTE_NAAM = os.environ.get('GEMEENTE_NAAM') or '[GEMEENTE NAAM]'
 
+    # Config logo upload
+    LOGO_UPLOAD_FOLDER = os.path.join(basedir, 'app', 'static', 'img', 'partijen')
+    ALLOWED_LOGO_EXTENSIONS = {'png', 'jpg', 'jpeg', 'webp', 'svg'}
+    MAX_CONTENT_LENGTH = 4 * 1024 * 1024  # 4MB bijvoorbeeld
+
 class DevelopmentConfig(Config):
     DEBUG = True
     SQLALCHEMY_ECHO = False  # Set to True to see all SQL queries

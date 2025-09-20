@@ -37,19 +37,19 @@
       <header class="text-center mb-8">
         <h1 class="text-xl font-semibold tracking-tight">Motie</h1>
         <p class="text-sm text-gray-600 mt-1">
-          Gemeenteraad {{ gemeente_naam or "Haarlem" }} – {{ datum or "—" }}
+          Gemeenteraad {{ motie.titel or "—" }}
         </p>
       </header>
 
       <!-- Titel motie -->
       <section class="mb-6 avoid-break">
-        <h2 class="text-base font-semibold mb-1">Titel</h2>
-        <p class="text-[11pt]">{{ motie.titel or "—" }}</p>
+        <p class="text-[11pt]">Deze motie hoort bij agendapunt {{ motie.agendapunt or "—" }}, ingediend bij de raadsvergadering van {{ motie.gemeenteraad_datum }}</p>
+        <p class="text-[11pt]">De indieners stellen de raad voor om het volgende besluit te nemen:</p>
       </section>
 
       <!-- Constaterende dat -->
       <section class="mb-6 avoid-break">
-        <h2 class="text-base font-semibold mb-1">Constaterende dat:</h2>
+        <h2 class="text-base font-semibold mb-1">We stellen vast dat:</h2>
         <ul class="list-disc pl-6 space-y-1">
           {# Als je als JSON-string opslaat: json.loads in de view en hier direct itereren #}
           {% for punt in motie.constaterende_dat %}
@@ -62,7 +62,7 @@
 
       <!-- Overwegende dat -->
       <section class="mb-6 avoid-break">
-        <h2 class="text-base font-semibold mb-1">Overwegende dat:</h2>
+        <h2 class="text-base font-semibold mb-1">We overwegen dat:</h2>
         <ul class="list-disc pl-6 space-y-1">
           {% for punt in motie.overwegende_dat %}
             <li>{{ punt }}</li>
@@ -83,16 +83,18 @@
           {% endfor %}
         </ul>
       </section>
+      <section class="mb-6 avoid-break">
+        <p class="text-[11pt]">En gaat over tot de orde van de dag</p>
+      </section>
 
       <!-- Ondertekening -->
          <!-- Voet -->
       <footer class="mt-12 pt-4 text-[10pt] text-gray-500 border-t border-gray-200">
-        <div class="flex items-center justify-between">
+        <div class="flex items-center justify-between self-end">
           <span>Raadsvergadering: {{ motie.gemeenteraad_datum or "Niet gepland" }} </span>
           <span>Conceptstatus: {{ motie.status or "Concept" }}</span>
         </div>
       </footer>
     </article>
   </main>
-  <a href="{{ url_for('instrumenten.index') }}">Terug naar de lijst</a>
 {% endblock %}

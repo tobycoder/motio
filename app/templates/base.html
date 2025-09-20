@@ -57,10 +57,10 @@
         <p class="px-3 text-xs uppercase tracking-wide text-gray-500">Algemeen</p>
         <nav class="mt-2 space-y-1">
           <a class="flex items-center gap-3 px-3 py-2 rounded hover:bg-gray-50" href="#">
-            <i class="fa-solid fa-gauge w-5 text-center"></i><span>Dashboard</span>
+            <i class="fa-solid fa-gauge w-5 text-center"></i><span>Overzicht</span>
           </a>
-          <a class="inactive flex items-center gap-3 px-3 py-2 rounded hover:bg-gray-50" href="#">
-            <i class="fa-solid fa-user"></i><span>Profielinstellingen</span>
+          <a href="{{ url_for('partijen.index') }}" class="flex items-center gap-3 px-3 py-2 rounded hover:bg-gray-50" href="#">
+            <i class="fa-solid fa-user"></i><span>Partijen</span>
           </a>
           <a href="{{ url_for('instrumenten.index') }}" class="flex items-center gap-3 px-3 py-2 rounded hover:bg-gray-50" href="#">
             <i class="fa-solid fa-scroll w-5 text-center"></i><span>Moties</span>
