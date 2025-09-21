@@ -4,13 +4,13 @@
     <div class="mx-auto max-w-5xl px-4 py-2 flex items-center justify-between">
       <div class="text-sm text-gray-600">Motie {{ motie.titel }}</div>
       <div class="inline-flex rounded-md shadow-xs" role="group">
-        <a href="{{ url_for('instrumenten.index') }}" type="button" class="px-4 py-2 text-sm font-medium text-gray-900 bg-white border border-gray-200 rounded-s-lg hover:bg-gray-100 hover:text-blue-700 focus:z-10 focus:ring-2 focus:ring-blue-700 focus:text-blue-700 dark:bg-gray-800 dark:border-gray-700 dark:text-white dark:hover:text-white dark:hover:bg-gray-700 dark:focus:ring-blue-500 dark:focus:text-white">
+        <a href="{{ url_for('moties.index') }}" type="button" class="px-4 py-2 text-sm font-medium text-gray-900 bg-white border border-gray-200 rounded-s-lg hover:bg-gray-100 hover:text-blue-700 focus:z-10 focus:ring-2 focus:ring-blue-700 focus:text-blue-700 dark:bg-gray-800 dark:border-gray-700 dark:text-white dark:hover:text-white dark:hover:bg-gray-700 dark:focus:ring-blue-500 dark:focus:text-white">
           Terug naar overzicht
         </a>
         <button type="submit" form="bewerkenForm", type="button" class="px-4 py-2 text-sm font-medium text-white bg-blue-500 border-y border-gray-200 hover:bg-blue-900 hover:text-white-700 focus:z-10 focus:ring-2 focus:ring-blue-700 focus:text-blue-700 dark:bg-gray-800 dark:border-gray-700 dark:text-white dark:hover:text-white dark:hover:bg-gray-700 dark:focus:ring-blue-500 dark:focus:text-white">
           Sla op en bekijk
         </button>
-        <a href="{{ url_for('instrumenten.verwijderen', motie_id=motie.id) }}" type="button" class="px-4 py-2 text-sm font-medium text-white bg-red-500 border border-gray-200 rounded-e-lg hover:bg-red-900 hover:text-white-700 focus:z-10 focus:ring-2 focus:ring-blue-700 focus:text-blue-700 dark:bg-gray-800 dark:border-gray-700 dark:text-white dark:hover:text-white dark:hover:bg-gray-700 dark:focus:ring-blue-500 dark:focus:text-white">
+        <a href="{{ url_for('moties.verwijderen', motie_id=motie.id) }}" type="button" class="px-4 py-2 text-sm font-medium text-white bg-red-500 border border-gray-200 rounded-e-lg hover:bg-red-900 hover:text-white-700 focus:z-10 focus:ring-2 focus:ring-blue-700 focus:text-blue-700 dark:bg-gray-800 dark:border-gray-700 dark:text-white dark:hover:text-white dark:hover:bg-gray-700 dark:focus:ring-blue-500 dark:focus:text-white">
           Verwijder motie
         </a>
       </div>
@@ -92,7 +92,7 @@
         <button type="submit" class="inline-flex items-center px-4 py-2 rounded-md bg-gray-900 text-white hover:bg-black">
           Opslaan
         </button>
-        <a href="{{ url_for('instrumenten.index', motie_id=motie.id) }}"
+        <a href="{{ url_for('moties.index', motie_id=motie.id) }}"
            class="inline-flex items-center px-4 py-2 rounded-md border border-gray-300 hover:bg-gray-50">
           Annuleren
         </a>

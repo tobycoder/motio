@@ -1,8 +1,8 @@
 from flask import Flask, render_template, flash, redirect, url_for, request, abort
-from app.instrumenten import bp
-from app.instrumenten.forms import MotieForm
+from app.moties import bp
+from app.moties.forms import MotieForm
 from sqlalchemy import or_, asc, desc
-from app.models import Motie
+from app.models import Motie, Amendementen
 from app import db
 import json
 
@@ -24,7 +24,7 @@ def as_list(value):
         except Exception:
             return []
 
-@bp.route('/moties', methods=['GET', 'POST'])
+@bp.route('/', methods=['GET', 'POST'])
 def index():
     q = request.args.get('q')
     status = request.args.get('status')
@@ -79,9 +79,9 @@ def index():
 
     motie = Motie.query.all()
     return render_template(
-        'instrumenten/filter_index.html', 
+        'moties/index.html', 
         moties=motie, 
-        title="Instrumenten",
+        title="moties",
         items=items,
         page=page,
         per_page=per_page,
@@ -94,7 +94,7 @@ def index():
         direction=direction,
 )   
 
-@bp.route('/moties/toevoegen', methods=['GET', 'POST'])
+@bp.route('/toevoegen', methods=['GET', 'POST'])
 def toevoegen():
     if request.method == 'POST':
         gemeenteraad_datum = request.form.get('gemeenteraad_datum')
@@ -120,27 +120,27 @@ def toevoegen():
         db.session.add(motie)
         db.session.commit()
         flash('Great! Your motion has been created.', 'success')
-        return redirect(url_for('instrumenten.bekijken', motie_id=motie.id))
+        return redirect(url_for('moties.bekijken', motie_id=motie.id))
     
-    return render_template('instrumenten/toevoegen.html', title="Instrumenten")
+    return render_template('moties/toevoegen.html', title="moties")
 
-@bp.route('/moties/<int:motie_id>/bekijken', methods=['GET', 'POST'])
+@bp.route('/<int:motie_id>/bekijken', methods=['GET', 'POST'])
 def bekijken(motie_id):
     motie = Motie.query.get_or_404(motie_id)
-    return render_template('instrumenten/bekijken.html', motie=motie, title="Bekijk Motie")
+    return render_template('moties/bekijken.html', motie=motie, title="Bekijk Motie")
 
-@bp.route('/moties/<int:motie_id>/bewerken')
+@bp.route('/<int:motie_id>/bewerken')
 def bewerken(motie_id):
     motie = Motie.query.get_or_404(motie_id)
     
-    return render_template('instrumenten/bewerken.html', 
+    return render_template('moties/bewerken.html', 
                            motie=motie, 
                            constaterende_dat=as_list(motie.constaterende_dat),
                            overwegende_dat=as_list(motie.overwegende_dat),
                            draagt_op=as_list(motie.draagt_college_op), 
                            title="Bewerk Motie")
 
-@bp.post('/moties/<int:motie_id>/bewerken')
+@bp.post('/<int:motie_id>/bewerken')
 def bewerken_post(motie_id):
     motie = Motie.query.get_or_404(motie_id)
     
@@ -164,13 +164,13 @@ def bewerken_post(motie_id):
     
     db.session.commit()
     flash('Is bijgewerkt.', 'success')
-    return redirect(url_for('instrumenten.bekijken', motie_id=motie.id))
+    return redirect(url_for('moties.bekijken', motie_id=motie.id))
 
 
-@bp.route('/moties/<int:motie_id>/verwijderen', methods=['POST', 'GET'])
+@bp.route('/<int:motie_id>/verwijderen', methods=['POST', 'GET'])
 def verwijderen(motie_id):
     motie = Motie.query.get_or_404(motie_id)
     db.session.delete(motie)
     db.session.commit()
     flash('Is verwijderd.', 'success')
-    return redirect(url_for('instrumenten.index'))
+    return redirect(url_for('moties.index'))

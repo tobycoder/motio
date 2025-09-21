@@ -29,9 +29,12 @@ def create_app(config_class=Config):
         #return User.query.get(int(user_id))
     
     # Registreer blueprints
-    from .instrumenten import bp as instrumenten_bp
-    app.register_blueprint(instrumenten_bp, url_prefix='/instrumenten')
-    
+    from .moties import bp as moties_bp
+    app.register_blueprint(moties_bp, url_prefix='/moties')
+        
+    from .amendementen import bp as amendementen_bp
+    app.register_blueprint(amendementen_bp, url_prefix='/amendementen')
+
     from .auth import bp as auth_bp
     app.register_blueprint(auth_bp, url_prefix='/auth')
 
