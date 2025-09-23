@@ -12,17 +12,20 @@
     .avoid-break { break-inside: avoid; page-break-inside: avoid; }
   </style>
   <div class="sticky top-0 z-10 bg-white/80 backdrop-blur border-b print:hidden">
-    <div class="mx-auto max-w-5xl px-4 py-2 flex items-center justify-between">
+    <div class="mx-auto max-w-7xl px-4 py-2 flex items-center justify-between">
       <div class="text-sm text-gray-600">Motie {{ motie.titel }}</div>
       <div class="inline-flex rounded-md shadow-xs" role="group">
         <a href="{{ url_for('moties.index') }}" type="button" class="px-4 py-2 text-sm font-medium text-gray-900 bg-white border border-gray-200 rounded-s-lg hover:bg-gray-100 hover:text-blue-700 focus:z-10 focus:ring-2 focus:ring-blue-700 focus:text-blue-700 dark:bg-gray-800 dark:border-gray-700 dark:text-white dark:hover:text-white dark:hover:bg-gray-700 dark:focus:ring-blue-500 dark:focus:text-white">
           Terug naar overzicht
         </a>
         <a href="{{ url_for('moties.bewerken', motie_id=motie.id) }}" type="button" class="px-4 py-2 text-sm font-medium text-gray-900 bg-white border-t border-b border-gray-200 hover:bg-gray-100 hover:text-blue-700 focus:z-10 focus:ring-2 focus:ring-blue-700 focus:text-blue-700 dark:bg-gray-800 dark:border-gray-700 dark:text-white dark:hover:text-white dark:hover:bg-gray-700 dark:focus:ring-blue-500 dark:focus:text-white">
-          Bewerk motie
+          <i class="fa fa-edit"></i> Bewerk
+        </a>
+        <a href="{{ url_for('moties.export_motie_docx', motie_id=motie.id) }}" type="button" class="px-4 py-2 text-sm font-medium text-gray-900 bg-white border-t border-b border-l border-gray-200 hover:bg-gray-100 hover:text-blue-700 focus:z-10 focus:ring-2 focus:ring-blue-700 focus:text-blue-700 dark:bg-gray-800 dark:border-gray-700 dark:text-white dark:hover:text-white dark:hover:bg-gray-700 dark:focus:ring-blue-500 dark:focus:text-white">
+          <i class="fa fa-download"></i> Exporteer
         </a>
         <a href="{{ url_for('moties.verwijderen', motie_id=motie.id) }}" type="button" class="px-4 py-2 text-sm font-medium text-white bg-red-500 border border-gray-200 rounded-e-lg hover:bg-red-900 hover:text-white-700 focus:z-10 focus:ring-2 focus:ring-blue-700 focus:text-blue-700 dark:bg-gray-800 dark:border-gray-700 dark:text-white dark:hover:text-white dark:hover:bg-gray-700 dark:focus:ring-blue-500 dark:focus:text-white">
-          Verwijder motie
+          <i class="fa fa-trash"></i> Verwijder
         </a>
       </div>
     </div>

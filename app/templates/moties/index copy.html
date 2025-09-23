@@ -1,0 +1,156 @@
+{% extends 'base.html' %}
+{% block content %}
+{% with messages = get_flashed_messages() %}
+  {% if messages %}
+    {% for message in messages %}
+    <div id="alert-additional-content-3" class="p-4 mb-4 text-green-800 border border-green-300 rounded-lg bg-green-50 dark:bg-gray-800 dark:text-green-400 dark:border-green-800" role="alert">
+  <div class="flex items-center">
+    <svg class="shrink-0 w-4 h-4 me-2" aria-hidden="true" xmlns="http://www.w3.org/2000/svg" fill="currentColor" viewBox="0 0 20 20">
+      <path d="M10 .5a9.5 9.5 0 1 0 9.5 9.5A9.51 9.51 0 0 0 10 .5ZM9.5 4a1.5 1.5 0 1 1 0 3 1.5 1.5 0 0 1 0-3ZM12 15H8a1 1 0 0 1 0-2h1v-3H8a1 1 0 0 1 0-2h2a1 1 0 0 1 1 1v4h1a1 1 0 0 1 0 2Z"/>
+    </svg>
+    <span class="sr-only">Melding</span>
+    <h3 class="text-lg font-medium">Gelukt!</h3>
+  </div>
+  <div class="mt-2 mb-4 text-sm">
+    {{ message }}
+  </div>
+</div>
+    {% endfor %}
+    </ul>
+  {% endif %}
+{% endwith %}
+<div class="sticky top-0 z-10 bg-white/80 backdrop-blur border-b print:hidden mb-6">
+    <div class="mx-auto max-w-7xl px-4 py-2 flex items-center justify-between">
+        <h1 class="text-2xl font-semibold mb-4">{{ title }}</h1>
+      <div class="inline-flex rounded-md shadow-xs" role="group">
+        <a href="{{ url_for('dashboard.home') }}" type="button" class="px-4 py-2 text-sm font-medium text-gray-900 bg-white border border-gray-200 rounded-s-lg hover:bg-gray-100 hover:text-blue-700 focus:z-10 focus:ring-2 focus:ring-blue-700 focus:text-blue-700 dark:bg-gray-800 dark:border-gray-700 dark:text-white dark:hover:text-white dark:hover:bg-gray-700 dark:focus:ring-blue-500 dark:focus:text-white">
+          Terug naar dashboard
+        </a>
+        <a href="{{ url_for('moties.toevoegen') }}" type="button" class="px-4 py-2 text-sm font-medium text-gray-900 bg-white border-t border-b border-gray-200 hover:bg-gray-100 hover:text-blue-700 focus:z-10 focus:ring-2 focus:ring-blue-700 focus:text-blue-700 dark:bg-gray-800 dark:border-gray-700 dark:text-white dark:hover:text-white dark:hover:bg-gray-700 dark:focus:ring-blue-500 dark:focus:text-white">
+          Nieuwe motie
+        </a>
+        <a href="{{ url_for('moties.toevoegen') }}" type="button" class="px-4 py-2 text-sm font-medium text-white bg-green-500 border border-gray-200 rounded-e-lg hover:bg-green-900 hover:text-white-700 focus:z-10 focus:ring-2 focus:ring-blue-700 focus:text-blue-700 dark:bg-gray-800 dark:border-gray-700 dark:text-white dark:hover:text-white dark:hover:bg-gray-700 dark:focus:ring-blue-500 dark:focus:text-white">
+          Nieuwe motie vreemd
+        </a>
+      </div>
+    </div>
+  </div>
+<form method="get" class="filters">
+  <table class="w-full border border-gray-200 rounded-lg shadow-md">
+    <tr>
+      <td class="px-5 pt-2"><h3>Filter..</h3></td>
+    </tr>
+    <tr>
+      <td class="px-5">
+        <input class="bg-white w-full h-10 pr-2 pl-4 py-2 bg-transparent placeholder:text-slate-400 text-slate-700 text-sm border border-slate-200 rounded transition duration-300 ease focus:outline-none focus:border-slate-400 hover:border-slate-400 shadow-sm focus:shadow-md" type="search" name="q" placeholder="Zoeken..." value="{{ q or '' }}">
+      </td>
+      <td class="px-5 py-4">
+        <select name="status" class="w-full bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block p-2.5 dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white dark:focus:ring-blue-500 dark:focus:border-blue-500">
+          <option value="">Alle statussen</option>
+          {% for s in ['Concept','GereedAdvies','GereedPublicatie'] %}
+            <option value="{{ s }}" {{ 'selected' if status==s else '' }}>{{ s }}</option>
+          {% endfor %}
+        </select>
+      </td>
+      <td lass="px-5 py-4">
+        <input type="date" name="date_from" value="{{ date_from or '' }}" class="w-full bg-white pr-2 h-10 pl-4 py-2 bg-transparent placeholder:text-slate-400 text-slate-700 text-sm border border-slate-200 rounded transition duration-300 ease focus:outline-none focus:border-slate-400 hover:border-slate-400 shadow-sm focus:shadow-md">
+      </td>
+      <td class="px-5 py-4">
+        <input type="date" name="date_to" value="{{ date_to or '' }}" class="w-full bg-white pr-2 h-10 pl-4 py-2 bg-transparent placeholder:text-slate-400 text-slate-700 text-sm border border-slate-200 rounded transition duration-300 ease focus:outline-none focus:border-slate-400 hover:border-slate-400 shadow-sm focus:shadow-md">
+      </td>
+      <td class="px-5 py-4">  
+        <button type="submit" class="inline-flex items-center px-4 py-2 rounded-md bg-gray-900 text-white hover:bg-black">Filter</button>
+      </td>
+
+  {# Zorg dat sort/direction bewaard blijven bij filteren #}
+      <input type="hidden" name="sort" value="{{ sort }}">
+      <input type="hidden" name="dir" value="{{ direction }}">
+    </tr>
+  </table>
+</form>
+<form method="post" action="{{ url_for('moties.export_bulk_zip') }}">
+<table class="w-full text-sm text-left rtl:text-right text-gray-500 dark:text-gray-400">
+  <thead class="text-xs text-gray-700 uppercase bg-gray-50 dark:bg-gray-700 dark:text-gray-400">
+    <tr>
+      <th scope="col" class="px-2 py-3"><input type="checkbox" id="checkall"></th>
+      <th scope="col" class="px-6 py-3">
+        {# Sorteer-link titel #}
+        {% set new_dir = 'asc' if (sort!='title' or direction=='desc') else 'desc' %}
+        <a href="{{ url_for('moties.index',
+                            q=q, status=status,
+                            date_from=date_from, date_to=date_to,
+                            page=1, per_page=per_page,
+                            sort='title', dir=new_dir) }}">
+          Titel
+          {% if sort=='title' %}{{ '▲' if direction=='asc' else '▼' }}{% endif %}
+        </a>
+      </th>
+      <th scope="col" class="px-6 py-3">
+        {# Sorteer-link datum #}
+        {% set new_dir = 'asc' if (sort!='date' or direction=='desc') else 'desc' %}
+        <a href="{{ url_for('moties.index',
+                            q=q, status=status,
+                            date_from=date_from, date_to=date_to,
+                            page=1, per_page=per_page,
+                            sort='date', dir=new_dir) }}">
+          Datum
+          {% if sort=='date' %}{{ '▲' if direction=='asc' else '▼' }}{% endif %}
+        </a>
+      </th >
+      <th scope="col" class="px-6 py-3">Partij</th>
+      <th scope="col" class="px-6 py-3">Status</th>
+    </tr>
+  </thead>
+  <tbody>
+    {% for m in items %}
+      <tr class="bg-white border-b dark:bg-gray-800 dark:border-gray-700 border-gray-200 hover:bg-gray-50 dark:hover:bg-gray-600">
+        <td scope="row" class="px-2 py-4"><input type="checkbox" name="motie_ids" value="{{ m.id }}"></td>
+        <td scope="row" class="px-6 py-4 px-6 py-4 font-medium text-blue-600 dark:text-blue-500 hover:underline whitespace-nowrap"><a href="{{ url_for('moties.bekijken', motie_id=m.id) }}">{{ m.titel }}</a></td>
+        <td lass="px-6 py-4">{{ m.created_at.strftime('%d-%m-%Y') if m.created_at else '' }}</td>
+        <td lass="px-6 py-4">{{ m.party.name if m.party else '-' }}</td>
+        <td lass="px-6 py-4">{{ m.status or '-' }}</td>
+      </tr>
+    {% endfor %}
+    {% if not items %}
+      <tr><td colspan="4">Geen resultaten.</td></tr>
+    {% endif %}
+  </tbody>
+</table>
+    <button type="submit" class="px-4 py-2 rounded-lg bg-black text-white">
+      Exporteer geselecteerd (ZIP)
+    </button>
+</form>
+
+{# Paginering #}
+{% set last_page = (total // per_page) + (1 if total % per_page else 0) %}
+<nav class="pagination">
+  {% if page > 1 %}
+    <a href="{{ url_for('moties.index',
+                        q=q, status=status,
+                        date_from=date_from, date_to=date_to,
+                        sort=sort, dir=direction,
+                        page=page-1, per_page=per_page) }}">&laquo; Vorige</a>
+  {% endif %}
+  <span>Pagina {{ page }} van {{ last_page }}</span>
+  {% if page < last_page %}
+    <a href="{{ url_for('moties.index',
+                        q=q, status=status,
+                        date_from=date_from, date_to=date_to,
+                        sort=sort, dir=direction,
+                        page=page+1, per_page=per_page) }}">Volgende &raquo;</a>
+  {% endif %}
+</nav>
+
+<script>
+  // check/uncheck all
+  const all = document.getElementById('checkall');
+  if (all) {
+    all.addEventListener('change', () => {
+      for (const cb of document.querySelectorAll('input[name="motie_ids"]')) {
+        cb.checked = all.checked;
+      }
+    });
+  }
+</script>
+
+  {% endblock %}

@@ -1,10 +1,15 @@
-from flask import Flask, render_template, flash, redirect, url_for, request, abort
-from app.moties import bp
+from flask import Flask, render_template, flash, redirect, url_for, send_file, request, abort, make_response, jsonify
 from app.moties.forms import MotieForm
 from sqlalchemy import or_, asc, desc
 from app.models import Motie, Amendementen
 from app import db
 import json
+from sqlalchemy.orm import Session
+from app.moties import bp
+from app.exporters.motie_docx import render_motie_to_docx_bytes
+from io import BytesIO
+from zipfile import ZipFile, ZIP_DEFLATED
+from datetime import datetime
 
 def as_list(value):
     """Converteer DB-waarde naar list zonder te crashen."""
@@ -174,3 +179,94 @@ def verwijderen(motie_id):
     db.session.commit()
     flash('Is verwijderd.', 'success')
     return redirect(url_for('moties.index'))
+
+@bp.route("/<int:motie_id>/export/docx")
+def export_motie_docx(motie_id: int):
+    motie = db.session.get(Motie, motie_id)
+    if not motie:
+        abort(404, "Motie niet gevonden")
+
+    # Optioneel kun je datum/vergadering meegeven vanuit querystring of motie
+    file_bytes, filename = render_motie_to_docx_bytes(motie)
+
+    resp = make_response(file_bytes)
+    resp.headers.set(
+        "Content-Type",
+        "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+    )
+    # Zorgt voor directe download + bestandsnaam "Motie <titel>.docx"
+    resp.headers.set("Content-Disposition", f'attachment; filename="{filename}"')
+    return resp
+
+def _unique_name(name: str, existing: set[str]) -> str:
+    """Zorgt dat bestandsnamen uniek zijn binnen de zip."""
+    if name not in existing:
+        existing.add(name)
+        return name
+    base, ext = (name.rsplit(".", 1) + [""])[:2]
+    ext = f".{ext}" if ext else ""
+    i = 2
+    while f"{base} ({i}){ext}" in existing:
+        i += 1
+    unique = f"{base} ({i}){ext}"
+    existing.add(unique)
+    return unique
+
+@bp.route("/export/bulk", methods=["POST"])
+def export_bulk_zip():
+    """
+    Accepteert:
+      - POST form: motie_ids=<id>&motie_ids=<id>...
+      - of JSON: {"ids": [1,2,3]}
+    Geeft een ZIP met 'Motie <titel>.docx' per motie terug.
+    """
+    ids = []
+    if request.is_json:
+        payload = request.get_json(silent=True) or {}
+        ids = payload.get("ids", [])
+    else:
+        # checkboxes met name="motie_ids"
+        ids = request.form.getlist("motie_ids")
+
+    # normaliseer ids -> ints
+    try:
+        ids = [int(x) for x in ids]
+    except Exception:
+        abort(400, "Ongeldige motie-ids")
+
+    if not ids:
+        abort(400, "Geen moties geselecteerd")
+
+    # (optioneel) limiet om geheugen te sparen
+    if len(ids) > 200:
+        abort(400, "Selecteer maximaal 200 moties per export")
+
+    moties = (
+        db.session.query(Motie)
+        .filter(Motie.id.in_(ids))
+        .order_by(Motie.id.asc())
+        .all()
+    )
+    if not moties:
+        abort(404, "Geen moties gevonden")
+
+    zip_buf = BytesIO()
+    name_set: set[str] = set()
+
+    with ZipFile(zip_buf, "w", ZIP_DEFLATED) as zf:
+        for m in moties:
+            doc_bytes, filename = render_motie_to_docx_bytes(m)
+            filename = _unique_name(filename, name_set)
+            zf.writestr(filename, doc_bytes)
+
+    zip_buf.seek(0)
+    stamp = datetime.now().strftime("%Y%m%d_%H%M")
+    zip_name = f"Moties_{stamp}.zip"
+
+    return send_file(
+        zip_buf,
+        mimetype="application/zip",
+        as_attachment=True,
+        download_name=zip_name,
+        max_age=0,
+    )

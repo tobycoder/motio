@@ -51,39 +51,7 @@
     </div>
 </div>
       <div class="relative">
-    <!-- Sidebar -->
-    <aside id="sidebar" class="fixed inset-y-0 pt-20 left-0 w-64 bg-white border-r shadow z-30 transform -translate-x-full lg:translate-x-0 transition-transform duration-200 overflow-y-auto scroll-thin">
-      <div class="p-4">
-        <p class="px-3 text-xs uppercase tracking-wide text-gray-500">Algemeen</p>
-        <nav class="mt-2 space-y-1">
-          <a href="{{ url_for('dashboard.home') }}" class="flex items-center gap-3 px-3 py-2 rounded hover:bg-gray-50" href="#">
-            <i class="fa-solid fa-gauge w-5 text-center"></i><span>Overzicht</span>
-          </a>
-          <a href="{{ url_for('partijen.index') }}" class="flex items-center gap-3 px-3 py-2 rounded hover:bg-gray-50" href="#">
-            <i class="fa-solid fa-user"></i><span>Partijen</span>
-          </a>
-          <a href="{{ url_for('moties.index') }}" class="flex items-center gap-3 px-3 py-2 rounded hover:bg-gray-50" href="#">
-            <i class="fa-solid fa-scroll w-5 text-center"></i><span>Moties</span>
-          </a>
-          <a href="{{ url_for('amendementen.index')  }}" class="inactive flex items-center gap-3 px-3 py-2 rounded hover:bg-gray-50" href="#">
-            <i class="fa-solid fa-pen-nib w-5 text-center"></i><span>Amendementen</span>
-          </a>
-        </nav>
-
-        <p class="px-3 mt-6 text-xs uppercase tracking-wide text-gray-500">Beheer</p>
-        <nav class="mt-2 space-y-1">
-          <a class="flex items-center gap-3 px-3 py-2 rounded hover:bg-gray-50" href="#">
-            <i class="fa-solid fa-users w-5 text-center"></i><span>Fracties & raadsleden</span>
-          </a>
-
-          <a class="flex items-center gap-3 px-3 py-2 rounded hover:bg-gray-50" href="#">
-            <i class="fa-solid fa-gear w-5 text-center"></i><span>Instellingen</span>
-          </a>
-        </nav>
-      </div>
-    </aside>
-
-<div class="container mt-20 pl-64">
+<div class="container mt-20">
 
         {% block content %}{% endblock %} 
     </div>
