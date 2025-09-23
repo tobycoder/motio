@@ -1,26 +1,50 @@
 {% extends "base.html" %}
 {% block content %}
-<div class="sticky top-0 z-10 bg-white/80 backdrop-blur border-b print:hidden mb-6">
+<div class="max-w-7xl mx-auto ">
+<div class="sticky top-0 z-10 max-w-7xl mx-auto bg-white/80 backdrop-blur border-b print:hidden mb-6">
     <div class="mx-auto max-w-7xl px-4 py-2 flex items-center justify-between">
         <h1 class="text-2xl font-semibold mb-4">{{ title }}</h1>
       <div class="inline-flex rounded-md shadow-xs" role="group">
         <a href="{{ url_for('partijen.index') }}" type="button" class="px-4 py-2 text-sm font-medium text-gray-900 bg-white border border-gray-200 rounded-s-lg hover:bg-gray-100 hover:text-blue-700 focus:z-10 focus:ring-2 focus:ring-blue-700 focus:text-blue-700 dark:bg-gray-800 dark:border-gray-700 dark:text-white dark:hover:text-white dark:hover:bg-gray-700 dark:focus:ring-blue-500 dark:focus:text-white">
           Terug naar overzicht
         </a>
-        <a href="{{ url_for('partijen.index') }}" type="button" class="px-4 py-2 text-sm font-medium text-gray-900 bg-white border-t border-b border-gray-200 hover:bg-gray-100 hover:text-blue-700 focus:z-10 focus:ring-2 focus:ring-blue-700 focus:text-blue-700 dark:bg-gray-800 dark:border-gray-700 dark:text-white dark:hover:text-white dark:hover:bg-gray-700 dark:focus:ring-blue-500 dark:focus:text-white">
-          Partij verwijderen
+        <a href="{{ url_for('partijen.index') }}" type="button" class="px-4 py-2 text-sm font-medium text-white bg-blue-500 border-t border-b border-gray-200 hover:bg-blue-900 hover:text-white focus:z-10 focus:ring-2 focus:ring-blue-700 focus:text-blue-700 dark:bg-gray-800 dark:border-gray-700 dark:text-white dark:hover:text-white dark:hover:bg-gray-700 dark:focus:ring-blue-500 dark:focus:text-white">
+          <i class="fa fa-edit"></i> Bewerken
         </a>
-        <a href="{{ url_for('partijen.index') }}" type="button" class="px-4 py-2 text-sm font-medium text-white bg-green-500 border border-gray-200 rounded-e-lg hover:bg-green-900 hover:text-white-700 focus:z-10 focus:ring-2 focus:ring-blue-700 focus:text-blue-700 dark:bg-gray-800 dark:border-gray-700 dark:text-white dark:hover:text-white dark:hover:bg-gray-700 dark:focus:ring-blue-500 dark:focus:text-white">
-          Partij bewerken
+        <a href="{{ url_for('partijen.verwijderen', partij_id=partij.id) }}" type="button" class="px-4 py-2 text-sm font-medium text-white bg-red-500 border border-gray-200 rounded-e-lg hover:bg-red-900 hover:text-white-700 focus:z-10 focus:ring-2 focus:ring-blue-700 focus:text-blue-700 dark:bg-gray-800 dark:border-gray-700 dark:text-white dark:hover:text-white dark:hover:bg-gray-700 dark:focus:ring-blue-500 dark:focus:text-white">
+          <i class="fa fa-trash"></i> Verwijderen
         </a>
       </div>
     </div>
   </div>
-<h1 class="text-2xl font-semibold mb-4">{{ partij.naam }} ({{ partij.afkorting }})</h1>
-<p>Status: {{ "Actief" if partij.actief else "Inactief" }}</p>
-{% if partij.logo_src %}
-  <img src="{{ partij.logo_src }}" alt="Logo van {{ partij.naam }}" class="h-24 mt-4">
-{% else %}
-  <p class="text-gray-500 mt-4">Geen logo beschikbaar</p>
-{% endif %}
+<div class="p-4 border border-gray-200 rounded-lg grid grid-cols-2 md:grid-cols-2 gap-4">
+  <div>
+    <h1 class="text-2xl font-semibold mb-4">{{ partij.naam }} ({{ partij.afkorting }})</h1>
+    <p>Status: {{ "Actief" if partij.actief else "Inactief" }}</p>
+    {% if partij.logo_src %}
+      <img src="{{ partij.logo_src }}" alt="Logo van {{ partij.naam }}" class="h-24 mt-4">
+    {% else %}
+      <p class="text-gray-500 mt-4">Geen logo beschikbaar</p>
+    {% endif %}
+  </div>
+  <div>
+    <h2 class="text-xl font-semibold mb-4">Gebruikers gekoppeld aan {{ partij.naam }}</h2>
+    <div class="space-y-2">
+      {% if list_gebruikers %}
+        {% for gebruiker in list_gebruikers %}
+          <div class="p-2 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors duration-200">
+            {% if gebruiker.profile_filename %}
+            <img src="{{ url_for('static', filename='img/users/' ~ (gebruiker.profile_filename)) }}" alt="Profielfoto van {{ gebruiker.naam }}" class="h-10 w-10 rounded-full inline-block mr-2">
+            {% else %}
+            <img src="{{ gebruiker.profile_url }}" alt="Profielfoto van {{ gebruiker.naam }}" class="h-10 w-10 rounded-full inline-block mr-2">
+            {% endif %}
+            <a href="{{ url_for('dashboard.home') }}" class="text-blue-600 hover:underline">{{ gebruiker.naam }} ({{ gebruiker.email }})</a>
+          </div>
+        {% endfor %}
+      {% else %}
+        <p class="text-gray-500">Er zijn geen gebruikers gekoppeld aan deze partij.</p>
+      {% endif %}
+    </div>
+  </div>
+</div>
 {% endblock %}

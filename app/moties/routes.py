@@ -1,7 +1,7 @@
 from flask import Flask, render_template, flash, redirect, url_for, send_file, request, abort, make_response, jsonify
 from app.moties.forms import MotieForm
 from sqlalchemy import or_, asc, desc
-from app.models import Motie, Amendementen
+from app.models import Motie, Amendementen, User, motie_medeindieners
 from app import db
 import json
 from sqlalchemy.orm import Session
@@ -10,6 +10,7 @@ from app.exporters.motie_docx import render_motie_to_docx_bytes
 from io import BytesIO
 from zipfile import ZipFile, ZIP_DEFLATED
 from datetime import datetime
+from flask_login import current_user, login_required    
 
 def as_list(value):
     """Converteer DB-waarde naar list zonder te crashen."""
@@ -110,7 +111,7 @@ def toevoegen():
         draagt_json = request.form.get('draagt_json') or "[]"
         opdracht_formulering = request.form.get('opdracht_formulering')
         status = request.form.get('status')
-        # Verwerk het formulier hier
+
         motie = Motie(
             gemeenteraad_datum=gemeenteraad_datum,
             agendapunt=agendapunt,
@@ -121,18 +122,34 @@ def toevoegen():
             opdracht_formulering=opdracht_formulering,
             status=status
         )
-        # Sla de motie op in de database
+
+        # (optioneel) primaire indiener vastleggen:
+        motie.indiener_id = current_user.id
+
+        # >>> NIEUW: mede-indieners uit multi-select
+        raw_ids = request.form.getlist('mede_indieners')  # ['3','12',...]
+        mede_ids = {int(x) for x in raw_ids if x.strip().isdigit()}
+        if mede_ids:
+            # (optioneel) voorkom dubbele opname van primaire indiener:
+            if motie.indiener_id: mede_ids.discard(motie.indiener_id)
+            users = User.query.filter(User.id.in_(mede_ids)).all()
+            for u in users:
+                motie.mede_indieners.append(u)
+
         db.session.add(motie)
         db.session.commit()
         flash('Great! Your motion has been created.', 'success')
         return redirect(url_for('moties.bekijken', motie_id=motie.id))
-    
-    return render_template('moties/toevoegen.html', title="moties")
+
+    # GET: lijst gebruikers meesturen voor de select
+    alle_users = User.query.order_by(User.naam.asc()).all()
+    return render_template('moties/toevoegen.html', title="moties", alle_users=alle_users)
 
 @bp.route('/<int:motie_id>/bekijken', methods=['GET', 'POST'])
 def bekijken(motie_id):
     motie = Motie.query.get_or_404(motie_id)
-    return render_template('moties/bekijken.html', motie=motie, title="Bekijk Motie")
+    medeindieners = motie.mede_indieners.order_by(User.naam.asc()).all()
+    return render_template('moties/bekijken.html', motie=motie, title="Bekijk Motie", mede_indieners=medeindieners)
 
 @bp.route('/<int:motie_id>/bewerken')
 def bewerken(motie_id):

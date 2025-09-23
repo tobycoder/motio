@@ -1,22 +1,23 @@
 {% extends "base.html" %}
 {% block content %}
-  <div class="sticky top-0 z-10 bg-white/80 backdrop-blur border-b print:hidden mb-6">
+  <div class="sticky top-0 z-10 bg-white/80 max-w-7xl mx-auto backdrop-blur border-b print:hidden mb-6">
     <div class="mx-auto max-w-7xl px-4 py-2 flex items-center justify-between">
         <h1 class="text-2xl font-semibold mb-4">{{ title }}</h1>
       <div class="inline-flex rounded-md shadow-xs" role="group">
         <a href="{{ url_for('dashboard.home') }}" type="button" class="px-4 py-2 text-sm font-medium text-gray-900 bg-white border border-gray-200 rounded-s-lg hover:bg-gray-100 hover:text-blue-700 focus:z-10 focus:ring-2 focus:ring-blue-700 focus:text-blue-700 dark:bg-gray-800 dark:border-gray-700 dark:text-white dark:hover:text-white dark:hover:bg-gray-700 dark:focus:ring-blue-500 dark:focus:text-white">
           Terug naar overzicht
         </a>
-        <a href="{{ url_for('partijen.toevoegen') }}" type="button" class="px-4 py-2 text-sm font-medium text-white bg-red-500 border border-gray-200 rounded-e-lg hover:bg-red-900 hover:text-white-700 focus:z-10 focus:ring-2 focus:ring-blue-700 focus:text-blue-700 dark:bg-gray-800 dark:border-gray-700 dark:text-white dark:hover:text-white dark:hover:bg-gray-700 dark:focus:ring-blue-500 dark:focus:text-white">
+        <a href="{{ url_for('partijen.toevoegen') }}" type="button" class="px-4 py-2 text-sm font-medium text-white bg-blue-500 border border-gray-200 rounded-e-lg hover:bg-blue-900 hover:text-white-700 focus:z-10 focus:ring-2 focus:ring-blue-700 focus:text-blue-700 dark:bg-gray-800 dark:border-gray-700 dark:text-white dark:hover:text-white dark:hover:bg-gray-700 dark:focus:ring-blue-500 dark:focus:text-white">
           Nieuwe partij
         </a>
       </div>
     </div>
   </div>
-<div class="grid grid-cols-2 md:grid-cols-3 gap-4">
+<div class="max-w-7xl mx-auto grid grid-cols-2 md:grid-cols-6 gap-4">
     {% for partij in partijen %}
-    <div>
+    <div class="border border-gray-200 rounded-lg p-4 flex flex-col items-center hover:shadow-lg transition-shadow duration-300">
         <a href="{{ url_for('partijen.bekijken', partij_id=partij.id) }}"><img class="h-auto max-w-full rounded-lg" src="{{ partij.logo_src }}" alt="Logo {{ partij.naam }}"></a>
+        <h4 class="text-left mt-4 font-semibold">{{ partij.naam }}</h4>
     </div>
     {% endfor %}
 </div>

@@ -3,22 +3,38 @@ from flask_login import UserMixin
 from werkzeug.security import generate_password_hash, check_password_hash
 from datetime import datetime
 import json
+from flask import url_for
 from sqlalchemy.types import TypeDecorator, Text
+
 # Many-to-many table for motion-party relationships
-motie_partijen = db.Table('motie_partijen',
-    db.Column('motie_id', db.Integer, db.ForeignKey('motie.id'), primary_key=True),
-    db.Column('partij_id', db.Integer, db.ForeignKey('party.id'), primary_key=True)
+motie_medeindieners = db.Table(
+    "motie_medeindieners",
+    db.Column("motie_id", db.Integer, db.ForeignKey("motie.id", ondelete="CASCADE"), primary_key=True),
+    db.Column("user_id", db.Integer, db.ForeignKey("user.id", ondelete="CASCADE"), primary_key=True),
+    db.UniqueConstraint("motie_id", "user_id", name="uq_motie_user")
 )
 
 class User(UserMixin, db.Model):
     id = db.Column(db.Integer, primary_key=True)
-    username = db.Column(db.String(80), unique=True, nullable=False)
     email = db.Column(db.String(120), unique=True, nullable=False)
     password_hash = db.Column(db.String(120), nullable=False)
     naam = db.Column(db.String(100), nullable=False)
     partij_id = db.Column(db.Integer, db.ForeignKey('party.id'), nullable=True)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
-    
+    role = db.Column(db.String(120), default="gebruiker")
+    profile_url = db.Column(db.String(512), nullable=True)
+    profile_filename = db.Column(db.String(255), nullable=True, default='placeholder_profile.png')
+
+    @property
+    def profile_src(self):
+        """Geeft een bruikbare <img src> terug (lokaal of extern)."""
+        if self.profile_url:
+            return self.profile_url
+        if self.profile_filename:
+            from flask import url_for
+            return url_for('static', filename=f'img/users/{self.profile_filename}', _external=False)
+        return None
+
     # Relationships
     partij = db.relationship('Party', backref='leden')
     moties = db.relationship('Motie', backref='indiener', lazy=True)
@@ -30,7 +46,7 @@ class User(UserMixin, db.Model):
         return check_password_hash(self.password_hash, password)
     
     def __repr__(self):
-        return f'<User {self.username}>'
+        return f'<User {self.email}>'
 
 class Party(db.Model):
     id = db.Column(db.Integer, primary_key=True)
@@ -56,9 +72,6 @@ class Party(db.Model):
     def __repr__(self):
         return f'<Partij {self.naam}>'
 
-
-
-
 class JSONEncodedList(TypeDecorator):
     impl = Text
     cache_ok = True
@@ -82,11 +95,24 @@ class Motie(db.Model):
     agendapunt = db.Column(db.String(40), default='Agendapunt')
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
-    created_by = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False, default=1)
+    indiener_id = db.Column(db.Integer, db.ForeignKey("user.id"), nullable=True)
     
     # Many-to-many relationship with parties
-    partijen = db.relationship('Party', secondary=motie_partijen, lazy='subquery', backref=db.backref('moties', lazy=True))
-    
+    mede_indieners = db.relationship(
+        "User",
+        secondary=motie_medeindieners,
+        lazy="selectin",                     # handig om te filteren/query’en
+        backref=db.backref("mede_moties", lazy="dynamic")
+    )
+
+    def add_mede_indiener(self, user):
+        if not self.mede_indieners.filter_by(id=user.id).first():
+            self.mede_indieners.append(user)
+
+    def remove_mede_indiener(self, user):
+        if self.mede_indieners.filter_by(id=user.id).first():
+            self.mede_indieners.remove(user)
+                
     def __repr__(self):
         return f'<Motie {self.titel}>'
     
@@ -102,7 +128,7 @@ class Amendementen(db.Model):
     agendapunt = db.Column(db.String(40), default='Agendapunt')
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
-    created_by = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False, default=1)
+    indiener_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False, default=1)
     
     # Many-to-many relationship with parties
     #partijen = db.relationship('Party', secondary=motie_partijen, lazy='subquery', backref=db.backref('moties', lazy=True))

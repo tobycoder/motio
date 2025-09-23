@@ -1,9 +1,10 @@
-from flask import Flask, render_template
+from flask import Flask, render_template, request
 from flask_login import login_required, current_user
 from app.dashboard import bp
-from app.models import Motie, Amendementen
+from app.models import Motie, Amendementen, User
 from app import db
-from sqlalchemy import func    
+from sqlalchemy import func, or_
+from sqlalchemy.orm import selectinload    
 
 
 @bp.route('/')
@@ -17,4 +18,26 @@ def home():
         latest = max(a_max, m_max)
     else:
         latest = a_max or m_max  # één van beide of None
-    return render_template('dashboard/index.html', title="Dashboard", latest=latest)
+
+    q = (
+        Motie.query
+        .options(
+            selectinload(Motie.mede_indieners),   # eager load om N+1 te voorkomen
+            selectinload(Motie.indiener),         # als je de primaire indiener toont
+        )
+        .filter(
+            or_(
+                Motie.indiener_id == current_user.id,
+                Motie.mede_indieners.any(User.id == current_user.id),
+            )
+        )
+        .order_by(Motie.created_at.desc())
+    )
+
+    # (optioneel) pagineren
+    page = int(request.args.get("page", 1))
+    per_page = int(request.args.get("per_page", 20))
+    items = q.offset((page-1)*per_page).limit(per_page).all()
+    total = q.count()
+
+    return render_template('dashboard/index.html', title="Dashboard", latest=latest, total=total, per_page=per_page, page=page, items=items)

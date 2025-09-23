@@ -71,6 +71,15 @@
           <option value="GereedPublicatie">Gereed voor publicatie</option>
         </select>
       </div>
+
+      <div>
+        <label class="block text-sm font-medium text-gray-700">Mede-indieners</label>
+        <select name="mede_indieners" multiple id="mede_indieners" class="w-full bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-2.5 dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white dark:focus:ring-blue-500 dark:focus:border-blue-500">
+          {% for u in alle_users %}
+            <option value="{{ u.id }}">{{ u.naam }} (Partij hier)</option>
+          {% endfor %}
+        </select>
+      </div>
       
 
       <!-- Acties -->
@@ -183,6 +192,18 @@
       });
     });
   </script>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/tom-select/dist/css/tom-select.css">
+<script src="https://cdn.jsdelivr.net/npm/tom-select/dist/js/tom-select.complete.min.js"></script>
+<script>
+  document.addEventListener('DOMContentLoaded', function () {
+    new TomSelect('#mede-indieners', {
+      plugins: ['remove_button'],
+      maxOptions: 1000,
+      persist: false,
+      placeholder: 'Zoek en selecteer mede-indieners'
+    });
+  });
+</script>
 </body>
 </html>
 

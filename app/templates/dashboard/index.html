@@ -17,7 +17,7 @@
 
     <!-- Main -->
     <main id="main" class="">
-      <section class="max-w-10xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
+      <section class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
         <!-- Breadcrumbs -->
         <nav class="text-sm text-gray-500">
           <ol class="flex items-center gap-2">
@@ -139,7 +139,28 @@
           <div class="lg:col-span-2">
             <div class="bg-white rounded-xl shadow-card">
               <div class="flex items-center justify-between p-4 border-b">
-                <h3 class="font-semibold">Overzicht moties</h3>
-                <button class="p-2 roun
-
+                <h1 class="text-2xl font-semibold mb-4">Mijn moties</h1>
+                    {% if items %}
+                      <ul class="space-y-3">
+                        {% for m in items %}
+                          <li class="p-3 border rounded">
+                            <a class="font-medium text-blue-600 hover:underline" href="{{ url_for('moties.bekijken', motie_id=m.id) }}">{{ m.titel }}</a>
+                            <div class="text-sm text-gray-600">
+                              Indiener: {{ m.indiener.naam if m.indiener else '-' }}
+                              {% set meds = m.mede_indieners %}
+                              {% if meds %}
+                                • Mede-indieners: {{ meds | map(attribute='naam') | join(', ') }}
+                              {% endif %}
+                              • {{ m.created_at.strftime('%d-%m-%Y') if m.created_at else '' }}
+                            </div>
+                          </li>
+                        {% endfor %}
+                      </ul>
+                    {% else %}
+                      <p>Je hebt nog geen moties als indiener of mede-indiener.</p>
+                    {% endif %}
+              </div>
+            </div>
+          </div>
+          <div>    
 {% endblock %}

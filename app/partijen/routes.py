@@ -6,6 +6,7 @@ from app import db
 from werkzeug.utils import secure_filename
 import uuid, os
 from sqlalchemy.exc import IntegrityError
+from app.models import User
 
 ALLOWED_LOGO_EXTENSIONS = {"png", "jpg", "jpeg", "webp", "svg"}
 
@@ -79,4 +80,13 @@ def toevoegen():
 @bp.route('/<int:partij_id>/bekijken')
 def bekijken(partij_id):
     partij = Party.query.get_or_404(partij_id)
-    return render_template('partijen/bekijken.html', partij=partij, title=partij.naam)
+    list_gebruikers = User.query.filter(User.partij_id == partij.id).all()
+    return render_template('partijen/bekijken.html', partij=partij, list_gebruikers=list_gebruikers, title=partij.naam)
+
+@bp.route('/<int:partij_id>/verwijderen', methods=['POST'])
+def verwijderen(partij_id):
+    partij = Party.query.get_or_404(partij_id)
+    db.session.delete(partij)
+    db.session.commit()
+    flash(f"Partij '{partij.naam}' is verwijderd.", "success")
+    return redirect(url_for('partijen.index'))

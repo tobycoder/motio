@@ -5,14 +5,14 @@
     @page { size: A4; margin: 12mm; }
     /* Schermweergave: forceer A4-verhouding en maat */
     .a4 {
-      width: 210mm;              /* A4 breedte */
+      width: 230mm;              /* A4 breedte */
       min-height: 297mm;         /* A4 hoogte */
     }
     /* Voorkom dat lijsten/paragraphs onhandig door pagina's breken */
     .avoid-break { break-inside: avoid; page-break-inside: avoid; }
   </style>
   <div class="sticky top-0 z-10 bg-white/80 backdrop-blur border-b print:hidden">
-    <div class="mx-auto max-w-7xl px-4 py-2 flex items-center justify-between">
+    <div class="mx-auto max-w-10xl px-4 py-2 flex items-center justify-between">
       <div class="text-sm text-gray-600">Motie {{ motie.titel }}</div>
       <div class="inline-flex rounded-md shadow-xs" role="group">
         <a href="{{ url_for('moties.index') }}" type="button" class="px-4 py-2 text-sm font-medium text-gray-900 bg-white border border-gray-200 rounded-s-lg hover:bg-gray-100 hover:text-blue-700 focus:z-10 focus:ring-2 focus:ring-blue-700 focus:text-blue-700 dark:bg-gray-800 dark:border-gray-700 dark:text-white dark:hover:text-white dark:hover:bg-gray-700 dark:focus:ring-blue-500 dark:focus:text-white">
@@ -81,6 +81,20 @@
         <ul class="list-disc pl-6 space-y-1">
           {% for punt in motie.draagt_college_op %}
             <li>{{ punt }}</li>
+          {% else %}
+            <li class="text-gray-500">—</li>
+          {% endfor %}
+        </ul>
+      </section>
+      <section class="mb-6 avoid-break">
+        <p class="text-[11pt]">En gaat over tot de orde van de dag</p>
+      </section>
+      
+      <section class="mb-8 avoid-break">
+        <h2 class="text-base font-semibold mb-1">Ingediend door:</h2>
+        <ul class="list-disc pl-6 space-y-1">
+          {% for x in mede_indieners %}
+            <li>{{ x.naam }} - <img class="h-5 w-auto rounded-lg" src="{{ x.partij.logo_src }}" alt="Logo {{ x.partij.naam }}"></li>
           {% else %}
             <li class="text-gray-500">—</li>
           {% endfor %}

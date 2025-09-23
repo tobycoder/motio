@@ -7,7 +7,14 @@ from .config import Config
 
 # Initialiseer extensions
 db = SQLAlchemy()
-#login_manager = LoginManager()
+login_manager = LoginManager()
+PUBLIC_ENDPOINTS = {
+    "auth.login", "auth.register", "auth.logout",  # wat jij openbaar wilt
+    "main.index",                                  # bijv. homepage
+    "health.ping",                                 # healthcheck
+    "static",                                      # nodig voor /static/*
+}
+
 
 def create_app(config_class=Config):
     app = Flask(__name__)
@@ -16,17 +23,17 @@ def create_app(config_class=Config):
     # Initialiseer extensions met app
     db.init_app(app)
     migrate = Migrate(app, db)
-    #login_manager.init_app(app)
-    #login_manager.login_view = 'app.login'
-    #login_manager.login_message = 'Log in om toegang te krijgen tot deze pagina.'
+    login_manager.init_app(app)
+    login_manager.login_view = 'app.login'
+    login_manager.login_message = 'Log in om toegang te krijgen tot deze pagina.'
     
     # Importeer models
     from .models import User, Party, Motie
     
     # User loader voor Flask-Login
-    #@login_manager.user_loader
-    #def load_user(user_id):
-        #return User.query.get(int(user_id))
+    @login_manager.user_loader
+    def load_user(user_id):
+        return User.query.get(int(user_id))
     
     # Registreer blueprints
     from .moties import bp as moties_bp
@@ -41,9 +48,6 @@ def create_app(config_class=Config):
     from .gebruikers import bp as gebruikers_bp
     app.register_blueprint(gebruikers_bp, url_prefix='/gebruikers')
 
-    from .help import bp as help_bp
-    app.register_blueprint(help_bp, url_prefix='/help')
-
     from .partijen import bp as partijen_bp
     app.register_blueprint(partijen_bp, url_prefix='/partijen')
 
@@ -53,8 +57,8 @@ def create_app(config_class=Config):
     from .dashboard import bp as dashboard_bp
     app.register_blueprint(dashboard_bp)
 
-    from .front import bp as front_bp
-    app.register_blueprint(front_bp, url_prefix='/front')
+    from .settings import bp as settings_bp
+    app.register_blueprint(settings_bp, url_prefix='/instellingen')
     
     return app
 
