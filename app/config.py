@@ -10,9 +10,9 @@ def _normalize_db_url(url: str | None) -> str | None:
         return None
     # Railway/Heroku-style short forms -> add driver explicitly
     if url.startswith("postgres://"):
-        url = url.replace("postgres://", "postgresql+psycopg2://", 1)  # psycopg2
+        url = url.replace("postgres://", "postgresql+psycopg://", 1)  # psycopg2
     elif url.startswith("postgresql://") and "+psycopg" not in url and "+psycopg2" not in url:
-        url = url.replace("postgresql://", "postgresql+psycopg2://", 1)  # or +psycopg if you use psycopg3
+        url = url.replace("postgresql://", "postgresql+psycopg://", 1)  # or +psycopg if you use psycopg3
     return url
 
 
@@ -23,14 +23,10 @@ class Config:
     ALLOWED_LOGO_EXTENSIONS = {"png", "jpg", "jpeg", "webp", "svg"}
 
     # Database
-    _env_url = (os.getenv("DATABASE_URL")
-                or os.getenv("RAILWAY_DATABASE_URL")
-                or os.getenv("POSTGRES_URL")  # fallback, just in case
-                )
 
-    SQLALCHEMY_DATABASE_URI = _normalize_db_url(_env_url) \
-        or f"sqlite:///{BASEDIR / 'motio.db'}"
+    SQLALCHEMY_DATABASE_URI = _normalize_db_url(os.getenv("DATABASE_URL"))
     SQLALCHEMY_TRACK_MODIFICATIONS = False
+    SQLALCHEMY_ENGINE_OPTIONS = {"pool_pre_ping": True}
     SQLALCHEMY_ECHO = False  # Set to True to see SQL queries in development
     
     # Session
