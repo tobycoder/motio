@@ -136,6 +136,7 @@ def register():
 
         user = User(
             email=email_norm,
+            role=form.role.data,
             naam=(form.naam.data or "").strip(),
             partij_id=(form.partijen.data.id if getattr(form, "partijen", None) and form.partijen.data else None)
         )

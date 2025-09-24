@@ -24,6 +24,13 @@ class RegistrationForm(FlaskForm):
                                 allow_blank=True,
                                 blank_text='Geen partij'
                                 )
+    role = SelectField(
+        "Rol",
+        choices=[("gebruiker", "Gebruiker"),
+                 ("griffie", "Griffie"),
+                 ("superadmin", "Superadmin")],
+        validators=[DataRequired()],
+    )
     profile_file = FileField('Profielfoto (optioneel, png/jpg/jpeg/webp/svg)')
     profile_url = StringField('Profielfoto URL (optioneel)')
     def validate_email(self, field):
