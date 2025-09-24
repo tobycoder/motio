@@ -71,29 +71,30 @@ def create_app(config_class=Config):
 
     from .settings import bp as settings_bp
     app.register_blueprint(settings_bp, url_prefix='/instellingen')
-    
+
+    @app.route("/diag/mail")
+    def diag_mail():
+        app.logger.setLevel(logging.INFO)
+        # zet SMTP debug
+        mail.state = getattr(mail, "state", None)
+        try:
+            # raw smtplib debug
+            s = smtplib.SMTP(app.config["MAIL_SERVER"], app.config["MAIL_PORT"], timeout=20)
+            if app.config.get("MAIL_USE_TLS"):
+                s.starttls()
+            s.login(app.config["MAIL_USERNAME"], app.config["MAIL_PASSWORD"])
+            s.quit()
+            # flask-mail test
+            msg = Message("Diag mail", recipients=[app.config.get("MAIL_USERNAME")])
+            msg.body = "Het werkt 🎉"
+            mail.send(msg)
+            return "OK: smtp + flask-mail", 200
+        except Exception as e:
+            app.logger.exception("SMTP/Flask-Mail faalde")
+            return f"MAIL ERROR: {e}", 500    
+
     return app
 
 # Voor backwards compatibility
 app = create_app()
 
-@app.route("/diag/mail")
-def diag_mail():
-    app.logger.setLevel(logging.INFO)
-    # zet SMTP debug
-    mail.state = getattr(mail, "state", None)
-    try:
-        # raw smtplib debug
-        s = smtplib.SMTP(app.config["MAIL_SERVER"], app.config["MAIL_PORT"], timeout=20)
-        if app.config.get("MAIL_USE_TLS"):
-            s.starttls()
-        s.login(app.config["MAIL_USERNAME"], app.config["MAIL_PASSWORD"])
-        s.quit()
-        # flask-mail test
-        msg = Message("Diag mail", recipients=[app.config.get("MAIL_USERNAME")])
-        msg.body = "Het werkt 🎉"
-        mail.send(msg)
-        return "OK: smtp + flask-mail", 200
-    except Exception as e:
-        app.logger.exception("SMTP/Flask-Mail faalde")
-        return f"MAIL ERROR: {e}", 500
