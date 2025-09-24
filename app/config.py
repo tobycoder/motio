@@ -11,9 +11,9 @@ def _normalize_db_url(url: str | None) -> str | None:
     
     # Heroku/Railway geven soms 'postgres://', SQLAlchemy wil 'postgresql+psycopg2://'
     if url.startswith("postgres://"):
-        url = url.replace("postgres://", "postgresql+psycopg2://", 1)
+        url = url.replace("postgres://", "postgresql+psycopg://", 1)
     elif url.startswith("postgresql://"):
-        url = url.replace("postgresql://", "postgresql+psycopg2://", 1)
+        url = url.replace("postgresql://", "postgresql+psycopg://", 1)
     return url
 
 
