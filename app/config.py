@@ -8,12 +8,11 @@ BASEDIR = Path(__file__).resolve().parent
 def _normalize_db_url(url: str | None) -> str | None:
     if not url:
         return None
-    
-    # Heroku/Railway geven soms 'postgres://', SQLAlchemy wil 'postgresql+psycopg2://'
+    # Railway/Heroku-style short forms -> add driver explicitly
     if url.startswith("postgres://"):
-        url = url.replace("postgres://", "postgresql+psycopg2://", 1)
-    elif url.startswith("postgresql://"):
-        url = url.replace("postgresql://", "postgresql+psycopg2://", 1)
+        url = url.replace("postgres://", "postgresql+psycopg2://", 1)  # psycopg2
+    elif url.startswith("postgresql://") and "+psycopg" not in url and "+psycopg2" not in url:
+        url = url.replace("postgresql://", "postgresql+psycopg2://", 1)  # or +psycopg if you use psycopg3
     return url
 
 
