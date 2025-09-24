@@ -4,7 +4,7 @@ from sqlalchemy import or_, asc, desc
 from app.models import Motie, Amendementen, User, motie_medeindieners
 from app import db
 import json
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, selectinload
 from app.moties import bp
 from app.exporters.motie_docx import render_motie_to_docx_bytes
 from io import BytesIO
@@ -146,47 +146,96 @@ def toevoegen():
     return render_template('moties/toevoegen.html', title="moties", alle_users=alle_users)
 
 @bp.route('/<int:motie_id>/bekijken', methods=['GET', 'POST'])
+@login_required
 def bekijken(motie_id):
-    motie = Motie.query.get_or_404(motie_id)
-    medeindieners = motie.mede_indieners.order_by(User.naam.asc()).all()
-    return render_template('moties/bekijken.html', motie=motie, title="Bekijk Motie", mede_indieners=medeindieners)
+    motie = (Motie.query
+            .options(
+                selectinload(Motie.mede_indieners).selectinload(User.partij)  # alleen als je User.partij-relatie hebt
+            )
+            .get_or_404(motie_id)
+        )
+    medeindieners = sorted(
+        motie.mede_indieners,
+        key=lambda u: ( (u.partij.afkorting if getattr(u, "partij", None) else ""), u.naam.casefold() )
+    )
 
-@bp.route('/<int:motie_id>/bewerken')
+    return render_template(
+        'moties/bekijken.html',
+        motie=motie,
+        title="Bekijk Motie",
+        mede_indieners=medeindieners
+    )
+
+
+@bp.route('/<int:motie_id>/bewerken', methods=['GET', 'POST'])
+@login_required
 def bewerken(motie_id):
-    motie = Motie.query.get_or_404(motie_id)
-    
-    return render_template('moties/bewerken.html', 
-                           motie=motie, 
-                           constaterende_dat=as_list(motie.constaterende_dat),
-                           overwegende_dat=as_list(motie.overwegende_dat),
-                           draagt_op=as_list(motie.draagt_college_op), 
-                           title="Bewerk Motie")
+    # Laad motie + huidige mede-indieners efficiënt
+    motie = (Motie.query
+        .options(selectinload(Motie.mede_indieners))
+        .get_or_404(motie_id)
+    )
 
-@bp.post('/<int:motie_id>/bewerken')
-def bewerken_post(motie_id):
-    motie = Motie.query.get_or_404(motie_id)
-    
-    titel = request.form.get('titel').strip()
-    const_json = request.form.get('constaterende_dat_json') or "[]"
-    overw_json = request.form.get('overwegende_dat_json') or "[]"
-    draagt_json = request.form.get('draagt_json') or "[]"
-    opdracht_formulering = request.form.get('opdracht_formulering').strip()
-    status = request.form.get('status')
-    gemeenteraad_datum = request.form.get('gemeenteraad_datum')
-    agendapunt = request.form.get('agendapunt')
-    
-    motie.titel = titel
-    motie.constaterende_dat = json.loads(const_json)
-    motie.overwegende_dat = json.loads(overw_json)
-    motie.draagt_college_op = json.loads(draagt_json)
-    motie.opdracht_formulering = opdracht_formulering
-    motie.status = status
-    motie.gemeenteraad_datum = gemeenteraad_datum
-    motie.agendapunt = agendapunt
-    
-    db.session.commit()
-    flash('Is bijgewerkt.', 'success')
-    return redirect(url_for('moties.bekijken', motie_id=motie.id))
+    if request.method == 'POST':
+        # --- gewone velden ---
+        motie.gemeenteraad_datum = request.form.get('gemeenteraad_datum') or motie.gemeenteraad_datum
+        motie.agendapunt = request.form.get('agendapunt')
+        motie.titel = request.form.get('titel') or motie.titel
+        motie.opdracht_formulering = request.form.get('opdracht_formulering') or motie.opdracht_formulering
+        motie.status = request.form.get('status') or motie.status
+
+        # --- JSON arrays ---
+        const_json = request.form.get('constaterende_dat_json') or "[]"
+        overw_json = request.form.get('overwegende_dat_json') or "[]"
+        draagt_json = request.form.get('draagt_json') or "[]"
+
+        try:
+            motie.constaterende_dat = json.loads(const_json)
+            motie.overwegende_dat = json.loads(overw_json)
+            motie.draagt_college_op = json.loads(draagt_json)
+        except json.JSONDecodeError:
+            flash("Kon de dynamische lijsten niet opslaan (ongeldige JSON).", "danger")
+            return redirect(url_for('moties.bewerken', motie_id=motie.id))
+
+        # --- mede-indieners sync ---
+        raw_ids = request.form.getlist('mede_indieners')  # ['3','12',...]
+        nieuwe_ids = {int(x) for x in raw_ids if x.strip().isdigit()}
+
+        # primaire indiener niet als mede-indiener
+        if motie.indiener_id:
+            nieuwe_ids.discard(motie.indiener_id)
+
+        huidige_ids = {u.id for u in motie.mede_indieners}
+
+        to_add = nieuwe_ids - huidige_ids
+        to_remove = huidige_ids - nieuwe_ids
+
+        if to_remove:
+            motie.mede_indieners[:] = [u for u in motie.mede_indieners if u.id not in to_remove]
+
+        if to_add:
+            toe_te_voegen = User.query.filter(User.id.in_(to_add)).all()
+            for u in toe_te_voegen:
+                motie.mede_indieners.append(u)
+
+        db.session.commit()
+        flash("Motie bijgewerkt.", "success")
+        return redirect(url_for('moties.bekijken', motie_id=motie.id))
+
+    # GET: alle users voor de select + huidige selectie
+    alle_users = User.query.order_by(User.naam.asc()).all()
+    huidige_mede_ids = {u.id for u in motie.mede_indieners}
+
+    return render_template(
+        'moties/bewerken.html',
+        motie=motie,
+        constaterende_dat=as_list(motie.constaterende_dat),
+        overwegende_dat=as_list(motie.overwegende_dat),
+        draagt_op=as_list(motie.draagt_college_op),
+        alle_users=alle_users,
+        huidige_mede_ids=huidige_mede_ids,
+        title="Bewerk Motie"
+    )
 
 
 @bp.route('/<int:motie_id>/verwijderen', methods=['POST', 'GET'])

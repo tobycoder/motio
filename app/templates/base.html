@@ -7,6 +7,25 @@
         <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/7.0.1/css/all.min.css">
         <!-- Tailwind via CDN -->
         <script src="https://cdn.tailwindcss.com"></script>
+            <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/choices.js/public/assets/styles/choices.min.css">
+                <style>
+                /* Tailwind-achtige look via extra class op de container */
+                .custom-choices .choices__inner {
+                    border: 1px solid #d1d5db; border-radius: .5rem; padding: .375rem .5rem; min-height: 2.5rem; background:#f9fafb;
+                }
+                .custom-choices.is-focused .choices__inner,
+                .custom-choices.is-open .choices__inner {
+                    border-color:#3b82f6; box-shadow:0 0 0 3px rgb(59 130 246 / .5); background:#fff;
+                }
+                .custom-choices .choices__list--multiple .choices__item {
+                    background:#e5e7eb; color:#111827; border:1px solid #d1d5db; border-radius:.375rem; margin:.25rem; padding:.125rem .5rem;
+                }
+                .custom-choices .choices__button { border-left:1px solid #9ca3af; }
+                .custom-choices .choices__list--dropdown { border:1px solid #d1d5db; border-radius:.5rem; }
+                .custom-choices .choices__list--dropdown .choices__item--selectable.is-highlighted {
+                    background:#eff6ff; color:#1f2937;
+                }
+                </style>
         <script>
             // Optionele config (kleuren, container, fonts, safelist, dark mode, etc.)
             tailwind.config = {
@@ -30,7 +49,9 @@
                 'text-green-600','text-red-600','bg-yellow-100','bg-green-100','bg-red-100'
             ]
             }
-        </script>        
+        </script>
+        <script src="https://cdn.jsdelivr.net/npm/choices.js/public/assets/scripts/choices.min.js"></script>
+
     </head>
     <body>
 <div class="fixed top-0 left-0 w-full z-50 bg-white border-b backdrop-blur-lg bg-opacity-80">
@@ -74,5 +95,41 @@
         {% block content %}{% endblock %} 
     </div>
 </div>
+<script src="https://cdn.jsdelivr.net/npm/choices.js/public/assets/scripts/choices.min.js" defer></script>
+<script>
+  function initChoices(selector = '.choices-multi') {
+    const nodes = document.querySelectorAll(selector);
+    nodes.forEach((el) => {
+      if (!el || el.dataset.choicesInit === '1') return;
+
+      // Init Choices (let op: geen spaties in classNames -> 1 token!)
+      const instance = new Choices(el, {
+        removeItemButton: true,
+        searchEnabled: true,
+        shouldSort: false,
+        placeholder: true,
+        placeholderValue: el.dataset.placeholder || 'Kies…',
+        itemSelectText: 'Klik om te selecteren',
+        noResultsText: 'Geen resultaten',
+        noChoicesText: 'Geen opties',
+        classNames: {
+          containerOuter: 'choices' // laat default staan; geen extra class met spatie!
+        }
+      });
+
+      // Voeg onze extra styling-class apart toe (nu mag dat wél)
+      try { instance.containerOuter.element.classList.add('custom-choices'); } catch (e) {}
+
+      el.dataset.choicesInit = '1';
+      el._choices = instance;
+    });
+  }
+
+  // Veilig initialiseren (element kan ontbreken → geen error)
+  document.addEventListener('DOMContentLoaded', () => initChoices());
+
+  // Als je htmx/Turbo/nav gebruikt en content wisselt:
+  document.addEventListener('htmx:afterSwap', () => initChoices());
+</script>
     </body>
     </html> 

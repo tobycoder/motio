@@ -8,6 +8,7 @@ from sqlalchemy.orm import selectinload
 
 
 @bp.route('/')
+@login_required
 def home():
     # pak per tabel de maximum(updated_at)
     a_max = db.session.query(func.max(Amendementen.updated_at)).scalar()

@@ -1,13 +1,15 @@
 from flask import render_template, redirect, url_for, flash, request, current_app
 from flask_login import login_user, logout_user, current_user
 from app.auth import bp
-from app.auth.forms import LoginForm, RegistrationForm
+from app.auth.forms import LoginForm, RegistrationForm, ResetPassword, ResetPasswordStepTwo
 from app.models import User
-from app import db
+from app import db, mail
 import uuid, os
 from werkzeug.utils import secure_filename
 from PIL import Image, ImageOps
 from io import BytesIO
+from itsdangerous import URLSafeTimedSerializer, BadSignature, SignatureExpired
+from flask_mail import Message  
 
 PROFILE_SIZE = 1024  # kies je eigen doelgrootte (bv. 256/512/1024)
 
@@ -167,3 +169,58 @@ def register():
         return redirect(url_for('auth.login'))
 
     return render_template('auth/register.html', title='Registreren', form=form)
+
+
+def _send_reset_email(user):
+    token = user.generate_reset_token()
+    reset_url = url_for("auth.reset_password", token=token, _external=True)
+    msg = Message(
+        subject="Wachtwoord resetten",
+        recipients=[user.email],
+        body=(
+            f"Beste {user.naam},\n\n"
+            f"Via onderstaande link kun je je wachtwoord resetten (1 uur geldig):\n"
+            f"{reset_url}\n\n"
+            f"Niet door jou aangevraagd? Negeer deze e-mail."
+        ),
+    )
+    mail.send(msg)
+
+@bp.route("/wachtwoord-vergeten", methods=["GET","POST"])
+def forgot_password():
+    form = ResetPassword()
+    if request.method == "POST":
+        email = (request.form.get("email") or "").strip().lower()
+        user = User.query.filter(db.func.lower(User.email) == email).first()
+        if user:
+            _send_reset_email(user)
+        flash("Als dit e-mailadres bekend is, is er zo een e-mail verstuurd. Check ook je spam!", "info")
+        return redirect(url_for("auth.forgot_password"))
+    return render_template("auth/wachtwoord_vergeten.html", form=form)
+
+@bp.route("/reset/<token>", methods=["GET", "POST"])
+def reset_password(token):
+    user = User.verify_reset_token(token)
+    form = ResetPasswordStepTwo()  # 1 uur geldig standaard
+    if not user:
+        flash("Deze resetlink is ongeldig of verlopen. Vraag een nieuwe aan.", "danger")
+        return redirect(url_for("auth.forgot_password"))
+
+    if request.method == "POST":
+        pw1 = (request.form.get("password") or "").strip()
+        pw2 = (request.form.get("confirm_password") or "").strip()
+
+        if pw1 != pw2:
+            flash("Wachtwoorden komen niet overeen.", "warning")
+            return redirect(url_for("auth.reset_password", token=token))
+        if len(pw1) < 8:
+            flash("Gebruik minimaal 8 tekens.", "warning")
+            return redirect(url_for("auth.reset_password", token=token))
+
+        user.set_password(pw1)
+        db.session.commit()
+        flash("Je wachtwoord is aangepast. Je kunt nu inloggen.", "success")
+        return redirect(url_for("auth.login"))  # pas aan als jouw login-endpoint anders heet
+
+    # GET: toon formulier
+    return render_template("auth/wachtwoord_resetten.html", token=token, user=user, form=form)

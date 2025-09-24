@@ -1,13 +1,19 @@
+from dotenv import load_dotenv
+load_dotenv()
+
 # motie_tool/__init__.py
 from flask import Flask
 from flask_sqlalchemy import SQLAlchemy
 from flask_migrate import Migrate
 from flask_login import LoginManager
 from .config import Config
+from flask_mail import Mail
+
 
 # Initialiseer extensions
 db = SQLAlchemy()
 login_manager = LoginManager()
+mail = Mail()
 PUBLIC_ENDPOINTS = {
     "auth.login", "auth.register", "auth.logout",  # wat jij openbaar wilt
     "main.index",                                  # bijv. homepage
@@ -24,9 +30,10 @@ def create_app(config_class=Config):
     db.init_app(app)
     migrate = Migrate(app, db)
     login_manager.init_app(app)
-    login_manager.login_view = 'app.login'
+    login_manager.login_view = 'auth.login'
     login_manager.login_message = 'Log in om toegang te krijgen tot deze pagina.'
     
+    mail.init_app(app)
     # Importeer models
     from .models import User, Party, Motie
     

@@ -19,26 +19,16 @@
   <main class="max-w-4xl mx-auto px-4 py-8">
     <h1 class="text-2xl font-semibold mb-6">Motie bewerken</h1>
 
-    <form method="POST" action="" id="bewerkenForm" class="space-y-8 bg-white p-6 rounded-xl shadow">
+    <form method="POST" action="{{ url_for('moties.bewerken', motie_id=motie.id) }}" id="bewerkenForm" class="space-y-8 bg-white p-6 rounded-xl shadow">
     <div>
         <label class="block text-sm font-medium text-gray-700">Datum raadsvergadering</label>
-        <select name="gemeenteraad_datum" class="w-full bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-2.5 dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white dark:focus:ring-blue-500 dark:focus:border-blue-500">
-          {% set d = (motie.gemeenteraad_datum or 'Gemeenteraad 27 september 2025') %}
-            <option value="Gemeenteraad 27 september 2025" {{ 'selected' if s=='Gemeenteraad 27 september 2025' else '' }}>Gemeenteraad 27 september 2025</option>
-          <option value="Gemeenteraad 27 oktober 2025" {{ 'selected' if s=='Gemeenteraad 27 oktober 2025' else '' }}>Gemeenteraad 27 oktober 2025</option>
-          <option value="Gemeenteraad 3 november 2025" {{ 'selected' if s=='Gemeenteraad 3 november 2025' else '' }}>Gemeenteraad 3 november 2025</option>
-          <option value="Gemeenteraad 6 november 2025" {{ 'selected' if s=='Gemeenteraad 6 november 2025' else '' }}>Gemeenteraad 6 november 2025</option>
-        </select>
+        <input name="gemeenteraad_datum" rows="3"
+          class="w-full rounded-md border border-gray-300 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-gray-900" value="{{ motie.gemeenteraad_datum or '' }}">
       </div>
     <div>
         <label class="block text-sm font-medium text-gray-700">Agendapunt</label>
-        <select name="agendapunt" class="w-full bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-2.5 dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white dark:focus:ring-blue-500 dark:focus:border-blue-500">
-          {% set d = (motie.agendapunt or '4') %}
-            <option value="1" {{ 'selected' if d=='1' else '' }}>Agendapunt 1</option>
-          <option value="2" {{ 'selected' if d=='2' else '' }}>Agendapunt 2</option>
-          <option value="3" {{ 'selected' if d=='3' else '' }}>Agendapunt 3</option>
-          <option value="4" {{ 'selected' if d=='4' else '' }}>Agendapunt 4</option>
-        </select>
+          <input name="agendapunt" rows="3"
+          class="w-full rounded-md border border-gray-300 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-gray-900" value="{{ motie.agendapunt or '' }}">
       </div>
       <!-- Titel -->
       <div>
@@ -63,7 +53,7 @@
       </section>
             <!-- Opdracht formulering (vrije tekst boven de bullets) -->
       
-            <div>
+      <div>
         <label class="text-lg font-semibold mb-2">Opdracht formulering</label>
         <input name="opdracht_formulering" rows="3"
           class="w-full rounded-md border border-gray-300 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-gray-900" value="{{ motie.opdracht_formulering or '' }}">
@@ -86,6 +76,30 @@
           <option value="GereedPublicatie" {{ 'selected' if s=='GereedPublicatie' else '' }}>Gereed voor publicatie</option>
         </select>
       </div>
+
+          <div>
+        <label class="block text-sm font-medium text-gray-700">Mede-indieners</label>
+
+        <select id="mede_indieners"
+                name="mede_indieners"
+                multiple
+                class="choices-multi w-full"
+                data-placeholder="Kies mede-indieners…">
+          {% set primary_id = motie.indiener_id %}
+          {% for u in alle_users %}
+            {% if primary_id and u.id == primary_id %}
+              <option value="{{ u.id }}" disabled>
+                {{ u.naam }} — ({{ u.partij.afkorting if u.partij else '—' }}) [primaire indiener]
+              </option>
+            {% else %}
+              <option value="{{ u.id }}" {% if u.id in huidige_mede_ids %}selected{% endif %}>
+                {{ u.naam }} — ({{ u.partij.afkorting if u.partij else '—' }})
+              </option>
+            {% endif %}
+          {% endfor %}
+        </select>
+        <p class="mt-1 text-xs text-gray-500">Zoek en selecteer meerdere; klik op × om te verwijderen.</p>
+    </div>
 
       <!-- Acties -->
       <div class="flex gap-3">
@@ -179,4 +193,14 @@
       });
     });
   </script>
+  <script>
+  document.addEventListener('DOMContentLoaded', function () {
+    new TomSelect('#mede-indieners', {
+      plugins: ['remove_button'],
+      maxOptions: 1000,
+      persist: false,
+      placeholder: 'Zoek en selecteer mede-indieners'
+    });
+  });
+</script>
   {% endblock %}

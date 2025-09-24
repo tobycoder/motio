@@ -30,23 +30,68 @@
       </div>
     </div>
   </div>
+{% set hoofd = motie.indiener if motie.indiener is defined else None %}
+{% set ns = namespace(seen_ids=[], partijen=[]) %}
 
+{# 1) eerst hoofdindiener-partij #}
+{% if hoofd and hoofd.partij and hoofd.partij.id not in ns.seen_ids %}
+  {% set _ = ns.seen_ids.append(hoofd.partij.id) %}
+  {% set _ = ns.partijen.append(hoofd.partij) %}
+{% endif %}
+
+{# 2) daarna mede-indieners-partijen #}
+{% for x in mede_indieners %}
+  {% if x.partij and x.partij.id not in ns.seen_ids %}
+    {% set _ = ns.seen_ids.append(x.partij.id) %}
+    {% set _ = ns.partijen.append(x.partij) %}
+  {% endif %}
+{% endfor %}
   <!-- Canvas: centreer A4 op het scherm -->
   <main class="min-h-screen py-8 px-4 flex items-start justify-center print:p-0">
     <article
       class="a4 bg-white shadow-2xl ring-1 ring-black/5 rounded-none print:shadow-none print:ring-0 print:w-auto print:min-h-0
              px-12 py-14 leading-relaxed text-[11pt] text-gray-900">
+                   <section class="mb-8 avoid-break">
+        <table>
+          {% if ns.partijen %}
+            {% for row in ns.partijen|batch(6, None) %}
+              <tr class="mb-6">
+                {% for p in row %}
+                  {% if p %}
+                    <td class="pr-6 align-top pb-6">
+                      <i>
+                        <img class="h-24 w-auto" src="{{ p.logo_src }}" alt="{{ p.naam }}">
+                      </i>
+                    </td>
+                  {% else %}
+                    <td></td>
+                  {% endif %}
+                {% endfor %}
+              </tr>
+            {% endfor %}
+          {% else %}
+            <tr><td class="text-gray-500">—</td></tr>
+          {% endif %}
+        </table>
+      </section>
       <!-- Kop -->
       <header class="text-center mb-8">
-        <h1 class="text-xl font-semibold tracking-tight">Motie</h1>
+        {% if motie.agendapunt %}
+        <h1 class="text-xl font-semibold tracking-tight">MOTIE</h1>
+        {% else %}
+        <h1 class="text-xl font-semibold tracking-tight">MOTIE vreemd aan de orde van de dag</h1>
+        {% endif %}
         <p class="text-sm text-gray-600 mt-1">
-          Gemeenteraad {{ motie.titel or "—" }}
+          {{ motie.titel or "—" }}
         </p>
       </header>
 
       <!-- Titel motie -->
       <section class="mb-6 avoid-break">
-        <p class="text-[11pt]">Deze motie hoort bij agendapunt {{ motie.agendapunt or "—" }}, ingediend bij de raadsvergadering van {{ motie.gemeenteraad_datum }}</p>
+        {% if motie.agendapunt %}
+        <p class="text-[11pt]">Deze motie hoort bij agendapunt {{ motie.agendapunt or "—" }}, ingediend bij de raadsvergadering van {{ motie.gemeenteraad_datum }}</p><br>
+        {% endif %}
+
         <p class="text-[11pt]">De indieners stellen de raad voor om het volgende besluit te nemen:</p>
       </section>
 
@@ -86,25 +131,46 @@
           {% endfor %}
         </ul>
       </section>
-      <section class="mb-6 avoid-break">
-        <p class="text-[11pt]">En gaat over tot de orde van de dag</p>
-      </section>
-      
-      <section class="mb-8 avoid-break">
-        <h2 class="text-base font-semibold mb-1">Ingediend door:</h2>
-        <ul class="list-disc pl-6 space-y-1">
-          {% for x in mede_indieners %}
-            <li>{{ x.naam }} - <img class="h-5 w-auto rounded-lg" src="{{ x.partij.logo_src }}" alt="Logo {{ x.partij.naam }}"></li>
-          {% else %}
-            <li class="text-gray-500">—</li>
-          {% endfor %}
-        </ul>
-      </section>
-      <section class="mb-6 avoid-break">
-        <p class="text-[11pt]">En gaat over tot de orde van de dag</p>
-      </section>
+
 
       <!-- Ondertekening -->
+            
+      <section class="mb-6 avoid-break">
+        <p class="text-[11pt]">En gaat over tot de orde van de dag</p>
+      </section>
+<section class="mb-8 avoid-break">
+  <h2 class="text-base font-semibold mb-1">Ingediend door:</h2>
+
+  {# Maak een lijst: eerst hoofdindiener (indien aanwezig), daarna mede-indieners #}
+        {% set ondertekenaars = [] %}
+        {% if hoofd %}
+          {% set _ = ondertekenaars.append(hoofd) %}
+        {% endif %}
+        {% for x in mede_indieners %}
+          {% set _ = ondertekenaars.append(x) %}
+        {% endfor %}
+
+        <table>
+          {% if ondertekenaars %}
+            {% for row in ondertekenaars|batch(6, None) %}
+              <tr class="mb-6">
+                {% for u in row %}
+                  {% if u %}
+                    <td class="pr-6 align-top pb-6">
+                      {{ u.naam }}<br>
+                      <i>{{ u.partij.naam if u.partij else '—' }}</i>
+                    </td>
+                  {% else %}
+                    <td></td>
+                  {% endif %}
+                {% endfor %}
+              </tr>
+            {% endfor %}
+          {% else %}
+            <tr><td class="text-gray-500">—</td></tr>
+          {% endif %}
+        </table>
+      </section>
          <!-- Voet -->
       <footer class="mt-12 pt-4 text-[10pt] text-gray-500 border-t border-gray-200">
         <div class="flex items-center justify-between self-end">

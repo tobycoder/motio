@@ -29,3 +29,10 @@ class RegistrationForm(FlaskForm):
     def validate_email(self, field):
         if User.query.filter_by(email=field.data.strip().lower()).first():
             raise ValidationError("Dit e-mailadres is al in gebruik.")
+
+class ResetPassword(FlaskForm):
+    email = StringField('Email', validators=[DataRequired(), Email()])
+class ResetPasswordStepTwo(FlaskForm):
+    password = PasswordField('Wachtwoord', validators=[DataRequired(), Length(min=6)])
+    confirm_password = PasswordField('Herhaal wachtwoord', 
+                             validators=[DataRequired(), EqualTo('password')])
