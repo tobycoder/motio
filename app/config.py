@@ -29,7 +29,7 @@ class Config:
                 or os.getenv("POSTGRES_URL")  # fallback, just in case
                 )
 
-    SQLALCHEMY_DATABASE_URI = f"sqlite:///{BASEDIR / 'motio.db'}"
+    SQLALCHEMY_DATABASE_URI = _normalize_db_url("DATABASE_URL") or f"sqlite:///{BASEDIR / 'motio.db'}"
     SQLALCHEMY_TRACK_MODIFICATIONS = False
     SQLALCHEMY_ECHO = False  # Set to True to see SQL queries in development
     
