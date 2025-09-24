@@ -70,10 +70,10 @@
       <div>
         <label class="block text-sm font-medium text-gray-700">Status</label>
         <select name="status" class="w-full bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-2.5 dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white dark:focus:ring-blue-500 dark:focus:border-blue-500">
-          {% set s = (motie.status or 'Concept') %}
-          <option value="Concept" {{ 'selected' if s=='Concept' else '' }}>Concept</option>
-          <option value="GereedAdvies" {{ 'selected' if s=='GereedAdvies' else '' }}>Gereed voor advies griffie</option>
-          <option value="GereedPublicatie" {{ 'selected' if s=='GereedPublicatie' else '' }}>Gereed voor publicatie</option>
+          {% set s = (motie.status or 'Privé') %}
+          <option value="Privé" {{ 'selected' if s=='Privé' else '' }}>Privé</option>
+          <option value="Delen met griffie" {{ 'selected' if s=='Delen met griffie' else '' }}>Delen met griffie</option>
+          <option value="Publiek" {{ 'selected' if s=='Publiek' else '' }}>Publiek</option>
         </select>
       </div>
 

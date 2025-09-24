@@ -31,6 +31,7 @@ def as_list(value):
             return []
 
 @bp.route('/', methods=['GET', 'POST'])
+@login_required
 def index():
     q = request.args.get('q')
     status = request.args.get('status')
@@ -82,7 +83,7 @@ def index():
 
     # Dropdowns in filterbalk
     # Komt hier met partijen
-
+    
     motie = Motie.query.all()
     return render_template(
         'moties/index.html', 
@@ -101,6 +102,7 @@ def index():
 )   
 
 @bp.route('/toevoegen', methods=['GET', 'POST'])
+@login_required
 def toevoegen():
     if request.method == 'POST':
         gemeenteraad_datum = request.form.get('gemeenteraad_datum')
@@ -239,6 +241,7 @@ def bewerken(motie_id):
 
 
 @bp.route('/<int:motie_id>/verwijderen', methods=['POST', 'GET'])
+@login_required
 def verwijderen(motie_id):
     motie = Motie.query.get_or_404(motie_id)
     db.session.delete(motie)
@@ -247,6 +250,7 @@ def verwijderen(motie_id):
     return redirect(url_for('moties.index'))
 
 @bp.route("/<int:motie_id>/export/docx")
+@login_required
 def export_motie_docx(motie_id: int):
     motie = db.session.get(Motie, motie_id)
     if not motie:
@@ -279,6 +283,7 @@ def _unique_name(name: str, existing: set[str]) -> str:
     return unique
 
 @bp.route("/export/bulk", methods=["POST"])
+@login_required
 def export_bulk_zip():
     """
     Accepteert:

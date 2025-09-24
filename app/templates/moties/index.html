@@ -10,7 +10,7 @@
         Terug naar dashboard
       </a>
       <a href="{{ url_for('moties.toevoegen') }}" class="px-4 py-2 text-sm font-medium text-white bg-green-600 rounded-lg hover:bg-green-700">
-        Nieuwe motie vreemd
+        Nieuwe motie
       </a>
     </div>
   </div>
@@ -68,8 +68,8 @@
               Datum {% if sort=='date' %}{{ '▲' if direction=='asc' else '▼' }}{% endif %}
             </a>
           </th>
-          <th class="px-6 py-3 hidden lg:table-cell">Partij</th>
-          <th class="px-6 py-3 hidden md:table-cell">Status</th>
+          <th class="px-6 py-3 hidden lg:table-cell">Indiener</th>
+          <th class="px-6 py-3 hidden md:table-cell">Mede-indiener</th>
         </tr>
       </thead>
       <tbody>
@@ -87,10 +87,12 @@
               {{ m.created_at.strftime('%d-%m-%Y') if m.created_at else '' }}
             </td>
             <td class="px-6 py-4 hidden lg:table-cell">
-              {{ m.party.name if m.party else '-' }}
+              {{ m.indiener.naam if m.indiener.naam else '-' }}
             </td>
-            <td class="px-6 py-4 hidden md:table-cell">
-              {{ m.status or '-' }}
+            <td class="px-6 py-4 hidden lg:table-cell">
+              {% for mx in m.mede_indieners %}
+               <span class="p-1 bg-blue-100 text-grey rounded text-sm">{{ mx.partij.naam if mx.partij.naam else '-' }}</span>
+               {% endfor %} 
             </td>
           </tr>
         {% endfor %}

@@ -170,7 +170,6 @@ def register():
 
     return render_template('auth/register.html', title='Registreren', form=form)
 
-
 def _send_reset_email(user):
     token = user.generate_reset_token()
     reset_url = url_for("auth.reset_password", token=token, _external=True)

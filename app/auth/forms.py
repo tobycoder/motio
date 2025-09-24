@@ -1,5 +1,5 @@
 from flask_wtf import FlaskForm
-from wtforms import StringField, PasswordField, FileField, BooleanField, SubmitField, ValidationError
+from wtforms import StringField, PasswordField, FileField, SelectField, BooleanField, SubmitField, ValidationError
 from wtforms.validators import DataRequired, Length, Email, EqualTo
 from wtforms_sqlalchemy.fields import QuerySelectField
 from app.models import Party, User
@@ -36,3 +36,30 @@ class ResetPasswordStepTwo(FlaskForm):
     password = PasswordField('Wachtwoord', validators=[DataRequired(), Length(min=6)])
     confirm_password = PasswordField('Herhaal wachtwoord', 
                              validators=[DataRequired(), EqualTo('password')])
+    
+def party_query():
+    return Party.query.order_by(Party.naam)
+
+class UserCreateForm(FlaskForm):
+    naam = StringField("Naam", validators=[DataRequired(), Length(max=100)])
+    email = StringField("E-mail", validators=[DataRequired(), Email(), Length(max=120)])
+    partij = QuerySelectField(
+        "Partij",
+        query_factory=party_query,
+        get_label="naam",
+        allow_blank=True,
+        blank_text="Geen partij",
+    )
+    role = SelectField(
+        "Rol",
+        choices=[("gebruiker", "Gebruiker"),
+                 ("griffie", "Griffie"),
+                 ("superadmin", "Superadmin")],
+        validators=[DataRequired()],
+    )
+    submit = SubmitField("Gebruiker aanmaken")
+
+    def validate_email(self, field):
+        if User.query.filter_by(email=field.data).first():
+            from wtforms.validators import ValidationError
+            raise ValidationError("Dit e-mailadres bestaat al.")

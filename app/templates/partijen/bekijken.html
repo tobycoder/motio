@@ -8,12 +8,14 @@
         <a href="{{ url_for('partijen.index') }}" type="button" class="px-4 py-2 text-sm font-medium text-gray-900 bg-white border border-gray-200 rounded-s-lg hover:bg-gray-100 hover:text-blue-700 focus:z-10 focus:ring-2 focus:ring-blue-700 focus:text-blue-700 dark:bg-gray-800 dark:border-gray-700 dark:text-white dark:hover:text-white dark:hover:bg-gray-700 dark:focus:ring-blue-500 dark:focus:text-white">
           Terug naar overzicht
         </a>
+        {% if user_has_role('griffie') %}
         <a href="{{ url_for('partijen.index') }}" type="button" class="px-4 py-2 text-sm font-medium text-white bg-blue-500 border-t border-b border-gray-200 hover:bg-blue-900 hover:text-white focus:z-10 focus:ring-2 focus:ring-blue-700 focus:text-blue-700 dark:bg-gray-800 dark:border-gray-700 dark:text-white dark:hover:text-white dark:hover:bg-gray-700 dark:focus:ring-blue-500 dark:focus:text-white">
           <i class="fa fa-edit"></i> Bewerken
         </a>
         <a href="{{ url_for('partijen.verwijderen', partij_id=partij.id) }}" type="button" class="px-4 py-2 text-sm font-medium text-white bg-red-500 border border-gray-200 rounded-e-lg hover:bg-red-900 hover:text-white-700 focus:z-10 focus:ring-2 focus:ring-blue-700 focus:text-blue-700 dark:bg-gray-800 dark:border-gray-700 dark:text-white dark:hover:text-white dark:hover:bg-gray-700 dark:focus:ring-blue-500 dark:focus:text-white">
           <i class="fa fa-trash"></i> Verwijderen
         </a>
+        {% endif %}
       </div>
     </div>
   </div>
@@ -34,11 +36,11 @@
         {% for gebruiker in list_gebruikers %}
           <div class="p-2 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors duration-200">
             {% if gebruiker.profile_filename %}
-            <img src="{{ url_for('static', filename='img/users/' ~ (gebruiker.profile_filename)) }}" alt="Profielfoto van {{ gebruiker.naam }}" class="h-10 w-10 rounded-full inline-block mr-2">
+            <img src="{{ gebruiker.profile_src }}" alt="Profielfoto van {{ gebruiker.naam }}" class="h-10 w-10 rounded-full inline-block mr-2">
             {% else %}
-            <img src="{{ gebruiker.profile_url }}" alt="Profielfoto van {{ gebruiker.naam }}" class="h-10 w-10 rounded-full inline-block mr-2">
+            <img src="{{ gebruiker.profile_src }}" alt="Profielfoto van {{ gebruiker.naam }}" class="h-10 w-10 rounded-full inline-block mr-2">
             {% endif %}
-            <a href="{{ url_for('dashboard.home') }}" class="text-blue-600 hover:underline">{{ gebruiker.naam }} ({{ gebruiker.email }})</a>
+            <a href="{{ url_for('gebruikers.bekijken', user_id=gebruiker.id) }}" class="text-blue-600 hover:underline">{{ gebruiker.naam }} ({{ gebruiker.email }})</a>
           </div>
         {% endfor %}
       {% else %}

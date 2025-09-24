@@ -28,7 +28,7 @@ motie_medeindieners = db.Table(
 
 class User(UserMixin, db.Model):
     __tablename__ = "user"
-
+    __table_args__ = {'quote': True} 
     id = db.Column(db.Integer, primary_key=True)
     email = db.Column(db.String(120), unique=True, nullable=False)
     password_hash = db.Column(db.String(120), nullable=False)
@@ -87,7 +87,13 @@ class User(UserMixin, db.Model):
     def __repr__(self):
         return f'<User {self.email}>'
 
-
+    def has_role(self, *roles: str) -> bool:
+        role = (self.role or "").lower()
+        if role == "superadmin":
+            return True
+        wanted = {r.lower() for r in roles}
+        return role in wanted
+    
 class Party(db.Model):
     __tablename__ = "party"
 

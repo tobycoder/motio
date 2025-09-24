@@ -30,24 +30,12 @@
         <!-- KPI cards -->
         <div class="mt-4 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
           <div class="bg-white rounded-xl shadow-card p-5">
-            <p class="text-sm text-gray-500">Actieve moties</p>
-            <p class="text-2xl font-bold mt-1">32</p>
-            <div class="mt-2 h-2 bg-gray-100 rounded">
-              <div class="h-2 bg-blue-500 rounded" style="width:53%"></div>
-            </div>
-            <p class="text-xs text-gray-500 mt-2">+5 deze maand</p>
-          </div>
-          <div class="bg-white rounded-xl shadow-card p-5">
-            <p class="text-sm text-gray-500">Slagingspercentage</p>
-            <p class="text-2xl font-bold mt-1">61%</p>
-            <div class="mt-2 inline-flex items-center gap-2">
-              <span class="px-2 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">+4 pp</span>
-              <span class="text-xs text-gray-500">vs vorige kwartaal</span>
-            </div>
+            <p class="text-sm text-gray-500">Aantal actieve moties</p>
+            <p class="text-2xl font-bold mt-1">{{ items|length }}</p>
           </div>
           <div class="bg-white rounded-xl shadow-card p-5">
             <p class="text-sm text-gray-500">Gem. mede-indieners</p>
-            <p class="text-2xl font-bold mt-1">2,4</p>
+            <p class="text-2xl font-bold mt-1">{{ avg_indieners }}</p>
             <span class="mt-2 inline-block px-2 py-0.5 rounded-full text-xs font-medium bg-accent text-white">Samenwerking ↑</span>
           </div>
           <div class="bg-white rounded-xl shadow-card p-5">
@@ -55,31 +43,26 @@
             <p class="text-lg font-semibold mt-1 flex items-center gap-2">
               <i class="fa-regular fa-clock"></i> {{ latest.strftime('%d %B %Y, %H:%M') }}
             </p>
-            <p class="text-xs text-gray-500">Door Raadscommunicatie</p>
           </div>
         </div>
 
         <!-- Tabs & actions -->
         <div class="sticky top-0 bg-gray-50 pt-4 pb-3 z-10">
           <div class="flex items-center justify-between">
-            <div class="inline-flex rounded-lg overflow-hidden border bg-white">
-              <button class="px-4 py-2 bg-accent text-white text-sm font-medium">Moties</button>
-              <button class="px-4 py-2 text-sm hover:bg-gray-50">Amendementen</button>
-              <button class="px-4 py-2 text-sm hover:bg-gray-50">Analytics</button>
+            <div class="inline-flex overflow-hidden border bg-white">
+              <button class="px-4 py-2 mx-4 bg-accent text-grey-500 text-sm font-medium rounded-sm">Moties</button>
+              <button class="px-4 py-2 text-sm hover:bg-gray-50 rounded-sm">Amendementen</button>
             </div>
             <div class="flex gap-2">
-              <button id="btnFilters" class="px-3 py-2 text-sm rounded border bg-white hover:bg-gray-50">
-                <i class="fa-solid fa-filter mr-2"></i>Filters
-              </button>
-              <button id="btnNewMotion2" class="px-3 py-2 text-sm rounded bg-blue-600 text-white hover:bg-blue-700">
+              <a href="{{ url_for('moties.toevoegen') }}" id="btnNewMotion2" class="px-3 py-2 text-sm rounded bg-blue-600 text-white hover:bg-blue-700">
                 <i class="fa-solid fa-plus mr-2"></i>Nieuwe motie
-              </button>
+              </a>
             </div>
           </div>
         </div>
 
         <!-- Filters row -->
-        <div class="mt-4 bg-white rounded-xl shadow-card p-4">
+              <!-- <div class="mt-4 bg-white rounded-xl shadow-card p-4">
           <div class="grid md:grid-cols-4 gap-4">
             <div>
               <label class="block text-xs text-gray-500 mb-1">Status</label>
@@ -132,14 +115,13 @@
               <button class="px-3 py-1.5 text-sm rounded bg-blue-600 text-white hover:bg-blue-700">Toepassen</button>
             </div>
           </div>
-        </div>
-
-        <!-- Content split -->
-        <div class="mt-4 grid lg:grid-cols-3 gap-4">
-          <div class="lg:col-span-2">
-            <div class="bg-white rounded-xl shadow-card">
+        </div> -->
+        <div class="mt-4 grid lg:grid-cols-2 gap-4">
+          <div class="lg:col-span-1">
+            <div class="p-4 bg-white rounded-xl shadow-card">
               <div class="flex items-center justify-between p-4 border-b">
                 <h1 class="text-2xl font-semibold mb-4">Mijn moties</h1>
+              </div>
                     {% if items %}
                       <ul class="space-y-3">
                         {% for m in items %}
