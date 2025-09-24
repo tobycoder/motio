@@ -41,7 +41,7 @@ def diag_mail():
         s.quit()
 
         # Test ook Flask-Mail
-        to_addr = user or cfg.get("MAIL_DEFAULT_SENDER")
+        to_addr = "floris@florisdeboer.com"
         msg = Message("Diag mail", recipients=[to_addr])
         msg.body = "SMTP + Flask-Mail werkt 🎉"
         mail.send(msg)
