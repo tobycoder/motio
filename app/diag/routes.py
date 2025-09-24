@@ -50,3 +50,15 @@ def diag_mail():
     except Exception as e:
         current_app.logger.exception("SMTP/Flask-Mail faalde")
         return f"MAIL ERROR: {e}", 500
+
+@bp.get("/env")
+def diag_env():
+    cfg = current_app.config
+    return {
+        "MAIL_SERVER": cfg.get("MAIL_SERVER"),
+        "MAIL_PORT": cfg.get("MAIL_PORT"),
+        "MAIL_USE_TLS": cfg.get("MAIL_USE_TLS"),
+        "MAIL_USE_SSL": cfg.get("MAIL_USE_SSL"),
+        "MAIL_USERNAME": cfg.get("MAIL_USERNAME"),
+        "MAIL_DEFAULT_SENDER": cfg.get("MAIL_DEFAULT_SENDER"),
+    }, 200
