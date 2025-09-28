@@ -55,7 +55,6 @@ def create_app(config_class=Config):
     # Initialiseer extensions met app
     db.init_app(app)
     migrate = Migrate(app, db)
-    migrate.init_app(app, db)
     login_manager.init_app(app)
     login_manager.login_view = 'auth.login'
     login_manager.login_message = 'Log in om toegang te krijgen tot deze pagina.'
@@ -108,6 +107,13 @@ def create_app(config_class=Config):
             return {"notifications": notifs, "notif_unread": unread}
         return {"notifications": [], "notif_unread": 0}
     
+    with app.app_context():
+        url = db.engine.url
+        try:
+            safe_url = url.set(password="***")   # SQLAlchemy 1.4+/2.0
+        except Exception:
+            safe_url = url
+        app.logger.info(f"DB connected: {safe_url}")
     # Registreer blueprints
     from .moties import bp as moties_bp
     app.register_blueprint(moties_bp, url_prefix='/moties')

@@ -23,11 +23,6 @@ class Config:
     ALLOWED_LOGO_EXTENSIONS = {"png", "jpg", "jpeg", "webp", "svg"}
 
     # Database
-    _env_url = (os.getenv("DATABASE_URL")
-                or os.getenv("RAILWAY_DATABASE_URL")
-                or os.getenv("POSTGRES_URL")  # fallback, just in case
-                )
-
     SQLALCHEMY_DATABASE_URI = _db_uri_from_env()
     SQLALCHEMY_TRACK_MODIFICATIONS = False
     SQLALCHEMY_ECHO = False  # Set to True to see SQL queries in development
