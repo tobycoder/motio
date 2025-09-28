@@ -139,7 +139,6 @@ def mark_all_read():
 
 @bp.get('/<int:notification_id>/open')
 @login_and_active_required
-
 def open(notification_id: int):
     n = Notification.query.get_or_404(notification_id)
     if n.user_id != current_user.id:

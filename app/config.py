@@ -5,16 +5,15 @@ from pathlib import Path
 basedir = os.path.abspath(os.path.dirname(__file__))
 BASEDIR = Path(__file__).resolve().parent
 
-def _normalize_db_url(url: str | None) -> str | None:
-    if not url:
-        return None
-    
-    # Heroku/Railway geven soms 'postgres://', SQLAlchemy wil 'postgresql+psycopg2://'
-    if url.startswith("postgres://"):
-        url = url.replace("postgres://", "postgresql+psycopg://", 1)
-    elif url.startswith("postgresql://"):
-        url = url.replace("postgresql://", "postgresql+psycopg://", 1)
-    return url
+def _db_uri_from_env() -> str:
+    uri = os.getenv("DATABASE_URL", "sqlite:///motio.db")  # lokale fallback
+    # Railway/Postgres kan nog 'postgres://' geven; SQLAlchemy wil 'postgresql+psycopg2://'
+    if uri.startswith("postgres://"):
+        uri = uri.replace("postgres://", "postgresql+psycopg2://", 1)
+    # Sommige hosts verwachten TLS; als je connectieproblemen krijgt, forceer SSL:
+    if uri.startswith("postgresql") and "sslmode=" not in uri:
+        uri += ("&" if "?" in uri else "?") + "sslmode=require"
+    return uri
 
 
 class Config:
@@ -29,7 +28,7 @@ class Config:
                 or os.getenv("POSTGRES_URL")  # fallback, just in case
                 )
 
-    SQLALCHEMY_DATABASE_URI = _normalize_db_url(os.environ.get("DATABASE_URL")) or f"sqlite:///{BASEDIR / 'motio.db'}"
+    SQLALCHEMY_DATABASE_URI = _db_uri_from_env()
     SQLALCHEMY_TRACK_MODIFICATIONS = False
     SQLALCHEMY_ECHO = False  # Set to True to see SQL queries in development
     

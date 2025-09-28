@@ -55,6 +55,7 @@ def create_app(config_class=Config):
     # Initialiseer extensions met app
     db.init_app(app)
     migrate = Migrate(app, db)
+    migrate.init_app(app, db)
     login_manager.init_app(app)
     login_manager.login_view = 'auth.login'
     login_manager.login_message = 'Log in om toegang te krijgen tot deze pagina.'
