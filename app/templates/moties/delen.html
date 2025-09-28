@@ -1,0 +1,298 @@
+{% extends "base.html" %}
+{% block content %}
+  <!-- Flowbite voor modals/dropdowns (indien niet al in base geladen) -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/flowbite/2.5.2/flowbite.min.js" defer></script>
+
+  {# -------- Sticky topbar: onder de navbar, boven de content -------- #}
+  <div class="sticky top-[var(--nav-h)] page-chrome bg-white/90 backdrop-blur border-b print:hidden">
+    <div class="mx-auto max-w-7xl px-4 py-2 flex items-center gap-2">
+      <a href="{{ back_url or url_for('moties.bekijken', motie_id=motie.id) }}"
+         class="inline-flex items-center gap-2 rounded-lg border px-3 py-1.5 text-sm hover:bg-gray-50">
+        <i class="fa fa-arrow-left text-gray-600"></i>
+        <span class="hidden sm:inline">Terug</span>
+      </a>
+
+      <div class="flex-1 min-w-0">
+        <div class="truncate text-sm text-gray-500">Motie delen</div>
+        <h1 class="truncate text-base sm:text-lg font-semibold">{{ motie.titel }}</h1>
+      </div>
+
+      {# Primaire acties (desktop/tablet) #}
+      <div class="hidden md:flex items-center gap-2">
+        <button type="submit" form="shareForm"
+                class="inline-flex items-center gap-2 rounded-lg bg-gray-900 text-white px-3 py-1.5 text-sm hover:bg-black">
+          <i class="fa fa-share"></i><span>Deel</span>
+        </button>
+        <a href="{{ url_for('moties.bekijken', motie_id=motie.id) }}"
+           class="inline-flex items-center gap-2 rounded-lg border px-3 py-1.5 text-sm hover:bg-gray-50">
+          <i class="fa fa-file-text-o"></i><span>Bekijk motie</span>
+        </a>
+      </div>
+
+      {# Mobiel: toon onderbalk #}
+      <button id="mobileActionsBtnShare"
+              class="md:hidden inline-flex items-center gap-2 rounded-lg border px-3 py-1.5 text-sm hover:bg-gray-50">
+        <i class="fa fa-bolt"></i><span>Acties</span>
+      </button>
+    </div>
+  </div>
+
+  {# -------- Paginalayout -------- #}
+  <main class="mx-auto max-w-7xl px-2 sm:px-4 md:px-6 py-6">
+    <div class="grid grid-cols-1 lg:grid-cols-12 gap-6 lg:gap-8">
+
+      {# Linkerkolom: formulier #}
+      <section class="lg:col-span-8">
+        <form id="shareForm" method="POST"
+              action="{{ url_for('moties.share_create', motie_id=motie.id) }}"
+              class="space-y-6 bg-white p-6 rounded-xl border shadow-sm">
+
+          <p class="text-sm text-gray-600">
+            Deel deze motie met <strong>gebruikers</strong> of <strong>partijen</strong>. Je kunt meerdere ontvangers tegelijk kiezen.
+          </p>
+
+          {# Delen met: segmented control (peer + labels) #}
+          <div>
+            <label class="block text-sm font-medium text-gray-700 mb-2">Delen met</label>
+
+            <div class="inline-flex rounded-lg border overflow-hidden">
+              <input type="radio" name="target_type" id="t_user"  value="user"  class="peer/user hidden" checked>
+              <label for="t_user"
+                    class="px-3 py-1.5 text-sm cursor-pointer bg-white hover:bg-gray-50 border-r
+                            peer-checked/user:bg-gray-900 peer-checked/user:text-white">
+                Gebruiker(s)
+              </label>
+
+              <input type="radio" name="target_type" id="t_party" value="party" class="peer/party hidden">
+              <label for="t_party"
+                    class="px-3 py-1.5 text-sm cursor-pointer bg-white hover:bg-gray-50
+                            peer-checked/party:bg-gray-900 peer-checked/party:text-white">
+                Partij(en)
+              </label>
+            </div>
+          </div>
+
+          {# Gebruikers-select (meervoud) — Choices.js #}
+          <div id="wrap_users">
+            <label class="block text-sm font-medium text-gray-700">Kies gebruiker(s)</label>
+            <select id="share_user_ids" name="share_user_ids" multiple
+                    class="choices-multi w-full" data-placeholder="Zoek gebruiker(s)…">
+              {% for u in alle_users %}
+                <option value="{{ u.id }}">{{ u.naam }} — ({{ u.partij.afkorting if u.partij else '—' }})</option>
+              {% endfor %}
+            </select>
+            <p class="mt-1 text-xs text-gray-500">Selecteer één of meer; × om te verwijderen.</p>
+          </div>
+
+          {# Partijen-select (meervoud) — Choices.js #}
+          <div id="wrap_parties" class="hidden">
+            <label class="block text-sm font-medium text-gray-700">Kies partij(en)</label>
+            <select id="share_party_ids" name="share_party_ids" multiple
+                    class="choices-multi w-full" data-placeholder="Zoek partij(en)…">
+              {% for p in alle_partijen %}
+                <option value="{{ p.id }}">{{ p.afkorting }} — {{ p.naam }}</option>
+              {% endfor %}
+            </select>
+            <p class="mt-1 text-xs text-gray-500">Selecteer één of meer partijen.</p>
+          </div>
+
+          {# Rechten #}
+          <div>
+            <label class="block text-sm font-medium text-gray-700">Rechten</label>
+            <select name="permission"
+                    class="w-full rounded-md border border-gray-300 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-gray-900">
+              <option value="view" selected>Alleen lezen</option>
+              <option value="edit" selected>Bewerken</option>
+            </select>
+          </div>
+
+          {# Optioneel bericht + verloopdatum #}
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <label class="block text-sm font-medium text-gray-700">Bericht (optioneel)</label>
+              <textarea name="message" rows="3"
+                        class="w-full rounded-md border border-gray-300 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-gray-900"
+                        placeholder="Korte toelichting voor de ontvanger(s)"></textarea>
+            </div>
+            <div>
+              <label class="block text-sm font-medium text-gray-700">Verloopt op (optioneel)</label>
+              <input type="date" name="expires_at"
+                     class="w-full rounded-md border border-gray-300 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-gray-900">
+            </div>
+          </div>
+
+          <div class="flex flex-wrap gap-3">
+            <button type="submit"
+                    class="inline-flex items-center px-4 py-2 rounded-md bg-gray-900 text-white hover:bg-black">
+              <i class="fa fa-share mr-2"></i>Delen
+            </button>
+            <a href="{{ back_url or url_for('moties.bekijken', motie_id=motie.id) }}"
+               class="inline-flex items-center px-4 py-2 rounded-md border border-gray-300 hover:bg-gray-50">
+              Annuleren
+            </a>
+          </div>
+        </form>
+      </section>
+
+      {# Rechterkolom: actieve shares #}
+      <aside class="lg:col-span-4">
+        <div class="rounded-xl border bg-white p-6 shadow-sm">
+          <h3 class="text-base font-semibold mb-3">Toegang verleend</h3>
+
+          {% if actieve_shares %}
+            <ul class="divide-y divide-gray-200">
+              {% for s in actieve_shares %}
+                <li class="py-3 flex items-start justify-between gap-3">
+                  <div class="text-sm">
+                    {% if s.target_user %}
+                      <div class="font-medium">{{ s.target_user.naam }}</div>
+                      <div class="text-gray-500">Gebruiker • {{ s.permission }}</div>
+                    {% elif s.target_party %}
+                      <div class="font-medium">{{ s.target_party.afkorting }} — {{ s.target_party.naam }}</div>
+                      <div class="text-gray-500">Partij • {{ s.permission }}</div>
+                    {% endif %}
+                    {% if s.expires_at %}
+                      <div class="text-xs text-gray-400">Verloopt op {{ s.expires_at.date() }}</div>
+                    {% endif %}
+                  </div>
+
+                  <div class="flex items-center gap-2">
+                    <a href="{{ url_for('moties.share_revoke', motie_id=motie.id, share_id=s.id) }}"
+                       class="px-3 py-1.5 rounded-md border border-gray-300 hover:bg-gray-50 text-sm">Wijzig</a>
+                    <button type="button"
+                            data-modal-target="revokeModal-{{ s.id }}"
+                            data-modal-toggle="revokeModal-{{ s.id }}"
+                            class="px-3 py-1.5 rounded-md border border-gray-300 hover:bg-red-50 text-sm text-red-600">
+                      Intrekken
+                    </button>
+                  </div>
+
+                  {# Modal per share (boven alles) #}
+                  <div id="revokeModal-{{ s.id }}" class="hidden fixed inset-0 modal-topmost overflow-y-auto overflow-x-hidden">
+                    <div class="flex min-h-full items-end sm:items-center justify-center p-4">
+                      <div class="relative w-full max-w-md bg-white rounded-xl shadow-lg border">
+                        <div class="p-4 sm:p-6">
+                          <h3 class="text-base font-semibold mb-2">Toegang intrekken?</h3>
+                          <p class="text-sm text-gray-600">Deze ontvanger verliest toegang tot deze motie.</p>
+                        </div>
+                        <div class="px-4 sm:px-6 py-3 bg-gray-50 rounded-b-xl flex justify-end gap-2">
+                          <button data-modal-hide="revokeModal-{{ s.id }}"
+                                  class="rounded-lg border px-3 py-1.5 text-sm hover:bg-white">Annuleer</button>
+                          <form method="POST" action="{{ url_for('moties.share_revoke', motie_id=motie.id, share_id=s.id) }}">
+                            <button class="inline-flex items-center gap-2 rounded-lg bg-red-600 text-white px-3 py-1.5 text-sm hover:bg-red-700" type="submit">
+                              <i class="fa fa-trash"></i><span>Intrekken</span>
+                            </button>
+                          </form>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </li>
+              {% endfor %}
+            </ul>
+          {% else %}
+            <p class="text-sm text-gray-500">Nog niet gedeeld.</p>
+          {% endif %}
+        </div>
+      </aside>
+    </div>
+  </main>
+
+  {# -------- Mobiele onderbalk -------- #}
+  <div id="mobileActionsBarShare"
+       class="md:hidden fixed inset-x-0 bottom-0 page-chrome-low border-t bg-white/95 backdrop-blur px-3 py-2 flex items-center justify-between gap-2 print:hidden">
+    <button type="submit" form="shareForm"
+            class="flex-1 inline-flex items-center justify-center gap-2 rounded-lg bg-gray-900 text-white px-3 py-2 text-sm hover:bg-black">
+      <i class="fa fa-share"></i><span>Deel</span>
+    </button>
+    <a href="{{ url_for('moties.bekijken', motie_id=motie.id) }}"
+       class="flex-1 inline-flex items-center justify-center gap-2 rounded-lg border px-3 py-2 text-sm hover:bg-gray-50">
+      <i class="fa fa-file-text-o"></i><span>Bekijk</span>
+    </a>
+  </div>
+
+  {# -------- Scripts: Choices-init + toggle + validatie -------- #}
+  <script>
+    document.addEventListener('DOMContentLoaded', function () {
+      // 1) (Her)initialiseer Choices op onze selects (helper staat in base.html)
+      if (window.initChoices) window.initChoices('.choices-multi');
+
+      // 2) Toggle tussen 'Gebruiker(s)' en 'Partij(en)'
+      const tUser = document.getElementById('t_user');
+      const tParty = document.getElementById('t_party');
+      const wrapUsers   = document.getElementById('wrap_users');
+      const wrapParties = document.getElementById('wrap_parties');
+
+      const userSelectEl  = document.getElementById('share_user_ids');
+      const partySelectEl = document.getElementById('share_party_ids');
+
+      // Choices instanties (worden op element gezet door initChoices)
+      const userChoices  = userSelectEl?._choices;
+      const partyChoices = partySelectEl?._choices;
+
+      function updateTarget() {
+        const userMode = tUser.checked;
+        wrapUsers.classList.toggle('hidden', !userMode);
+        wrapParties.classList.toggle('hidden', userMode);
+
+        // Optioneel: leeg de niet-actieve keuze
+        try {
+          if (userMode && partyChoices)  partyChoices.removeActiveItems();
+          if (!userMode && userChoices) userChoices.removeActiveItems();
+        } catch (e) { /* ignore */ }
+      }
+
+      tUser.addEventListener('change', updateTarget);
+      tParty.addEventListener('change', updateTarget);
+      updateTarget();
+
+            // ... staat er al:
+      tUser.addEventListener('change', updateTarget);
+      tParty.addEventListener('change', updateTarget);
+      updateTarget();
+
+      // ▼ NIEUW: visuele tab-classes forceren bij load en bij wisselen
+      const ACTIVE   = ["bg-gray-900","text-white"];
+      const INACTIVE = ["bg-white","text-gray-900"]; // kleurtekst mag je weglaten als je 't niet wilt forceren
+      const tabUserLabel  = document.getElementById('tabUserLabel');
+      const tabPartyLabel = document.getElementById('tabPartyLabel');
+
+      function setTabVisual() {
+        const userMode = tUser.checked;
+        // reset
+        tabUserLabel.classList.remove(...ACTIVE, ...INACTIVE);
+        tabPartyLabel.classList.remove(...ACTIVE, ...INACTIVE);
+        // apply
+        if (userMode) {
+          tabUserLabel.classList.add(...ACTIVE);
+          tabPartyLabel.classList.add(...INACTIVE);
+        } else {
+          tabUserLabel.classList.add(...INACTIVE);
+          tabPartyLabel.classList.add(...ACTIVE);
+        }
+      }
+      setTabVisual();
+      tUser.addEventListener('change', setTabVisual);
+      tParty.addEventListener('change', setTabVisual);
+
+      // 3) Form-validatie: eis min. 1 ontvanger in de actieve modus
+      const form = document.getElementById('shareForm');
+      form?.addEventListener('submit', function (e) {
+        const userMode = tUser.checked;
+        const hasUsers   = userChoices  ? userChoices.getValue(true).length  > 0
+                                        : (userSelectEl?.selectedOptions?.length > 0);
+        const hasParties = partyChoices ? partyChoices.getValue(true).length > 0
+                                        : (partySelectEl?.selectedOptions?.length > 0);
+        if ((userMode && !hasUsers) || (!userMode && !hasParties)) {
+          e.preventDefault();
+          alert('Kies minstens één ontvanger.');
+        }
+      });
+
+      // 4) Mobiele onderbalk toggler
+      const btn = document.getElementById('mobileActionsBtnShare');
+      const bar = document.getElementById('mobileActionsBarShare');
+      if (btn && bar) btn.addEventListener('click', () => bar.classList.toggle('hidden'));
+    });
+  </script>
+{% endblock %}

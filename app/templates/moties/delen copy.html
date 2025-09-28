@@ -1,0 +1,182 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="sticky top-0 z-10 bg-white/80 backdrop-blur border-b print:hidden">
+    <div class="mx-auto max-w-7xl px-4 py-2 flex items-center justify-between">
+      <div class="text-sm text-gray-600">Motie {{ motie.titel }}</div>
+      <div class="inline-flex rounded-md shadow-xs" role="group">
+        <a href="{{ url_for('moties.bekijken', motie_id=motie.id) }}" type="button" class="px-4 py-2 text-sm font-medium text-gray-900 bg-white border border-gray-200 rounded-s-lg hover:bg-gray-100 hover:text-blue-700 focus:z-10 focus:ring-2 focus:ring-blue-700 focus:text-blue-700 dark:bg-gray-800 dark:border-gray-700 dark:text-white dark:hover:text-white dark:hover:bg-gray-700 dark:focus:ring-blue-500 dark:focus:text-white">
+          Terug naar motie
+        </a>
+      </div>
+    </div>
+  </div>
+  <main class="max-w-7xl mx-auto px-4 py-8">
+  <h1 class="text-2xl font-semibold mb-6">Motie <i>{{ motie.titel }}</i> delen</h1>
+      <section class="grid grid-cols-1 md:grid-cols-2 gap-6 content-start">
+      <div class="bg-white p-6 rounded-xl shadow">
+        <h2 class="text-lg font-semibold mb-3">Delen</h2>
+        <p class="text-sm text-gray-500 mb-4">Deel deze motie met een <strong>gebruiker</strong> of een <strong>partij</strong>. Zelfde zoekstijl als mede-indieners.</p>
+
+        <!-- Formulier: nieuwe share -->
+        <form method="POST" action="{{ url_for('moties.share_create', motie_id=motie.id) }}" class="space-y-4">
+          <!-- Keuze: type doelwit -->
+          <div>
+            <label class="block text-sm font-medium text-gray-700 mb-1">Delen met</label>
+            <select id="share_target_type" name="target_type"
+                    class="w-full rounded-md border border-gray-300 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-gray-900">
+              <option value="user" selected>Gebruiker</option>
+              <option value="party">Partij</option>
+            </select>
+          </div>
+
+          <!-- Gebruiker-select (TomSelect) -->
+          <div>
+            <label class="block text-sm font-medium text-gray-700">Kies gebruiker(s)</label>
+            <select id="share_user_ids"
+                    name="share_user_ids"
+                    multiple
+                    class="choices-multi w-full"
+                    data-placeholder="Zoek gebruiker(s)…">
+              {% for u in alle_users %}
+                <option value="{{ u.id }}">{{ u.naam }} — ({{ u.partij.afkorting if u.partij else '—' }})</option>
+              {% endfor %}
+            </select>
+            <p class="mt-1 text-xs text-gray-500">Selecteer één of meer gebruikers; × om te verwijderen.</p>
+          </div>
+
+          <!-- Partijen (meerdere toegestaan) -->
+          <div>
+            <label class="block text-sm font-medium text-gray-700">Kies partij(en)</label>
+            <select id="share_party_ids"
+                    name="share_party_ids"
+                    multiple
+                    class="choices-multi w-full"
+                    data-placeholder="Zoek partij(en)…">
+              {% for p in alle_partijen %}
+                <option value="{{ p.id }}">{{ p.afkorting }} — {{ p.naam }}</option>
+              {% endfor %}
+            </select>
+            <p class="mt-1 text-xs text-gray-500">Optioneel: deel met één of meer partijen.</p>
+          </div>
+
+          <!-- Rechten -->
+          <div>
+            <label class="block text-sm font-medium text-gray-700">Rechten</label>
+            <select name="permission"
+                    class="w-full rounded-md border border-gray-300 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-gray-900">
+              <option value="view" selected>Alleen lezen</option>
+              <option value="comment">Commentaar geven</option>
+              <option value="suggest">Voorstellen doen</option>
+            </select>
+          </div>
+
+          <!-- Optioneel bericht -->
+          <div>
+            <label class="block text-sm font-medium text-gray-700">Bericht (optioneel)</label>
+            <textarea name="message" rows="2"
+                      class="w-full rounded-md border border-gray-300 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-gray-900"
+                      placeholder="Korte toelichting voor de ontvanger"></textarea>
+          </div>
+
+          <!-- Optionele verloopdatum -->
+          <div>
+            <label class="block text-sm font-medium text-gray-700">Verloopt op (optioneel)</label>
+            <input type="date" name="expires_at"
+                   class="w-full rounded-md border border-gray-300 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-gray-900">
+          </div>
+
+          <div class="flex justify-end">
+            <button type="submit" class="inline-flex items-center px-4 py-2 rounded-md bg-gray-900 text-white hover:bg-black">
+              Delen
+            </button>
+          </div>
+        </form>
+      </div>
+
+      <!-- Lijst met actieve shares -->
+      <div class="bg-white p-6 rounded-xl shadow">
+        <h3 class="text-sm font-semibold mb-3">Toegang verleend</h3>
+        {% if actieve_shares %}
+          <ul class="divide-y divide-gray-200">
+            {% for s in actieve_shares %}
+              <li class="py-3 flex items-center justify-between">
+                <div class="text-sm">
+                  {% if s.target_user %}
+                    <div class="font-medium">{{ s.target_user.naam }}</div>
+                    <div class="text-gray-500">Gebruiker • {{ s.permission }}</div>
+                  {% elif s.target_party %}
+                    <div class="font-medium">{{ s.target_party.afkorting }} — {{ s.target_party.naam }}</div>
+                    <div class="text-gray-500">Partij • {{ s.permission }}</div>
+                  {% endif %}
+                  {% if s.expires_at %}
+                    <div class="text-xs text-gray-400">Verloopt op {{ s.expires_at.date() }}</div>
+                  {% endif %}
+                </div>
+                <form method="POST" action="{{ url_for('moties.share_revoke', motie_id=motie.id, share_id=s.id) }}">
+                  <button class="px-3 py-1.5 rounded-md border border-gray-300 hover:bg-gray-50" type="submit" title="Toegang intrekken">×</button>
+                </form>
+              </li>
+            {% endfor %}
+          </ul>
+        {% else %}
+          <p class="text-sm text-gray-500">Nog niet gedeeld.</p>
+        {% endif %}
+      </div>
+    </section>
+</main>
+<script>
+  document.addEventListener('DOMContentLoaded', function () {
+    // TomSelect voor delen met gebruiker/partij
+    const userSelect = new TomSelect('#share_target_user_id', {
+      maxItems: 1,
+      plugins: ['remove_button'],
+      persist: false,
+      placeholder: 'Zoek gebruiker…'
+    });
+    const partySelect = new TomSelect('#share_target_party_id', {
+      maxItems: 1,
+      plugins: ['remove_button'],
+      persist: false,
+      placeholder: 'Zoek partij…'
+    });
+
+    // Toggle tussen user/party
+    const typeSel = document.getElementById('share_target_type');
+    const wrapUser = document.getElementById('share_user_wrap');
+    const wrapParty = document.getElementById('share_party_wrap');
+
+    function toggleTarget() {
+      const t = typeSel.value;
+      if (t === 'user') {
+        wrapUser.classList.remove('hidden');
+        wrapParty.classList.add('hidden');
+        partySelect.clear(true);
+      } else {
+        wrapParty.classList.remove('hidden');
+        wrapUser.classList.add('hidden');
+        userSelect.clear(true);
+      }
+    }
+    typeSel.addEventListener('change', toggleTarget);
+    toggleTarget();
+  });
+</script>
+<script>
+  document.addEventListener('DOMContentLoaded', function () {
+    // Multi-selects voor delen
+    new TomSelect('#share_user_ids', {
+      plugins: ['remove_button'],
+      persist: false,
+      maxItems: null,              // ∞
+      placeholder: 'Zoek gebruiker(s)…'
+    });
+    new TomSelect('#share_party_ids', {
+      plugins: ['remove_button'],
+      persist: false,
+      maxItems: null,
+      placeholder: 'Zoek partij(en)…'
+    });
+  });
+</script>
+
+  {% endblock %}

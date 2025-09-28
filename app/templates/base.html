@@ -1,88 +1,333 @@
 <html>
-    <head>
-        <meta charset="UTF-8">
-        <meta name="viewport" content="width=device-width, initial-scale=1.0">
-        <meta name="color-scheme" content="light dark">
-        <title>{% block title %}Motio{% endblock %}</title>
-        <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/7.0.1/css/all.min.css">
-        <!-- Tailwind via CDN -->
-        <script src="https://cdn.tailwindcss.com"></script>
-            <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/choices.js/public/assets/styles/choices.min.css">
-                <style>
-                /* Tailwind-achtige look via extra class op de container */
-                .custom-choices .choices__inner {
-                    border: 1px solid #d1d5db; border-radius: .5rem; padding: .375rem .5rem; min-height: 2.5rem; background:#f9fafb;
-                }
-                .custom-choices.is-focused .choices__inner,
-                .custom-choices.is-open .choices__inner {
-                    border-color:#3b82f6; box-shadow:0 0 0 3px rgb(59 130 246 / .5); background:#fff;
-                }
-                .custom-choices .choices__list--multiple .choices__item {
-                    background:#e5e7eb; color:#111827; border:1px solid #d1d5db; border-radius:.375rem; margin:.25rem; padding:.125rem .5rem;
-                }
-                .custom-choices .choices__button { border-left:1px solid #9ca3af; }
-                .custom-choices .choices__list--dropdown { border:1px solid #d1d5db; border-radius:.5rem; }
-                .custom-choices .choices__list--dropdown .choices__item--selectable.is-highlighted {
-                    background:#eff6ff; color:#1f2937;
-                }
-                </style>
-        <script>
-            // Optionele config (kleuren, container, fonts, safelist, dark mode, etc.)
-            tailwind.config = {
+
+<head>
+    <style>
+.tc-del { text-decoration: line-through; background: #fee2e2; color: #991b1b; }
+.tc-ins { text-decoration: none; background: #dcfce7; border-bottom: 2px solid #16a34a; color: #065f46; }
+</style>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="color-scheme" content="light dark">
+    <title>{% block title %}Motio{% endblock %}</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/7.0.1/css/all.min.css">
+    <!-- Tailwind via CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://cdn.jsdelivr.net/npm/flowbite@3.1.2/dist/flowbite.min.css" rel="stylesheet" />
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/choices.js/public/assets/styles/choices.min.css">
+    <style>
+        /* Tailwind-achtige look via extra class op de container */
+        .custom-choices .choices__inner {
+            border: 1px solid #d1d5db;
+            border-radius: .5rem;
+            padding: .375rem .5rem;
+            min-height: 2.5rem;
+            background: #f9fafb;
+        }
+
+        .custom-choices.is-focused .choices__inner,
+        .custom-choices.is-open .choices__inner {
+            border-color: #3b82f6;
+            box-shadow: 0 0 0 3px rgb(59 130 246 / .5);
+            background: #fff;
+        }
+
+        .custom-choices .choices__list--multiple .choices__item {
+            background: #e5e7eb;
+            color: #111827;
+            border: 1px solid #d1d5db;
+            border-radius: .375rem;
+            margin: .25rem;
+            padding: .125rem .5rem;
+        }
+
+        .custom-choices .choices__button {
+            border-left: 1px solid #9ca3af;
+        }
+
+        .custom-choices .choices__list--dropdown {
+            border: 1px solid #d1d5db;
+            border-radius: .5rem;
+        }
+
+        .custom-choices .choices__list--dropdown .choices__item--selectable.is-highlighted {
+            background: #eff6ff;
+            color: #1f2937;
+        }
+
+          :root{
+                /* hoogte van je navbar; pas aan als hij hoger is */
+            --nav-h: 56px;
+            }
+            @media (min-width: 768px){
+            :root{ --nav-h: 64px; }
+            }
+
+        [modal-backdrop] { z-index: 1500 !important; }   /* Flowbite overlay */
+        .modal-topmost, .modal-topmost * { z-index: 1600 !important; }
+
+        .nav-root { z-index: 1200; position: relative; }
+        .nav-dropdown, .nav-dropdown * { z-index: 1200 !important; }
+
+        .page-chrome { z-index: 900; }
+        .page-chrome-low { z-index: 800; }
+
+        .content-dropdown { z-index: 750 !important; }
+    </style>
+    <script>
+        // Optionele config (kleuren, container, fonts, safelist, dark mode, etc.)
+        tailwind.config = {
             darkMode: 'class',
             theme: {
                 container: { center: true, padding: '1rem' },
                 extend: {
-                colors: {
-                    brand: {
-                    DEFAULT: '#0ea5e9',
-                    dark: '#0369a1'
+                    colors: {
+                        brand: {
+                            DEFAULT: '#0ea5e9',
+                            dark: '#0369a1'
+                        }
+                    },
+                    fontFamily: {
+                        sans: ['Inter', 'ui-sans-serif', 'system-ui', 'Segoe UI', 'Roboto', 'Arial', 'sans-serif']
                     }
-                },
-                fontFamily: {
-                    sans: ['Inter', 'ui-sans-serif', 'system-ui', 'Segoe UI', 'Roboto', 'Arial', 'sans-serif']
-                }
                 }
             },
             safelist: [
                 // classes die je dynamisch toevoegt vanuit Flask/Jinja
-                'text-green-600','text-red-600','bg-yellow-100','bg-green-100','bg-red-100'
+                'text-green-600', 'text-red-600', 'bg-yellow-100', 'bg-green-100', 'bg-red-100'
             ]
-            }
-        </script>
-        <script src="https://cdn.jsdelivr.net/npm/choices.js/public/assets/scripts/choices.min.js"></script>
+        }
+    </script>
+    <script src="https://cdn.jsdelivr.net/npm/choices.js/public/assets/scripts/choices.min.js"></script>
 
-    </head>
-    <body>
-<div class="fixed top-0 left-0 w-full z-50 bg-white border-b backdrop-blur-lg bg-opacity-80">
-    <div class="mx-auto max-w-7xl px-4 sm:px-6 lg:px-4 ">
-        <div class="relative flex h-16 justify-between">
-            <div class="flex flex-1 items-stretch justify-start">
-                <a class="flex flex-shrink-0 items-center" href="{{ url_for('dashboard.home') }}">
-                    <img class="block h-10 w-auto" src="/static/img/favicon.png" >
-                </a>
-            </div>
-            <div class="flex-shrink-0 flex px-2 py-3 items-center space-x-8">
-                <a class="text-gray-700 hover:text-indigo-700 text-sm font-medium" href="{{ url_for('dashboard.home') }}">Dashboard</a>
-                <a class="text-gray-700 hover:text-indigo-700 text-sm font-medium" href="{{ url_for('moties.index') }}">Moties</a>
-                {% if user_has_role('superadmin') %}
-                <a class="text-gray-700 hover:text-indigo-700 text-sm font-medium" href="{{ url_for('amendementen.index') }}">Amendementen</a>
-                <a class="text-gray-700 hover:text-indigo-700 text-sm font-medium" href="{{ url_for('gebruikers.index') }}">Gebruikersbeheer</a>
+</head>
+
+<body>
+    <nav class="bg-white/80 backdrop-blur sticky top-0 nav-root border-gray-200 border-b dark:bg-gray-900 dark:border-gray-700">
+        <div class="max-w-screen-xl flex flex-wrap items-center justify-between mx-auto p-4">
+            <a href="{{ url_for('dashboard.home') }}" class="flex items-center space-x-3 rtl:space-x-reverse">
+                <img src="/static/img/logo_banner.png" class="h-8" alt="Motio Logo" />
+            </a>
+                        <!-- Notifications (bell) -->
+
+            <div class="flex items-center md:order-2 space-x-3 md:space-x-0 rtl:space-x-reverse">
+                <button type="button"
+                    class="flex text-sm bg-gray-800 rounded-full md:me-0 focus:ring-4 focus:ring-gray-300 dark:focus:ring-gray-600"
+                    id="user-menu-button" aria-expanded="false" data-dropdown-toggle="user-dropdown"
+                    data-dropdown-placement="bottom">
+                    <span class="sr-only">Open user menu</span>
+                    <img class="w-8 h-8 rounded-full" src="{{ current_user.profile_src }}" alt="user photo">
+                </button>
+                <!-- Dropdown menu -->
+                <div class="z-[1200] nav-dropdown z-50 hidden my-4 w-60 text-base list-none bg-white divide-y divide-gray-100 rounded-lg shadow-sm dark:bg-gray-700 dark:divide-gray-600"
+                    id="user-dropdown">
+                    <div class="px-4 py-3">
+                        <span class="block text-sm text-gray-900 dark:text-white">{{ current_user.naam }}</span>
+                        <span class="block text-sm  text-gray-500 truncate dark:text-gray-400">{{
+                            current_user.partij.naam }}</span>
+                    </div>
+                    <ul class="py-2" aria-labelledby="user-menu-button">
+                        <li>
+                            <a href="#"
+                                class="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 dark:hover:bg-gray-600 dark:text-gray-200 dark:hover:text-white">Profiel</a>
+                        </li>
+                        <li>
+                            <a href="#"
+                                class="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 dark:hover:bg-gray-600 dark:text-gray-200 dark:hover:text-white">Instellingen</a>
+                        </li>
+                        <li>
+                            <a href="#"
+                                class="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 dark:hover:bg-gray-600 dark:text-gray-200 dark:hover:text-white">Notificaties</a>
+                        </li>
+                        <li>
+                            <a href="{{ url_for('auth.logout', user_id=current_user.id) }}"
+                                class="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 dark:hover:bg-gray-600 dark:text-gray-200 dark:hover:text-white">Uitloggen</a>
+                        </li>
+                    </ul>
+                </div>
+            <div class="relative me-3 px-2">
+            <button
+                type="button"
+                id="notif-button"
+                class="relative inline-flex items-center justify-center w-10 h-10 rounded-full hover:bg-gray-100 focus:outline-none focus:ring-4 focus:ring-gray-300 dark:hover:bg-gray-700 dark:focus:ring-gray-600"
+                aria-expanded="false"
+                aria-controls="notif-dropdown"
+                data-dropdown-toggle="notif-dropdown"
+                data-dropdown-placement="bottom"
+            >
+                <span class="sr-only">Open notificaties</span>
+                <i class="fa-regular fa-bell text-gray-700 dark:text-gray-200"></i>
+
+                {% set _unread = notif_unread|default(0) %}
+                {% if _unread > 0 %}
+                    <span
+                    class="absolute -top-0.5 -right-0.5 min-w-[1.1rem] h-4 px-1 inline-flex items-center justify-center
+                                text-[10px] leading-none font-semibold text-white bg-red-600 rounded-full
+                                ring-2 ring-white dark:ring-gray-800">
+                    {{ _unread if _unread < 100 else '99+' }}
+                    </span>
                 {% endif %}
-                <a class="text-gray-700 hover:text-indigo-700 text-sm font-medium" href="{{ url_for('partijen.index') }}">Partijen</a>
-                <a class="text-gray-800 bg-indigo-100 hover:bg-indigo-200 inline-flex items-center justify-center px-3 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm "
-                    href="{{ url_for('auth.logout') }}">Logout
-                </a>
+            </button>
+
+            <!-- Dropdown -->
+            <div id="notif-dropdown"
+                class="z-50 nav-dropdown z-[1200] hidden my-4 px-2 w-80 max-w-[90vw] text-sm bg-white rounded-lg shadow-sm border border-gray-100 dark:bg-gray-800 dark:border-gray-700">
+                <div class="px-4 py-3 border-b border-gray-100 dark:border-gray-700 flex items-center justify-between">
+                <div class="font-medium">Notificaties</div>
+                <a href="{{ url_for('gebruikers.mark_all_read') }}"
+                    class="text-xs text-blue-600 hover:underline">Alles lezen</a>
+                </div>
+
+                <ul class="max-h-96 overflow-auto divide-y divide-gray-100 dark:divide-gray-700">
+                {# veilig fallbacken als lijst (nog) niet wordt meegegeven #}
+                {% set _notifs = (notifications if notifications is defined else []) %}
+                {% for n in _notifs[:10] %}
+                    <li>
+                    <a href="{% if n.motie_id %}
+            {{ url_for('gebruikers.open',
+                       notification_id=n.id,
+                       next=url_for('moties.bekijken', motie_id=n.motie_id)) }}
+         {% else %}
+            {{ url_for('gebruikers.open', notification_id=n.id) }}
+         {% endif %}"
+                        class="flex gap-3 px-4 py-3 hover:bg-gray-50 dark:hover:bg-gray-700 {% if not n.read_at %}bg-blue-50/50 dark:bg-blue-900/20{% endif %}">
+                        <div class="pt-0.5">
+                        {% if n.type == 'share_received' %}
+                            <i class="fa-solid fa-user-plus"></i>
+                        {% elif n.type == 'share_revoked' %}
+                            <i class="fa-solid fa-user-xmark"></i>
+                        {% elif n.type == 'coauthor_added' %}
+                            <i class="fa-solid fa-pen-to-square"></i>
+                        {% else %}
+                            <i class="fa-regular fa-bell"></i>
+                        {% endif %}
+                        </div>
+                        <div class="min-w-0">
+                        <p class="font-medium text-gray-900 dark:text-gray-100">
+                            {% if n.type == 'share_received' %}Motie met jou gedeeld door {{ n.payload.afzender_naam }}
+                            {% elif n.type == 'share_revoked' %}Toegang ingetrokken {{ n.payload.revoked_by_naam }}
+                            {% elif n.type == 'coauthor_added' %}Toegevoegd als mede-indiener
+                            {% else %}Notificatie{% endif %}
+                        </p>
+                        <p class="text-gray-600 dark:text-gray-300 truncate">
+                            {{ (n.payload.motie_titel if n.payload and 'motie_titel' in n.payload else ('Motie #' ~ n.motie_id)) }}
+                        </p>
+                        <p class="text-xs text-gray-400">{{ n.created_at.strftime('%d-%m-%Y %H:%M') }}</p>
+                        </div>
+                        {% if not n.read_at %}
+                        <span class="ml-auto mt-1 w-2 h-2 rounded-full bg-blue-600"></span>
+                        {% endif %}
+                    </a>
+                    </li>
+                {% else %}
+                    <li class="px-4 py-6 text-gray-500">Geen nieuwe notificaties.</li>
+                {% endfor %}
+                </ul>
+
+                <div class="px-4 py-2 border-t border-gray-100 dark:border-gray-700">
+                <a href=""
+                    class="block text-center text-sm text-blue-600 hover:underline">Alle notificaties bekijken</a>
+                </div>
+            </div>
+            </div>
+            </div>
+            <button data-collapse-toggle="navbar-dropdown" type="button"
+                class="inline-flex items-center p-2 w-10 h-10 justify-center text-sm text-gray-500 rounded-lg md:hidden hover:bg-gray-100 focus:outline-none focus:ring-2 focus:ring-gray-200 dark:text-gray-400 dark:hover:bg-gray-700 dark:focus:ring-gray-600"
+                aria-controls="navbar-dropdown" aria-expanded="false">
+                <span class="sr-only">Open menu</span>
+                <svg class="w-5 h-5" aria-hidden="true" xmlns="http://www.w3.org/2000/svg" fill="none"
+                    viewBox="0 0 17 14">
+                    <path stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                        d="M1 1h15M1 7h15M1 13h15" />
+                </svg>
+            </button>
+            <div class="nav-dropdown hidden w-full md:block z-[1200] md:w-auto" id="navbar-dropdown">
+                <ul
+                    class="flex flex-col font-medium p-4 md:p-0 mt-4 border border-gray-100 rounded-lg md:space-x-8 rtl:space-x-reverse md:flex-row md:mt-0 md:border-0 dark:bg-gray-800 md:dark:bg-gray-900 dark:border-gray-700">
+                    <li>
+                        <a href="{{ url_for('dashboard.home') }}"
+                            class="block bg-transparent py-2 px-3 text-gray-900 rounded-sm hover:bg-gray-100 md:hover:bg-transparent md:border-0 md:hover:text-blue-700 md:p-0 dark:text-white md:dark:hover:text-blue-500 dark:hover:bg-gray-700 dark:hover:text-white md:dark:hover:bg-transparent">Home</a>
+                    </li>
+                    <li>
+                        <button id="dropdownNavbarLink" data-dropdown-toggle="dropdownNavbar"
+                            class="flex items-center justify-between w-full py-2 px-3 text-gray-900 rounded-sm hover:bg-gray-100 md:hover:bg-transparent md:border-0 md:hover:text-blue-700 md:p-0 md:w-auto dark:text-white md:dark:hover:text-blue-500 dark:focus:text-white dark:border-gray-700 dark:hover:bg-gray-700 md:dark:hover:bg-transparent">Moties
+                            <svg class="w-2.5 h-2.5 ms-2.5" aria-hidden="true" xmlns="http://www.w3.org/2000/svg"
+                                fill="none" viewBox="0 0 10 6">
+                                <path stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"
+                                    stroke-width="2" d="m1 1 4 4 4-4" />
+                            </svg>
+                        </button>
+                        <!-- Dropdown menu -->
+                        <div id="dropdownNavbar"
+                            class="z-70 hidden font-normal bg-white divide-y divide-gray-100 rounded-lg shadow-sm w-60 dark:bg-gray-700 dark:divide-gray-600">
+                            <ul class="py-2 text-sm text-gray-700 dark:text-gray-400"
+                                aria-labelledby="dropdownLargeButton">
+                                <li>
+                                    <a href="{{ url_for('moties.index_personal') }}"
+                                        class="block px-4 py-2 hover:bg-gray-100 dark:hover:bg-gray-600 dark:hover:text-white">Mijn
+                                        moties</a>
+                                </li>
+                                <li>
+                                    <a href="{{ url_for('moties.index_shared') }}"
+                                        class="block px-4 py-2 hover:bg-gray-100 dark:hover:bg-gray-600 dark:hover:text-white">Moties
+                                        gedeeld met mij</a>
+                                </li>
+                                <li>
+                                    <a href="{{ url_for('moties.index_personal') }}"
+                                        class="block px-4 py-2 hover:bg-gray-100 dark:hover:bg-gray-600 dark:hover:text-white">Geadviseerde
+                                        moties</a>
+                                </li>
+                            </ul>
+                            {% if user_has_role('superadmin') %}
+                            <div class="py-1">
+                                <a href="{{ url_for('moties.index') }}"
+                                    class="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 dark:hover:bg-gray-600 dark:text-gray-200 dark:hover:text-white">Alle
+                                    moties</a>
+                            </div>
+                            {% endif %}
+                        </div>
+                    </li>
+                    <li>
+                        <a href="{{ url_for('partijen.index') }}"
+                            class="block bg-transparent py-2 px-3 text-gray-900 rounded-sm hover:bg-gray-100 md:hover:bg-transparent md:border-0 md:hover:text-blue-700 md:p-0 dark:text-white md:dark:hover:text-blue-500 dark:hover:bg-gray-700 dark:hover:text-white md:dark:hover:bg-transparent">Partijen</a>
+                    </li>
+                    <li>
+                        <button id="dropdownNavbarLink" data-dropdown-toggle="dropdownBeheer"
+                            class="flex items-center justify-between w-full py-2 px-3 text-blue-700 rounded-sm hover:bg-gray-100 md:hover:bg-transparent md:border-0 md:hover:text-gray-700 md:p-0 md:w-auto dark:text-white md:dark:hover:text-blue-500 dark:focus:text-white dark:border-gray-700 dark:hover:bg-gray-700 md:dark:hover:bg-transparent">Beheer
+                            <svg class="w-2.5 h-2.5 ms-2.5" aria-hidden="true" xmlns="http://www.w3.org/2000/svg"
+                                fill="none" viewBox="0 0 10 6">
+                                <path stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"
+                                    stroke-width="2" d="m1 1 4 4 4-4" />
+                            </svg></button>
+                        <!-- Dropdown menu -->
+                        <div id="dropdownBeheer"
+                            class="z-70 nav-dropdown z-[1200] hidden font-normal bg-white divide-y divide-gray-100 rounded-lg shadow-sm w-60 dark:bg-gray-700 dark:divide-gray-600">
+                            <ul class="py-2 text-sm text-gray-700 dark:text-gray-400"
+                                aria-labelledby="dropdownLargeButton">
+                                <li>
+                                    <a href="{{ url_for('gebruikers.index') }}"
+                                        class="block px-4 py-2 hover:bg-gray-100 dark:hover:bg-gray-600 dark:hover:text-white">Gebruikers</a>
+                                </li>
+                                <li>
+                                    <a href="{{ url_for('partijen.index') }}"
+                                        class="block px-4 py-2 hover:bg-gray-100 dark:hover:bg-gray-600 dark:hover:text-white">Partijen</a>
+                                </li>
+                                <li>
+                                    <a href="{{ url_for('moties.index_personal') }}"
+                                        class="block px-4 py-2 hover:bg-gray-100 dark:hover:bg-gray-600 dark:hover:text-white">FAQ</a>
+                                </li>
+                            </ul>
+                        </div>
+                    </li>
+                </ul>
             </div>
         </div>
-    </div>
-</div>
-      <div class="relative">
-<div class="container mt-20">
-         {% with messages = get_flashed_messages(with_categories=True) %}
-          {% if messages %}
+    </nav>
+    <div class="relative">
+        <div class="container mt-8">
+            {% with messages = get_flashed_messages(with_categories=True) %}
+            {% if messages %}
             {% for category, message in messages %}
-              <div class="
+            <div class="
                 p-4 mb-4 rounded-lg border
                 {% if category == 'success' %} text-green-800 border-green-300 bg-green-50
                 {% elif category in ['error','danger'] %} text-red-800 border-red-300 bg-red-50
@@ -91,48 +336,50 @@
                 {% endif %}
               ">
                 {{ message }}
-              </div>
+            </div>
             {% endfor %}
-          {% endif %}
-        {% endwith %}
-        {% block content %}{% endblock %} 
+            {% endif %}
+            {% endwith %}
+            {% block content %}{% endblock %}
+        </div>
     </div>
-</div>
-<script src="https://cdn.jsdelivr.net/npm/choices.js/public/assets/scripts/choices.min.js" defer></script>
-<script>
-  function initChoices(selector = '.choices-multi') {
-    const nodes = document.querySelectorAll(selector);
-    nodes.forEach((el) => {
-      if (!el || el.dataset.choicesInit === '1') return;
+    <script src="https://cdn.jsdelivr.net/npm/choices.js/public/assets/scripts/choices.min.js" defer></script>
+    <script>
+        function initChoices(selector = '.choices-multi') {
+            const nodes = document.querySelectorAll(selector);
+            nodes.forEach((el) => {
+                if (!el || el.dataset.choicesInit === '1') return;
 
-      // Init Choices (let op: geen spaties in classNames -> 1 token!)
-      const instance = new Choices(el, {
-        removeItemButton: true,
-        searchEnabled: true,
-        shouldSort: false,
-        placeholder: true,
-        placeholderValue: el.dataset.placeholder || 'Kies…',
-        itemSelectText: 'Klik om te selecteren',
-        noResultsText: 'Geen resultaten',
-        noChoicesText: 'Geen opties',
-        classNames: {
-          containerOuter: 'choices' // laat default staan; geen extra class met spatie!
+                // Init Choices (let op: geen spaties in classNames -> 1 token!)
+                const instance = new Choices(el, {
+                    removeItemButton: true,
+                    searchEnabled: true,
+                    shouldSort: false,
+                    placeholder: true,
+                    placeholderValue: el.dataset.placeholder || 'Kies…',
+                    itemSelectText: 'Klik om te selecteren',
+                    noResultsText: 'Geen resultaten',
+                    noChoicesText: 'Geen opties',
+                    classNames: {
+                        containerOuter: 'choices' // laat default staan; geen extra class met spatie!
+                    }
+                });
+
+                // Voeg onze extra styling-class apart toe (nu mag dat wél)
+                try { instance.containerOuter.element.classList.add('custom-choices'); } catch (e) { }
+
+                el.dataset.choicesInit = '1';
+                el._choices = instance;
+            });
         }
-      });
 
-      // Voeg onze extra styling-class apart toe (nu mag dat wél)
-      try { instance.containerOuter.element.classList.add('custom-choices'); } catch (e) {}
+        // Veilig initialiseren (element kan ontbreken → geen error)
+        document.addEventListener('DOMContentLoaded', () => initChoices());
 
-      el.dataset.choicesInit = '1';
-      el._choices = instance;
-    });
-  }
+        // Als je htmx/Turbo/nav gebruikt en content wisselt:
+        document.addEventListener('htmx:afterSwap', () => initChoices());
+    </script>
+    <script src="https://cdn.jsdelivr.net/npm/flowbite@3.1.2/dist/flowbite.min.js"></script>
+</body>
 
-  // Veilig initialiseren (element kan ontbreken → geen error)
-  document.addEventListener('DOMContentLoaded', () => initChoices());
-
-  // Als je htmx/Turbo/nav gebruikt en content wisselt:
-  document.addEventListener('htmx:afterSwap', () => initChoices());
-</script>
-    </body>
-    </html> 
+</html>

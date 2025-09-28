@@ -7,6 +7,7 @@ from flask import url_for
 from sqlalchemy.types import TypeDecorator, Text
 from flask import current_app
 from itsdangerous import URLSafeTimedSerializer, BadSignature, SignatureExpired
+from sqlalchemy.dialects.postgresql import JSONB  # of JSON als je SQLite gebruikt
 
 class JSONEncodedList(TypeDecorator):
     impl = Text
@@ -17,6 +18,16 @@ class JSONEncodedList(TypeDecorator):
         return json.dumps(value)
     def process_result_value(self, value, dialect):
         return json.loads(value) if value else []
+
+class JSONEncodedDict(TypeDecorator):
+    impl = Text
+    cache_ok = True
+    def process_bind_param(self, value, dialect):
+        if value is None:
+            return "{}"
+        return json.dumps(value)
+    def process_result_value(self, value, dialect):
+        return json.loads(value) if value else {}
 
 # --- M2M-tabel: Motie ↔ User (mede-indieners)
 motie_medeindieners = db.Table(
@@ -36,6 +47,7 @@ class User(UserMixin, db.Model):
     partij_id = db.Column(db.Integer, db.ForeignKey('party.id'), nullable=True)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     role = db.Column(db.String(120), default="gebruiker")
+    actief = db.Column(db.Boolean, default=True)    
     profile_url = db.Column(db.String(512), nullable=True)
     profile_filename = db.Column(db.String(255), nullable=True, default='placeholder_profile.png')
 
@@ -47,7 +59,12 @@ class User(UserMixin, db.Model):
             from flask import url_for
             return url_for('static', filename=f'img/users/{self.profile_filename}', _external=False)
         return None
-
+    
+    @property
+    def is_active(self) -> bool:
+        # Flask-Login leest dit in @login_required-flows
+        return bool(self.actief)
+    
     # Relaties
     partij = db.relationship('Party', backref='leden')
 
@@ -117,10 +134,6 @@ class Party(db.Model):
     def __repr__(self):
         return f'<Partij {self.naam}>'
 
-
-# ⬇️ Voeg dit toe in je bestaande Motie-model (NIET dubbel definiëren).
-#    Laat alle bestaande kolommen van Motie staan; voeg/aanpas alleen onderstaande relaties.
-
 class Motie(db.Model):
     __tablename__ = "motie"
     id = db.Column(db.Integer, primary_key=True)
@@ -161,29 +174,112 @@ class Motie(db.Model):
 
     def __repr__(self):
         return f'<Motie {getattr(self, "titel", self.id)}>'
+    
+    def motie_to_editable_dict(m: 'Motie') -> dict:
+        """Neem exact de velden mee die de griffie inhoudelijk mag aanpassen."""
+        return {
+            "titel": m.titel or "",
+            # pas deze aan op jouw modelvelden:
+            "constaterende_dat": [c.tekst for c in m.constaterende_dat] if hasattr(m, "constaterende_dat") else [],
+            "overwegende_dat": [o.tekst for o in m.overwegende_dat] if hasattr(m, "overwegende_dat") else [],
+            "draagt_college_op":    [d.tekst for d in m.draagt_college_op] if hasattr(m, "draagt_college_op") else [],
+        }
 
+# === Delen van moties met partijen of personen (geen mede-indieners) ===
+class MotieShare(db.Model):
+    __tablename__ = "motie_share"
 
-
-# -------------------------------------------------------
-# Oude definitie van Motie (voor referentie; NIET dubbel definiëren)
-# -------------------------------------------------------
-
-class Amendementen(db.Model):
     id = db.Column(db.Integer, primary_key=True)
-    titel = db.Column(db.String(200), nullable=False)
-    constaterende_dat = db.Column(JSONEncodedList)
-    overwegende_dat = db.Column(JSONEncodedList)
-    opdracht_formulering = db.Column(db.Text, nullable=False)
-    wijzigingen = db.Column(JSONEncodedList)
-    status = db.Column(db.String(20), default='concept')
-    gemeenteraad_datum = db.Column(db.String(40), default='Gemeenteraad')
-    agendapunt = db.Column(db.String(40), default='Agendapunt')
+
+    # Doel-motie + afzender
+    motie_id = db.Column(db.Integer, db.ForeignKey("motie.id", ondelete="CASCADE"), nullable=False, index=True)
+    created_by_id = db.Column(db.Integer, db.ForeignKey("user.id", ondelete="SET NULL"), nullable=True, index=True)
+
+    # Doelwit (exact één van beide invullen): óf persoon, óf partij
+    target_user_id = db.Column(db.Integer, db.ForeignKey("user.id", ondelete="CASCADE"), nullable=True, index=True)
+    target_party_id = db.Column(db.Integer, db.ForeignKey("party.id", ondelete="CASCADE"), nullable=True, index=True)
+
+    # Rechten: alleen lezen | commentaar | voorstellen doen
+    permission = db.Column(db.String(20), nullable=False, default="view")
+    message = db.Column(db.Text, nullable=True)
+    expires_at = db.Column(db.DateTime, nullable=True)
+
+    # Lifecycle
+    actief = db.Column(db.Boolean, default=True, nullable=False)  # gebruik i.p.v. partial unique index
+    created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
+    revoked_at = db.Column(db.DateTime, nullable=True)
+
+    # Constraints & indexes (XOR + dubbele actieve shares voorkomen)
+    __table_args__ = (
+        db.CheckConstraint(
+            "(target_user_id IS NOT NULL) <> (target_party_id IS NOT NULL)",
+            name="ck_motieshare_target_xor"
+        ),
+        db.CheckConstraint(
+            "permission IN ('view','comment','suggest', 'edit')",
+            name="ck_motieshare_permission"
+        ),
+        db.UniqueConstraint("motie_id", "target_user_id", "actief", name="uq_share_user_active"),
+        db.UniqueConstraint("motie_id", "target_party_id", "actief", name="uq_share_party_active"),
+    )
+
+    # Relaties
+    motie = db.relationship("Motie", backref=db.backref("shares", cascade="all, delete-orphan"))
+    created_by = db.relationship("User", foreign_keys=[created_by_id])
+    target_user = db.relationship("User", foreign_keys=[target_user_id])
+    target_party = db.relationship("Party", foreign_keys=[target_party_id])
+
+    def revoke(self):
+        """Maak share inactief (intrekken)."""
+        if self.actief:
+            self.actief = False
+            self.revoked_at = datetime.utcnow()
+
+    @property
+    def is_expired(self) -> bool:
+        return bool(self.expires_at and self.expires_at <= datetime.utcnow())
+
+    def __repr__(self):
+        tgt = f"user={self.target_user_id}" if self.target_user_id else f"party={self.target_party_id}"
+        return f"<MotieShare motie={self.motie_id} {tgt} perm={self.permission} actief={self.actief}>"
+
+# === Notificaties / inbox ===
+class Notification(db.Model):
+    __tablename__ = "notification"
+
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey("user.id", ondelete="CASCADE"), nullable=False, index=True)
+
+    # Handig voor joins/filters in de UI
+    motie_id = db.Column(db.Integer, db.ForeignKey("motie.id", ondelete="CASCADE"), nullable=True, index=True)
+    share_id = db.Column(db.Integer, db.ForeignKey("motie_share.id", ondelete="CASCADE"), nullable=True, index=True)
+
+    type = db.Column(db.String(50), nullable=False)        # bv. 'share_received'
+    payload = db.Column(JSONEncodedDict, nullable=False)   # {titel, permission, message, afzender_naam, ...}
+
+    read_at = db.Column(db.DateTime, nullable=True)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
+
+    user = db.relationship("User", backref=db.backref("notifications", cascade="all, delete-orphan"))
+    motie = db.relationship("Motie")
+    share = db.relationship("MotieShare")
+
+    def mark_read(self):
+        if self.read_at is None:
+            self.read_at = datetime.utcnow()
+
+    def __repr__(self):
+        return f"<Notification user={self.user_id} type={self.type} motie={self.motie_id}>"
+
+class AdviceSession(db.Model):
+    __tablename__ = 'advice_session'
+    id = db.Column(db.Integer, primary_key=True)
+    motie_id = db.Column(db.Integer, db.ForeignKey('motie.id'), nullable=False)
+    requested_by_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
+    reviewer_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=True)
+    status = db.Column(db.String(30), default='requested')
+    draft = db.Column(db.JSON, nullable=False)     # ← gewoon JSON, geen db.engine check!
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
-    indiener_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False, default=1)
-    
-    # Many-to-many relationship with parties
-    #partijen = db.relationship('Party', secondary=motie_partijen, lazy='subquery', backref=db.backref('moties', lazy=True))
-    
-    def __repr__(self):
-        return f'<Motie {self.titel}>'
+    returned_at = db.Column(db.DateTime, nullable=True)
+    accepted_at = db.Column(db.DateTime, nullable=True)

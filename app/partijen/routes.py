@@ -7,6 +7,7 @@ from werkzeug.utils import secure_filename
 import uuid, os
 from sqlalchemy.exc import IntegrityError
 from app.models import User
+from app.auth.utils import login_and_active_required, user_has_role
 
 ALLOWED_LOGO_EXTENSIONS = {"png", "jpg", "jpeg", "webp", "svg"}
 
@@ -28,11 +29,14 @@ def _save_logo_file(file_storage, suggested_slug: str) -> str:
     return filename
 
 @bp.route('/')
+@login_and_active_required
 def index():
     partijen = Party.query.order_by(Party.naam).all()
     return render_template('partijen/index.html', partijen=partijen, title="Partijen")
     
 @bp.route('/toevoegen', methods=['GET', 'POST'])
+@login_and_active_required
+@user_has_role('griffie')
 def toevoegen():
     if request.method == 'POST':
         naam = (request.form.get("naam") or "").strip()
@@ -78,12 +82,16 @@ def toevoegen():
     return render_template('partijen/toevoegen.html', title="Partij Toevoegen")
 
 @bp.route('/<int:partij_id>/bekijken')
+@login_and_active_required
+@user_has_role('griffie')
 def bekijken(partij_id):
     partij = Party.query.get_or_404(partij_id)
     list_gebruikers = User.query.filter(User.partij_id == partij.id).all()
     return render_template('partijen/bekijken.html', partij=partij, list_gebruikers=list_gebruikers, title=partij.naam)
 
 @bp.route('/<int:partij_id>/verwijderen', methods=['POST'])
+@login_and_active_required
+@user_has_role('griffie')
 def verwijderen(partij_id):
     partij = Party.query.get_or_404(partij_id)
     db.session.delete(partij)

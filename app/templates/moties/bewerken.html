@@ -1,150 +1,264 @@
 {% extends "base.html" %}
 {% block content %}
-<div class="sticky top-0 z-10 bg-white/80 backdrop-blur border-b print:hidden">
-    <div class="mx-auto max-w-5xl px-4 py-2 flex items-center justify-between">
-      <div class="text-sm text-gray-600">Motie {{ motie.titel }}</div>
-      <div class="inline-flex rounded-md shadow-xs" role="group">
-        <a href="{{ url_for('moties.index') }}" type="button" class="px-4 py-2 text-sm font-medium text-gray-900 bg-white border border-gray-200 rounded-s-lg hover:bg-gray-100 hover:text-blue-700 focus:z-10 focus:ring-2 focus:ring-blue-700 focus:text-blue-700 dark:bg-gray-800 dark:border-gray-700 dark:text-white dark:hover:text-white dark:hover:bg-gray-700 dark:focus:ring-blue-500 dark:focus:text-white">
-          Terug naar overzicht
-        </a>
-        <button type="submit" form="bewerkenForm", type="button" class="px-4 py-2 text-sm font-medium text-white bg-blue-500 border-y border-gray-200 hover:bg-blue-900 hover:text-white-700 focus:z-10 focus:ring-2 focus:ring-blue-700 focus:text-blue-700 dark:bg-gray-800 dark:border-gray-700 dark:text-white dark:hover:text-white dark:hover:bg-gray-700 dark:focus:ring-blue-500 dark:focus:text-white">
-          Sla op en bekijk
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/flowbite/2.5.2/flowbite.min.js" defer></script>
+
+  {# ---------------- Sticky topbar ---------------- #}
+  <div class="sticky top-[var(--nav-h)] pt-4 z-20 bg-white/90 backdrop-blur border-b print:hidden">
+    <div class="mx-auto max-w-7xl px-4 py-2 flex items-center gap-2">
+      <a href="{{ back_url or url_for('moties.index') }}"
+         class="inline-flex items-center gap-2 rounded-lg border px-3 py-1.5 text-sm hover:bg-gray-50">
+        <i class="fa fa-arrow-left text-gray-600"></i>
+        <span class="hidden sm:inline">Terug naar overzicht</span>
+      </a>
+
+      <div class="flex-1 min-w-0">
+        <div class="truncate text-sm text-gray-500">Motie bewerken</div>
+        <h1 class="truncate text-base sm:text-lg font-semibold">{{ motie.titel or 'Zonder titel' }}</h1>
+      </div>
+
+      {# Primaire acties (desktop/tablet) #}
+      <div class="hidden md:flex items-center gap-2">
+        <button type="submit" form="bewerkenForm"
+                class="inline-flex items-center gap-2 rounded-lg bg-gray-900 text-white px-3 py-1.5 text-sm hover:bg-black">
+          <i class="fa fa-save"></i><span>Opslaan</span>
         </button>
-        <a href="{{ url_for('moties.verwijderen', motie_id=motie.id) }}" type="button" class="px-4 py-2 text-sm font-medium text-white bg-red-500 border border-gray-200 rounded-e-lg hover:bg-red-900 hover:text-white-700 focus:z-10 focus:ring-2 focus:ring-blue-700 focus:text-blue-700 dark:bg-gray-800 dark:border-gray-700 dark:text-white dark:hover:text-white dark:hover:bg-gray-700 dark:focus:ring-blue-500 dark:focus:text-white">
-          Verwijder motie
-        </a>
+        <button type="submit" form="bewerkenForm"
+                name="after" value="view"
+                class="inline-flex items-center gap-2 rounded-lg border px-3 py-1.5 text-sm hover:bg-gray-50">
+          <i class="fa fa-eye"></i><span>Sla op & bekijk</span>
+        </button>
+
+        {# Meer-acties #}
+        <div class="relative">
+          <button data-dropdown-toggle="moreMenuEdit"
+                  class="inline-flex items-center gap-2 rounded-lg border px-3 py-1.5 text-sm hover:bg-gray-50">
+            <i class="fa fa-ellipsis-h"></i><span>Meer</span>
+          </button>
+          <div id="moreMenuEdit" class="z-30 hidden w-56 bg-white border rounded-lg shadow-md">
+            <ul class="py-2 text-sm">
+              <li>
+                <a href="{{ url_for('moties.share_create', motie_id=motie.id) }}"
+                   class="block px-4 py-2 hover:bg-gray-50">
+                  <i class="fa fa-share mr-2"></i>Delen
+                </a>
+              </li>
+              <li>
+                <a href="{{ url_for('moties.export_motie_docx', motie_id=motie.id) }}"
+                   class="block px-4 py-2 hover:bg-gray-50">
+                  <i class="fa fa-download mr-2"></i>Exporteer
+                </a>
+              </li>
+              <li>
+                <button type="button" data-modal-target="deleteModal" data-modal-toggle="deleteModal"
+                        class="w-full text-left px-4 py-2 hover:bg-red-50 text-red-600">
+                  <i class="fa fa-trash mr-2"></i>Verwijder
+                </button>
+              </li>
+            </ul>
+          </div>
+        </div>
+      </div>
+
+      {# Mobiel: één knop om onderbalk te tonen #}
+      <button id="mobileActionsBtnEdit"
+              class="md:hidden inline-flex items-center gap-2 rounded-lg border px-3 py-1.5 text-sm hover:bg-gray-50">
+        <i class="fa fa-bolt"></i><span>Acties</span>
+      </button>
+    </div>
+  </div>
+
+  {# ---------------- Paginalayout ---------------- #}
+  <main class="mx-auto max-w-7xl px-2 sm:px-4 md:px-6 py-6">
+    <div class="grid grid-cols-1 lg:grid-cols-12 gap-6 lg:gap-8">
+      <section class="lg:col-span-9">
+        <form method="POST"
+              action="{{ url_for('moties.bewerken', motie_id=motie.id) }}"
+              id="bewerkenForm"
+              class="space-y-8 bg-white p-6 rounded-xl border shadow-sm">
+
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <label class="block text-sm font-medium text-gray-700">Datum raadsvergadering</label>
+              <input name="gemeenteraad_datum"
+                     class="w-full rounded-md border border-gray-300 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-gray-900"
+                     value="{{ motie.gemeenteraad_datum or '' }}">
+            </div>
+            <div>
+              <label class="block text-sm font-medium text-gray-700">Agendapunt</label>
+              <input name="agendapunt"
+                     class="w-full rounded-md border border-gray-300 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-gray-900"
+                     value="{{ motie.agendapunt or '' }}">
+            </div>
+          </div>
+
+          <div>
+            <label class="text-sm font-medium">Titel</label>
+            <input name="titel" value="{{ motie.titel or '' }}"
+                   class="w-full rounded-md border border-gray-300 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-gray-900"/>
+          </div>
+
+          <section>
+            <h2 class="text-base font-semibold mb-2">Constaterende dat</h2>
+            <p class="text-sm text-gray-500 mb-2">Typ in de onderste regel om automatisch een nieuwe toe te voegen.</p>
+            <div id="constaterende-list" class="space-y-2"></div>
+            <input type="hidden" name="constaterende_dat_json" id="constaterende-json">
+          </section>
+
+          <section>
+            <h2 class="text-base font-semibold mb-2">Overwegende dat</h2>
+            <div id="overwegende-list" class="space-y-2"></div>
+            <input type="hidden" name="overwegende_dat_json" id="overwegende-json">
+          </section>
+
+          <div>
+            <label class="text-sm font-medium">Opdracht formulering</label>
+            <input name="opdracht_formulering"
+                   class="w-full rounded-md border border-gray-300 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-gray-900"
+                   value="{{ motie.opdracht_formulering or '' }}">
+          </div>
+
+          <section>
+            <h2 class="text-base font-semibold mb-2">Draagt het college op</h2>
+            <div id="draagt-list" class="space-y-2"></div>
+            <input type="hidden" name="draagt_json" id="draagt-json">
+          </section>
+
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <label class="block text-sm font-medium text-gray-700">Status</label>
+              <select name="status"
+                      class="w-full bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 p-2.5">
+                {% set s = (motie.status or 'Privé') %}
+                <option value="Privé" {{ 'selected' if s=='Privé' else '' }}>Privé</option>
+                <option value="Delen met griffie" {{ 'selected' if s=='Delen met griffie' else '' }}>Delen met griffie</option>
+                <option value="Publiek" {{ 'selected' if s=='Publiek' else '' }}>Publiek</option>
+              </select>
+            </div>
+
+            <div>
+              <label class="block text-sm font-medium text-gray-700">Mede-indieners</label>
+              <select id="mede_indieners" name="mede_indieners" multiple class="choices-multi w-full"
+                      data-placeholder="Kies mede-indieners…">
+                {% set primary_id = motie.indiener_id %}
+                {% for u in alle_users %}
+                  {% if primary_id and u.id == primary_id %}
+                    <option value="{{ u.id }}" disabled>
+                      {{ u.naam }} — ({{ u.partij.afkorting if u.partij else '—' }}) [primaire indiener]
+                    </option>
+                  {% else %}
+                    <option value="{{ u.id }}" {% if u.id in huidige_mede_ids %}selected{% endif %}>
+                      {{ u.naam }} — ({{ u.partij.afkorting if u.partij else '—' }})
+                    </option>
+                  {% endif %}
+                {% endfor %}
+              </select>
+              <p class="mt-1 text-xs text-gray-500">Zoek en selecteer meerdere; klik op × om te verwijderen.</p>
+            </div>
+          </div>
+
+          <div class="flex flex-wrap gap-3">
+            <button type="submit" class="inline-flex items-center px-4 py-2 rounded-md bg-gray-900 text-white hover:bg-black">
+              Opslaan
+            </button>
+            <button type="submit" name="after" value="view"
+                    class="inline-flex items-center px-4 py-2 rounded-md border border-gray-300 hover:bg-gray-50">
+              Sla op & bekijk
+            </button>
+            <a href="{{ back_url or url_for('moties.index') }}"
+               class="inline-flex items-center px-4 py-2 rounded-md border border-gray-300 hover:bg-gray-50">
+              Annuleren
+            </a>
+          </div>
+        </form>
+      </section>
+
+      {# Rechter kolom (optioneel): hulp/metadata #}
+      <aside class="lg:col-span-3 print:hidden">
+        <div class="sticky top-20 space-y-4">
+          <div class="rounded-xl border bg-white p-4">
+            <h3 class="font-medium mb-2">Tips</h3>
+            <ul class="text-sm text-gray-700 list-disc pl-5 space-y-1">
+              <li>Gebruik korte, controleerbare constateringen.</li>
+              <li>Formuleer opdrachten SMART.</li>
+            </ul>
+          </div>
+        </div>
+      </aside>
+    </div>
+  </main>
+
+  {# ---------------- Mobiele onderbalk ---------------- #}
+  <div id="mobileActionsBarEdit"
+       class="md:hidden fixed inset-x-0 bottom-0 z-30 border-t bg-white/95 backdrop-blur px-3 py-2 flex items-center justify-between gap-2 print:hidden">
+    <button type="submit" form="bewerkenForm"
+            class="flex-1 inline-flex items-center justify-center gap-2 rounded-lg bg-gray-900 text-white px-3 py-2 text-sm hover:bg-black">
+      <i class="fa fa-save"></i><span>Opslaan</span>
+    </button>
+    <button type="submit" form="bewerkenForm" name="after" value="view"
+            class="flex-1 inline-flex items-center justify-center gap-2 rounded-lg border px-3 py-2 text-sm hover:bg-gray-50">
+      <i class="fa fa-eye"></i><span>Bekijk</span>
+    </button>
+    <button type="button" data-modal-target="deleteModal" data-modal-toggle="deleteModal"
+            class="inline-flex items-center justify-center rounded-full w-10 h-10 border hover:bg-red-50">
+      <i class="fa fa-trash text-red-600"></i>
+    </button>
+  </div>
+
+  {# ---------------- Verwijder-modal ---------------- #}
+  <div id="deleteModal" class="hidden fixed inset-0 z-40 overflow-y-auto overflow-x-hidden">
+    <div class="flex min-h-full items-end sm:items-center justify-center p-4">
+      <div class="relative w-full max-w-md bg-white rounded-xl shadow-lg border">
+        <div class="p-4 sm:p-6">
+          <h3 class="text-base font-semibold mb-2">Motie verwijderen?</h3>
+          <p class="text-sm text-gray-600">Deze actie kan niet ongedaan worden gemaakt.</p>
+        </div>
+        <div class="px-4 sm:px-6 py-3 bg-gray-50 rounded-b-xl flex justify-end gap-2">
+          <button data-modal-hide="deleteModal"
+                  class="rounded-lg border px-3 py-1.5 text-sm hover:bg-white">Annuleer</button>
+          <a href="{{ url_for('moties.verwijderen', motie_id=motie.id) }}"
+             class="inline-flex items-center gap-2 rounded-lg bg-red-600 text-white px-3 py-1.5 text-sm hover:bg-red-700">
+            <i class="fa fa-trash"></i><span>Verwijder</span>
+          </a>
+        </div>
       </div>
     </div>
   </div>
-  <main class="max-w-4xl mx-auto px-4 py-8">
-    <h1 class="text-2xl font-semibold mb-6">Motie bewerken</h1>
 
-    <form method="POST" action="{{ url_for('moties.bewerken', motie_id=motie.id) }}" id="bewerkenForm" class="space-y-8 bg-white p-6 rounded-xl shadow">
-    <div>
-        <label class="block text-sm font-medium text-gray-700">Datum raadsvergadering</label>
-        <input name="gemeenteraad_datum" rows="3"
-          class="w-full rounded-md border border-gray-300 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-gray-900" value="{{ motie.gemeenteraad_datum or '' }}">
-      </div>
-    <div>
-        <label class="block text-sm font-medium text-gray-700">Agendapunt</label>
-          <input name="agendapunt" rows="3"
-          class="w-full rounded-md border border-gray-300 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-gray-900" value="{{ motie.agendapunt or '' }}">
-      </div>
-      <!-- Titel -->
-      <div>
-        <label class="text-lg font-semibold mb-2">Titel</label>
-        <input name="titel" value="{{ motie.titel or '' }}"
-               class="w-full rounded-md border border-gray-300 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-gray-900"/>
-      </div>
-
-      <!-- CONSTATERENDE DAT -->
-      <section>
-        <h2 class="text-lg font-semibold mb-2">Constaterende dat</h2>
-        <p class="text-sm text-gray-500 mb-2">Typ in de onderste regel om automatisch een nieuwe toe te voegen.</p>
-        <div id="constaterende-list" class="space-y-2"></div>
-        <input type="hidden" name="constaterende_dat_json" id="constaterende-json">
-      </section>
-
-      <!-- OVERWEGENDE DAT -->
-      <section>
-        <h2 class="text-lg font-semibold mb-2">Overwegende dat</h2>
-        <div id="overwegende-list" class="space-y-2"></div>
-        <input type="hidden" name="overwegende_dat_json" id="overwegende-json">
-      </section>
-            <!-- Opdracht formulering (vrije tekst boven de bullets) -->
-      
-      <div>
-        <label class="text-lg font-semibold mb-2">Opdracht formulering</label>
-        <input name="opdracht_formulering" rows="3"
-          class="w-full rounded-md border border-gray-300 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-gray-900" value="{{ motie.opdracht_formulering or '' }}">
-      </div>
-
-      <!-- DRAAGT HET COLLEGE OP -->
-      <section>
-        <h2 class="text-lg font-semibold mb-2">Draagt het college op</h2>
-        <div id="draagt-list" class="space-y-2"></div>
-        <input type="hidden" name="draagt_json" id="draagt-json">
-      </section>
-
-      <!-- Status -->
-      <div>
-        <label class="block text-sm font-medium text-gray-700">Status</label>
-        <select name="status" class="w-full bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-2.5 dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white dark:focus:ring-blue-500 dark:focus:border-blue-500">
-          {% set s = (motie.status or 'Privé') %}
-          <option value="Privé" {{ 'selected' if s=='Privé' else '' }}>Privé</option>
-          <option value="Delen met griffie" {{ 'selected' if s=='Delen met griffie' else '' }}>Delen met griffie</option>
-          <option value="Publiek" {{ 'selected' if s=='Publiek' else '' }}>Publiek</option>
-        </select>
-      </div>
-
-          <div>
-        <label class="block text-sm font-medium text-gray-700">Mede-indieners</label>
-
-        <select id="mede_indieners"
-                name="mede_indieners"
-                multiple
-                class="choices-multi w-full"
-                data-placeholder="Kies mede-indieners…">
-          {% set primary_id = motie.indiener_id %}
-          {% for u in alle_users %}
-            {% if primary_id and u.id == primary_id %}
-              <option value="{{ u.id }}" disabled>
-                {{ u.naam }} — ({{ u.partij.afkorting if u.partij else '—' }}) [primaire indiener]
-              </option>
-            {% else %}
-              <option value="{{ u.id }}" {% if u.id in huidige_mede_ids %}selected{% endif %}>
-                {{ u.naam }} — ({{ u.partij.afkorting if u.partij else '—' }})
-              </option>
-            {% endif %}
-          {% endfor %}
-        </select>
-        <p class="mt-1 text-xs text-gray-500">Zoek en selecteer meerdere; klik op × om te verwijderen.</p>
-    </div>
-
-      <!-- Acties -->
-      <div class="flex gap-3">
-        <button type="submit" class="inline-flex items-center px-4 py-2 rounded-md bg-gray-900 text-white hover:bg-black">
-          Opslaan
-        </button>
-        <a href="{{ url_for('moties.index', motie_id=motie.id) }}"
-           class="inline-flex items-center px-4 py-2 rounded-md border border-gray-300 hover:bg-gray-50">
-          Annuleren
-        </a>
-      </div>
-    </form>
-  </main>
-
+  {# ---------------- Scripts: dynamic lists + TomSelect + mobile toggle ---------------- #}
   <script>
-    // ===== Dynamische lijsten =====
+    (function () {
+      const btn = document.getElementById('mobileActionsBtnEdit');
+      const bar = document.getElementById('mobileActionsBarEdit');
+      if (btn && bar) btn.addEventListener('click', () => bar.classList.toggle('hidden'));
+    })();
+  </script>
+
+  {{ super() }}
+  <script>
+    // ===== Dynamische lijsten (uit jouw template, ongewijzigd in logica) =====
     function setupDynamicList({containerId, hiddenId, initial = []}) {
       const container = document.getElementById(containerId);
       const hidden = document.getElementById(hiddenId);
-
       function rowTemplate(val="") {
         const div = document.createElement("div");
         div.className = "flex gap-2";
         div.innerHTML = `
-          <input type="text" class="flex-1 rounded-md border border-gray-300 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-gray-900"
-                 value="${(val ?? "").replace(/"/g, "&quot;")}">
+          <input type="text" class="flex-1 rounded-md border border-gray-300 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-gray-900" value="${(val ?? "").replace(/"/g, "&quot;")}">
           <button type="button" class="px-3 py-2 rounded-md border border-gray-300 hover:bg-gray-50 remove" aria-label="Verwijderen">×</button>
         `;
         const input = div.querySelector("input");
         const removeBtn = div.querySelector(".remove");
-
         input.addEventListener("input", maybeAddBlank);
         input.addEventListener("blur", () => { pruneExtraBlanks(); ensureTrailingBlank(); syncHidden(); });
         removeBtn.addEventListener("click", () => { div.remove(); ensureTrailingBlank(); syncHidden(); });
-
         return div;
       }
-
       function ensureTrailingBlank() {
         const inputs = container.querySelectorAll("input");
         if (inputs.length === 0 || inputs[inputs.length - 1].value.trim() !== "") {
           container.appendChild(rowTemplate(""));
         }
       }
-
       function maybeAddBlank() {
         const inputs = container.querySelectorAll("input");
         if (inputs.length && inputs[inputs.length - 1].value.trim() !== "") {
@@ -152,33 +266,23 @@
         }
         syncHidden();
       }
-
       function pruneExtraBlanks() {
         const inputs = Array.from(container.querySelectorAll("input"));
-        inputs.slice(0, -1).forEach(inp => {
-          if (inp.value.trim() === "") inp.parentElement.remove();
-        });
+        inputs.slice(0, -1).forEach(inp => { if (inp.value.trim() === "") inp.parentElement.remove(); });
       }
-
       function syncHidden() {
-        const values = Array.from(container.querySelectorAll("input"))
-          .map(i => i.value.trim())
-          .filter(v => v !== "");
+        const values = Array.from(container.querySelectorAll("input")).map(i => i.value.trim()).filter(v => v !== "");
         hidden.value = JSON.stringify(values);
       }
-
-      // init
       container.innerHTML = "";
       const seed = (initial && initial.length) ? [...initial] : [""];
       seed.forEach(v => container.appendChild(rowTemplate(v)));
       ensureTrailingBlank();
       syncHidden();
-
       return { syncHidden };
     }
 
     document.addEventListener("DOMContentLoaded", () => {
-      // Initial arrays vanuit Jinja
       const initConstaterende = {{ constaterende_dat|tojson|safe }};
       const initOverwegende   = {{ overwegende_dat|tojson|safe }};
       const initDraagt        = {{ draagt_op|tojson|safe }};
@@ -187,20 +291,17 @@
       const list2 = setupDynamicList({ containerId: "overwegende-list",   hiddenId: "overwegende-json",   initial: initOverwegende   });
       const list3 = setupDynamicList({ containerId: "draagt-list",        hiddenId: "draagt-json",        initial: initDraagt        });
 
-      // laatste sync op submit
-      document.querySelector("form").addEventListener("submit", () => {
+      document.getElementById("bewerkenForm").addEventListener("submit", () => {
         list1?.syncHidden(); list2?.syncHidden(); list3?.syncHidden();
+      });
+
+      // TomSelect / Choices init (zoals je had)
+      new TomSelect('#mede_indieners', {
+        plugins: ['remove_button'],
+        maxOptions: 1000,
+        persist: false,
+        placeholder: 'Zoek en selecteer mede-indieners'
       });
     });
   </script>
-  <script>
-  document.addEventListener('DOMContentLoaded', function () {
-    new TomSelect('#mede-indieners', {
-      plugins: ['remove_button'],
-      maxOptions: 1000,
-      persist: false,
-      placeholder: 'Zoek en selecteer mede-indieners'
-    });
-  });
-</script>
-  {% endblock %}
+{% endblock %}

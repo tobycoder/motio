@@ -1,7 +1,6 @@
-from flask import render_template, current_app, request, flash, redirect, url_for
-from app.models import User, Party
+from flask import render_template, current_app, request, flash, redirect, url_for, abort
+from app.models import User, Party, Notification
 from app.gebruikers import bp
-from app.auth.roles import user_has_role, roles_required
 from flask_login import login_required, current_user
 from app.auth.forms import RegistrationForm
 from app import db, mail
@@ -9,24 +8,25 @@ from app.auth.forms import UserCreateForm
 from flask_mail import Message
 import secrets
 from werkzeug.security import generate_password_hash
-
+from app.auth.utils import user_has_role, roles_required, login_and_active_required
+from sqlalchemy import func
 
 @bp.route('/')
-@login_required
+@login_and_active_required
 @roles_required('griffie')
 def index():
     users = User.query.all()
     return render_template('gebruikers/index.html', users=users, title="gebruikers")
 
 @bp.route('/<int:user_id>/bekijken')
-@login_required
+@login_and_active_required
 @roles_required('griffie')
 def bekijken(user_id):
     user =  User.query.get_or_404(user_id)
     return render_template('gebruikers/bekijken.html', user=user)
 
 @bp.route('/<int:user_id>/bewerken', methods=['POST', 'GET'])
-@login_required
+@login_and_active_required
 @roles_required('griffie')
 def bewerken(user_id):
     user = User.query.get_or_404(user_id)
@@ -48,7 +48,7 @@ def bewerken(user_id):
     return render_template('gebruikers/bewerken.html', form=form, user=user)
 
 @bp.route('/<int:user_id>/verwijderen', methods=['POST', 'GET'])
-@login_required
+@login_and_active_required
 @roles_required('superadmin')
 def verwijderen(user_id):
     
@@ -64,7 +64,6 @@ def verwijderen(user_id):
     
         flash(f"Gebruiker '{user.naam}' is verwijderd.", "success")
         return redirect(url_for('gebruikers.index'))
-
 
 def send_password_setup_email(user: User):
     """Stuur een e-mail met link naar jouw bestaande auth.reset_password route."""
@@ -84,7 +83,7 @@ def send_password_setup_email(user: User):
     mail.send(msg)
 
 @bp.route("/toevoegen", methods=["GET", "POST"])
-@login_required
+@login_and_active_required
 @roles_required("superadmin")
 def toevoegen():
     form = UserCreateForm()
@@ -119,3 +118,46 @@ def toevoegen():
         return redirect(url_for("gebruikers.index"))
 
     return render_template("gebruikers/toevoegen.html", form=form)
+
+# Notificatie afdeling
+@bp.route('/alles-lezen')
+@login_and_active_required
+def mark_all_read():
+    q = Notification.query.filter(
+        Notification.user_id == current_user.id,
+        Notification.read_at.is_(None)
+    )
+    updated = q.update({Notification.read_at: func.now()}, synchronize_session=False)
+    db.session.commit()
+
+    # JSON-klant? -> JSON terug
+    if request.accept_mimetypes.best == 'application/json' or request.is_json:
+        return {"updated": updated}, 200
+
+    flash(f"{updated} notificatie(s) gemarkeerd als gelezen.", "success")
+    return redirect(request.referrer or "/")
+
+@bp.get('/<int:notification_id>/open')
+@login_and_active_required
+
+def open(notification_id: int):
+    n = Notification.query.get_or_404(notification_id)
+    if n.user_id != current_user.id:
+        abort(403)
+
+    if n.read_at is None:
+        n.read_at = func.now()          # of: dt.datetime.utcnow()
+        db.session.commit()
+
+    # Bepaal waarheen we gaan
+    target = request.args.get('next')
+    if not target:
+        # Slimme default: naar de motie, of anders naar home
+        if n.motie_id:
+            target = url_for('moties.bekijken', motie_id=n.motie_id)
+        elif n.payload and n.payload.get('link'):
+            target = n.payload['link']
+        else:
+            target = url_for('dashboard.home')
+
+    return redirect(target)

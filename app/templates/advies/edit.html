@@ -1,0 +1,27 @@
+{% extends "base.html" %}{% block content %}
+<h1 class="text-xl font-semibold mb-4">Advies bewerken: {{ s.motie.titel }}</h1>
+
+<form method="post" action="{{ url_for('advice.save', session_id=s.id) }}" class="space-y-4">
+  <div>
+    <label class="block text-sm font-medium">Titel</label>
+    <input name="titel" class="w-full border rounded p-2" value="{{ s.draft.titel }}">
+  </div>
+  <div>
+    <label class="block text-sm font-medium">Toelichting</label>
+    <textarea name="toelichting" class="w-full border rounded p-2" rows="6">{{ s.draft.toelichting }}</textarea>
+  </div>
+
+  <div>
+    <label class="block text-sm font-medium">Constaterende</label>
+    <div id="constaterende" class="space-y-2">
+      {% for t in s.draft.constaterende %}
+        <input name="constaterende[]" class="w-full border rounded p-2" value="{{ t }}">
+      {% endfor %}
+      <input name="constaterende[]" class="w-full border rounded p-2" placeholder="+ nieuw punt">
+    </div>
+  </div>
+
+  <!-- herhaal voor overwegende / draagt_op -->
+  <button class="px-4 py-2 bg-blue-600 text-white rounded">Opslaan & vergelijken</button>
+</form>
+{% endblock %}

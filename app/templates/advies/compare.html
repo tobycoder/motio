@@ -1,0 +1,41 @@
+{% extends "base.html" %}{% block content %}
+<h1 class="text-xl font-semibold mb-4">Vergelijking advies – {{ motie.titel }}</h1>
+
+<div class="grid md:grid-cols-2 gap-6">
+  <div class="bg-white rounded border p-4">
+    <h2 class="font-semibold mb-2">Titel</h2>
+    <div class="prose" >{{ orig.titel|trackdiff(new.titel) }}</div>
+  </div>
+  <div class="bg-white rounded border p-4">
+    <h2 class="font-semibold mb-2">Toelichting</h2>
+    <div class="prose whitespace-pre-wrap">{{ orig.toelichting|trackdiff(new.toelichting) }}</div>
+  </div>
+
+  <div class="bg-white rounded border p-4 md:col-span-2">
+    <h2 class="font-semibold mb-2">Constaterende</h2>
+    <div class="space-y-2">
+      {# Vergelijk regel-voor-regel; vul ontbrekende aan #}
+      {% set maxlen = [orig.constaterende|length, new.constaterende|length]|max %}
+      {% for i in range(maxlen) %}
+        <div class="prose">
+          {{ (orig.constaterende[i] if i < orig.constaterende|length else '') | trackdiff( new.constaterende[i] if i < new.constaterende|length else '' ) }}
+        </div>
+      {% endfor %}
+    </div>
+  </div>
+  <!-- idem voor overwegende/draagt_op -->
+</div>
+
+<div class="mt-6 flex gap-3">
+  {% if current_user.id == s.motie.indiener_id and s.status in ['returned', 'in_review'] %}
+    <form method="post" action="{{ url_for('advice.accept_all', session_id=s.id) }}">
+      <button class="px-4 py-2 bg-green-600 text-white rounded">Alle wijzigingen accepteren</button>
+    </form>
+  {% endif %}
+  {% if current_user.id == s.reviewer_id and s.status in ['requested','in_review'] %}
+    <form method="post" action="{{ url_for('advice.submit_advice', session_id=s.id) }}">
+      <button class="px-4 py-2 bg-blue-600 text-white rounded">Advies indienen</button>
+    </form>
+  {% endif %}
+</div>
+{% endblock %}
