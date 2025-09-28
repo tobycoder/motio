@@ -45,7 +45,7 @@
           <div class="bg-white rounded-xl shadow-card p-5">
             <p class="text-sm text-gray-500">Laatste update</p>
             <p class="text-lg font-semibold mt-1 flex items-center gap-2">
-              <i class="fa-regular fa-clock"></i> {{ latest.strftime('%d %B %Y, %H:%M') }}
+              <i class="fa-regular fa-clock"></i>{% if latest %} {{ latest.strftime('%d %B %Y, %H:%M') }} {% else %} Geen data {% endif %}
             </p>
           </div>
         </div>

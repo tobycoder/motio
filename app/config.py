@@ -1,16 +1,23 @@
 import os
 from datetime import timedelta
 from pathlib import Path
+import pathlib
 
 basedir = os.path.abspath(os.path.dirname(__file__))
 BASEDIR = Path(__file__).resolve().parent
 
-def _db_uri_from_env() -> str:
-    uri = os.getenv("DATABASE_URL", "sqlite:///motio.db")  # lokale fallback
-    # Railway/Postgres kan nog 'postgres://' geven; SQLAlchemy wil 'postgresql+psycopg2://'
+
+def _db_uri_from_env():
+    uri = os.getenv("DATABASE_URL")  # geen fallback hier; die doen we expliciet
+    if not uri:
+        # => expliciet jouw OUDE, echte pad gebruiken (absoluut!)
+        db_path = pathlib.Path(r"F:\Niet verwijderen\Bureaublad\Motio\app\motio.db")
+        # sqlite URI op Windows: 'sqlite:///' + forward slashes
+        uri = "sqlite:///" + db_path.as_posix()
+    # Railway/Heroku-style prefix fix
     if uri.startswith("postgres://"):
         uri = uri.replace("postgres://", "postgresql+psycopg2://", 1)
-    # Sommige hosts verwachten TLS; als je connectieproblemen krijgt, forceer SSL:
+    # SSL afdwingen als nodig (prod)
     if uri.startswith("postgresql") and "sslmode=" not in uri:
         uri += ("&" if "?" in uri else "?") + "sslmode=require"
     return uri
