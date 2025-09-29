@@ -7,20 +7,18 @@ basedir = os.path.abspath(os.path.dirname(__file__))
 BASEDIR = Path(__file__).resolve().parent
 
 
-def _db_uri_from_env():
-    uri = os.getenv("DATABASE_URL")  # geen fallback hier; die doen we expliciet
-    if not uri:
-        # => expliciet jouw OUDE, echte pad gebruiken (absoluut!)
-        db_path = pathlib.Path(r"F:\Niet verwijderen\Bureaublad\Motio\app\motio.db")
-        # sqlite URI op Windows: 'sqlite:///' + forward slashes
-        uri = "sqlite:///" + db_path.as_posix()
-    # Railway/Heroku-style prefix fix
-    if uri.startswith("postgres://"):
-        uri = uri.replace("postgres://", "postgresql+psycopg2://", 1)
-    # SSL afdwingen als nodig (prod)
-    if uri.startswith("postgresql") and "sslmode=" not in uri:
-        uri += ("&" if "?" in uri else "?") + "sslmode=require"
-    return uri
+def _normalize_db_url(url: str) -> str:
+    if not url:
+        return url
+    # Heroku-achtige URL's
+    if url.startswith("postgres://"):
+        url = url.replace("postgres://", "postgresql://", 1)
+    # Forceer psycopg v3 i.p.v. psycopg2
+    if "+psycopg2" in url:
+        url = url.replace("+psycopg2", "+psycopg")
+    elif url.startswith("postgresql://") and "+psycopg" not in url:
+        url = url.replace("postgresql://", "postgresql+psycopg://", 1)
+    return url
 
 
 class Config:
@@ -30,7 +28,7 @@ class Config:
     ALLOWED_LOGO_EXTENSIONS = {"png", "jpg", "jpeg", "webp", "svg"}
 
     # Database
-    SQLALCHEMY_DATABASE_URI = _db_uri_from_env()
+    SQLALCHEMY_DATABASE_URI = _normalize_db_url(os.getenv("DATABASE_URL"), 'sqlite:///motio.db')
     SQLALCHEMY_TRACK_MODIFICATIONS = False
     SQLALCHEMY_ECHO = False  # Set to True to see SQL queries in development
     
