@@ -31,8 +31,15 @@ def _find_fk_name(table: str, constrained_col: str, referred_table: str) -> Opti
 def upgrade():
     bind = op.get_bind()
     insp = inspect(bind)
+    if not insp.has_table('user'):
+        return
+
     user_cols = {col['name'] for col in insp.get_columns('user')}
     if 'partij_id' in user_cols:
+        return
+
+    if not insp.has_table('party'):
+        # nothing to relate to, skip
         return
 
     with op.batch_alter_table('user', schema=None) as batch_op:
@@ -48,6 +55,9 @@ def upgrade():
 def downgrade():
     bind = op.get_bind()
     insp = inspect(bind)
+    if not insp.has_table('user'):
+        return
+
     user_cols = {col['name'] for col in insp.get_columns('user')}
     if 'partij_id' not in user_cols:
         return
