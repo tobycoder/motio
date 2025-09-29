@@ -28,7 +28,7 @@ class Config:
     ALLOWED_LOGO_EXTENSIONS = {"png", "jpg", "jpeg", "webp", "svg"}
 
     # Database
-    SQLALCHEMY_DATABASE_URI = _normalize_db_url(os.getenv("DATABASE_URL"), 'sqlite:///motio.db')
+    SQLALCHEMY_DATABASE_URI = _normalize_db_url(os.getenv("DATABASE_URL")) if os.getenv('DATABASE_URL') else "sqlite:///motio.db"
     SQLALCHEMY_TRACK_MODIFICATIONS = False
     SQLALCHEMY_ECHO = False  # Set to True to see SQL queries in development
     
