@@ -7,7 +7,6 @@ Create Date: 2025-09-19 23:58:31.677950
 """
 from alembic import op
 import sqlalchemy as sa
-import app
 
 
 # revision identifiers, used by Alembic.
@@ -22,10 +21,10 @@ def upgrade():
     op.create_table('amendementen',
     sa.Column('id', sa.Integer(), nullable=False),
     sa.Column('titel', sa.String(length=200), nullable=False),
-    sa.Column('constaterende_dat', app.models.JSONEncodedList(), nullable=True),
-    sa.Column('overwegende_dat', app.models.JSONEncodedList(), nullable=True),
+    sa.Column('constaterende_dat', sa.Text(), nullable=True),
+    sa.Column('overwegende_dat', sa.Text(), nullable=True),
     sa.Column('opdracht_formulering', sa.Text(), nullable=False),
-    sa.Column('wijzigingen', app.models.JSONEncodedList(), nullable=True),
+    sa.Column('wijzigingen', sa.Text(), nullable=True),
     sa.Column('status', sa.String(length=20), nullable=True),
     sa.Column('gemeenteraad_datum', sa.String(length=40), nullable=True),
     sa.Column('created_at', sa.DateTime(), nullable=True),
