@@ -42,7 +42,7 @@ class User(UserMixin, db.Model):
     __table_args__ = {'quote': True} 
     id = db.Column(db.Integer, primary_key=True)
     email = db.Column(db.String(120), unique=True, nullable=False)
-    password_hash = db.Column(db.String(120), nullable=False)
+    password_hash = db.Column(db.String(255), nullable=False)
     naam = db.Column(db.String(100), nullable=False)
     partij_id = db.Column(db.Integer, db.ForeignKey('party.id'), nullable=True)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
