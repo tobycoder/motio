@@ -3,13 +3,12 @@ from flask_login import login_user, logout_user, current_user
 from app.auth import bp
 from app.auth.forms import LoginForm, RegistrationForm, ResetPassword, ResetPasswordStepTwo
 from app.models import User
-from app import db, mail
+from app import db, send_email
 import uuid, os
 from werkzeug.utils import secure_filename
 from PIL import Image, ImageOps
 from io import BytesIO
 from itsdangerous import URLSafeTimedSerializer, BadSignature, SignatureExpired
-from flask_mail import Message  
 
 PROFILE_SIZE = 1024  # kies je eigen doelgrootte (bv. 256/512/1024)
 
@@ -174,17 +173,13 @@ def register():
 def _send_reset_email(user):
     token = user.generate_reset_token()
     reset_url = url_for("auth.reset_password", token=token, _external=True)
-    msg = Message(
-        subject="Wachtwoord resetten",
-        recipients=[user.email],
-        body=(
-            f"Beste {user.naam},\n\n"
-            f"Via onderstaande link kun je je wachtwoord resetten (1 uur geldig):\n"
-            f"{reset_url}\n\n"
-            f"Niet door jou aangevraagd? Negeer deze e-mail."
-        ),
+    text_body = (
+        f"Beste {user.naam},\n\n"
+        f"Via onderstaande link kun je je wachtwoord resetten (1 uur geldig):\n"
+        f"{reset_url}\n\n"
+        f"Niet door jou aangevraagd? Negeer deze e-mail."
     )
-    mail.send(msg)
+    send_email(subject="Wachtwoord resetten", recipients=user.email, text_body=text_body)
 
 @bp.route("/wachtwoord-vergeten", methods=["GET","POST"])
 def forgot_password():

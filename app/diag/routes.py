@@ -1,64 +1,36 @@
-from flask import Blueprint, current_app
-from flask_mail import Message
-from app import mail
-import smtplib, logging
+﻿from flask import Blueprint, current_app
+from app import send_email
+import logging
 from app.diag import bp
+
 
 @bp.get("/mail")
 def diag_mail():
     cfg = current_app.config
-    host = (cfg.get("MAIL_SERVER") or "").strip()
-    port = int(cfg.get("MAIL_PORT") or 0)
-    use_tls = bool(cfg.get("MAIL_USE_TLS"))
-    use_ssl = bool(cfg.get("MAIL_USE_SSL"))
-    user = cfg.get("MAIL_USERNAME")
-    pwd  = cfg.get("MAIL_PASSWORD")
+    recipient = cfg.get("RESEND_DIAG_RECIPIENT") or cfg.get("RESEND_DEFAULT_FROM")
+
+    if not cfg.get("RESEND_API_KEY"):
+        return "MAIL ERROR: RESEND_API_KEY ontbreekt", 500
+    if not recipient:
+        return "MAIL ERROR: geen ontvanger ingesteld", 500
 
     current_app.logger.setLevel(logging.INFO)
-    current_app.logger.info("SMTP host=%r port=%r tls=%r ssl=%r user=%r",
-                            host, port, use_tls, use_ssl, user)
+    current_app.logger.info("Resend diag mail to %s", recipient)
 
-    if not host or host.startswith("."):
-        return "MAIL ERROR: MAIL_SERVER ontbreekt of begint met een punt", 500
-    if not port:
-        return "MAIL ERROR: MAIL_PORT ontbreekt", 500
+    if send_email(
+        subject="Diag mail",
+        recipients=recipient,
+        text_body="Resend testbericht — infrastructuur OK",
+    ):
+        return "OK: Resend mail verstuurd", 200
+    return "MAIL ERROR: versturen via Resend mislukt (zie logs)", 500
 
-    try:
-        if use_ssl:
-            # SSL: host in constructor meegeven
-            s = smtplib.SMTP_SSL(host=host, port=port, timeout=20)
-            s.ehlo()
-        else:
-            # Plain → daarna expliciet STARTTLS als TLS aan staat
-            s = smtplib.SMTP(host=host, port=port, timeout=20)
-            s.ehlo()
-            if use_tls:
-                s.starttls()
-                s.ehlo()
-
-        if user:
-            s.login(user, pwd)
-        s.quit()
-
-        # Test ook Flask-Mail
-        to_addr = "floris@florisdeboer.com"
-        msg = Message("Diag mail", recipients=[to_addr])
-        msg.body = "SMTP + Flask-Mail werkt 🎉"
-        mail.send(msg)
-
-        return "OK: smtp + flask-mail", 200
-    except Exception as e:
-        current_app.logger.exception("SMTP/Flask-Mail faalde")
-        return f"MAIL ERROR: {e}", 500
 
 @bp.get("/env")
 def diag_env():
     cfg = current_app.config
     return {
-        "MAIL_SERVER": cfg.get("MAIL_SERVER"),
-        "MAIL_PORT": cfg.get("MAIL_PORT"),
-        "MAIL_USE_TLS": cfg.get("MAIL_USE_TLS"),
-        "MAIL_USE_SSL": cfg.get("MAIL_USE_SSL"),
-        "MAIL_USERNAME": cfg.get("MAIL_USERNAME"),
-        "MAIL_DEFAULT_SENDER": cfg.get("MAIL_DEFAULT_SENDER"),
+        "RESEND_API_KEY_set": bool(cfg.get("RESEND_API_KEY")),
+        "RESEND_DEFAULT_FROM": cfg.get("RESEND_DEFAULT_FROM"),
+        "RESEND_DIAG_RECIPIENT": cfg.get("RESEND_DIAG_RECIPIENT"),
     }, 200
