@@ -4,7 +4,7 @@ from sqlalchemy import or_, asc, desc, and_, case, literal, func, union_all, sel
 from sqlalchemy.orm import Session, selectinload
 from sqlalchemy.sql import label
 from app.models import Motie, User, motie_medeindieners, MotieShare, Party, Notification
-from app import db
+from app import db, send_email
 import json
 from app.moties import bp
 from app.exporters.motie_docx import render_motie_to_docx_bytes
@@ -82,6 +82,8 @@ def _highest_share_permission_for(user, motie: Motie) -> str | None:
     return entry["permission"] if entry else None
 
 def user_can_view_motie(user, motie: Motie) -> bool:
+    if user and user.has_role('superadmin'):
+        return True
     # indiener of mede-indiener mag altijd bekijken
     if motie.indiener_id == user.id or any(u.id == user.id for u in motie.mede_indieners):
         return True
@@ -125,6 +127,86 @@ def _notify(user_id: int, motie: Motie, ntype: str, payload: dict, share: MotieS
         payload=payload or {}
     )
     db.session.add(n)
+    _send_notification_email(user_id, motie, ntype, payload or {})
+
+
+
+def _send_notification_email(user_id: int, motie: Motie | None, ntype: str, payload: dict) -> None:
+    user = User.query.get(user_id)
+    if not user or not getattr(user, "email", None):
+        return
+    subject, body = _build_notification_email(user, motie, ntype, payload)
+    if not subject or not body:
+        return
+    send_email(subject=subject, recipients=user.email, text_body=body)
+
+
+def _build_notification_email(user: User, motie: Motie | None, ntype: str, payload: dict) -> tuple[str | None, str | None]:
+    motie_id = motie.id if motie else payload.get("motie_id")
+    if motie and getattr(motie, "titel", None):
+        motie_title = motie.titel
+    else:
+        motie_title = payload.get("motie_titel") if payload else None
+    if not motie_title and motie_id:
+        motie_title = f"Motie #{motie_id}"
+    if not motie_title:
+        motie_title = "Motie"
+    try:
+        view_url = url_for("moties.bekijken", motie_id=motie_id, _external=True) if motie_id else None
+    except RuntimeError:
+        view_url = url_for("moties.bekijken", motie_id=motie_id) if motie_id else None
+    greeting = f"Hallo {user.naam}," if getattr(user, "naam", None) else "Hallo,"
+    if ntype == "share_received":
+        afzender = payload.get("afzender_naam") if payload else None
+        permission = payload.get("permission") if payload else None
+        message = payload.get("message") if payload else None
+        subject = f"Nieuwe motie gedeeld: {motie_title}"
+        lines = [
+            greeting,
+            "",
+            f"{afzender or 'Een collega'} heeft de motie '{motie_title}' met je gedeeld.",
+        ]
+        if permission:
+            lines.append(f"Rechten: {permission}.")
+        if message:
+            lines.extend(["", "Bericht van de afzender:", message])
+        if view_url:
+            lines.extend(["", f"Bekijk de motie: {view_url}"])
+        lines.extend(["", "Groeten,", "Motio"])
+        return subject, "\n".join(lines)
+    if ntype == "share_revoked":
+        revoked_by = payload.get("revoked_by_naam") if payload else None
+        subject = f"Toegang ingetrokken: {motie_title}"
+        lines = [
+            greeting,
+            "",
+            f"Je toegang tot '{motie_title}' is ingetrokken door {revoked_by or 'een collega'}.",
+        ]
+        lines.extend(["", "Groeten,", "Motio"])
+        return subject, "\n".join(lines)
+    if ntype == "coauthor_added":
+        toegevoegd_door = payload.get("toegevoegd_door_naam") if payload else None
+        subject = f"Toegevoegd als mede-indiener: {motie_title}"
+        lines = [
+            greeting,
+            "",
+            f"Je bent toegevoegd als mede-indiener voor '{motie_title}' door {toegevoegd_door or 'een collega'}.",
+        ]
+        if view_url:
+            lines.extend(["", f"Bekijk de motie: {view_url}"])
+        lines.extend(["", "Succes met het vervolg!", "Motio"])
+        return subject, "\n".join(lines)
+    subject = "Nieuwe notificatie in Motio"
+    lines = [greeting, "", f"Je hebt een nieuwe notificatie van het type '{ntype}'."]
+    if payload:
+        lines.append("")
+        lines.append("Details:")
+        for key, value in payload.items():
+            lines.append(f"- {key}: {value}")
+    if view_url:
+        lines.extend(["", f"Gerelateerde motie: {view_url}"])
+    lines.extend(["", "Groeten,", "Motio"])
+    return subject, "\n".join(lines)
 
 def _notify_share_created(share: MotieShare):
     """Notificaties naar target user of alle actieve leden van de target party."""
@@ -321,6 +403,41 @@ def index_personal():
             query = query.filter(Motie.created_at <= date_to)
         return query
 
+
+    if u.has_role('superadmin'):
+        base_query = apply_filters(
+            Motie.query.options(
+                selectinload(Motie.indiener),
+                selectinload(Motie.mede_indieners),
+            )
+        )
+        total = base_query.count()
+        moties = (
+            base_query
+            .order_by(order_clause, desc(Motie.id))
+            .offset((page - 1) * per_page)
+            .limit(per_page)
+            .all()
+        )
+        items = [
+            {"motie": m, "relation": "superadmin", "share_permission": None}
+            for m in moties
+        ]
+        session["last_index_url"] = request.full_path or request.path
+        return render_template(
+            "moties/index.html",
+            items=items,
+            total=total,
+            page=page,
+            per_page=per_page,
+            q=q,
+            status=status,
+            date_from=date_from,
+            date_to=date_to,
+            sort=sort,
+            direction=direction,
+        )
+    
     # --- Subquery 1: Indiener (Core select) ---
     own_sel = (
         select(
@@ -587,10 +704,22 @@ def index_shared():
 @bp.route('/toevoegen', methods=['GET', 'POST'])
 @login_and_active_required
 def toevoegen():
+    back_url = _safe_back_url()
     if request.method == 'POST':
         gemeenteraad_datum = request.form.get('gemeenteraad_datum')
         agendapunt = request.form.get('agendapunt')
-        titel = request.form.get('titel')
+        titel = (request.form.get('titel') or '').strip()
+        if not titel:
+            flash('Titel is verplicht.', 'danger')
+            alle_users = User.query.order_by(User.naam.asc()).all()
+            alle_partijen = Party.query.order_by(Party.afkorting.asc()).all()
+            return render_template(
+                'moties/toevoegen.html',
+                title="Nieuwe motie",
+                alle_users=alle_users,
+                alle_partijen=alle_partijen,
+                back_url=back_url,
+            )
         const_json = request.form.get('constaterende_dat_json') or "[]"
         overw_dat = request.form.get('overwegende_dat_json') or "[]"
         draagt_json = request.form.get('draagt_json') or "[]"
@@ -605,17 +734,15 @@ def toevoegen():
             overwegende_dat=json.loads(overw_dat),
             draagt_college_op=json.loads(draagt_json),
             opdracht_formulering=opdracht_formulering,
-            status=status
+            status=status,
         )
 
-        # (optioneel) primaire indiener vastleggen:
         motie.indiener_id = current_user.id
 
-        # >>> NIEUW: mede-indieners uit multi-select
         raw_ids = request.form.getlist('mede_indieners')
         mede_ids = {int(x) for x in raw_ids if x.strip().isdigit()}
 
-        added_user_ids = []
+        added_user_ids: list[int] = []
         if mede_ids:
             if motie.indiener_id:
                 mede_ids.discard(motie.indiener_id)
@@ -627,15 +754,19 @@ def toevoegen():
         db.session.add(motie)
         db.session.flush()  # zorg dat motie.id bestaat voor notificaties
 
-        # Notificaties naar nieuw toegevoegde mede-indieners
         _notify_coauthors_added(motie, added_user_ids)
 
         db.session.commit()
-        
-    # GET: lijst gebruikers meesturen voor de select
+
     alle_users = User.query.order_by(User.naam.asc()).all()
     alle_partijen = Party.query.order_by(Party.afkorting.asc()).all()
-    return render_template('moties/toevoegen.html', title="Nieuwe motie", alle_users=alle_users, alle_partijen=alle_partijen, back_url=_safe_back_url())
+    return render_template(
+        'moties/toevoegen.html',
+        title="Nieuwe motie",
+        alle_users=alle_users,
+        alle_partijen=alle_partijen,
+        back_url=back_url,
+    )
 
 @bp.route('/<int:motie_id>/bekijken', methods=['GET', 'POST'])
 @login_and_active_required
@@ -674,8 +805,8 @@ def bekijken(motie_id):
 @bp.route('/<int:motie_id>/bewerken', methods=['GET', 'POST'])
 @login_and_active_required
 def bewerken(motie_id):
-    # Laad motie + huidige mede-indieners efficiënt
-    motie = (Motie.query
+    motie = (
+        Motie.query
         .options(selectinload(Motie.mede_indieners))
         .get_or_404(motie_id)
     )
@@ -684,15 +815,50 @@ def bewerken(motie_id):
         flash('Je mag deze motie niet bewerken. Vraag de eigenaar naar toegang', 'danger')
         return redirect(url_for('moties.index_personal'))
 
+    back_url = _safe_back_url()
+
+    def render_form():
+        alle_users = User.query.order_by(User.naam.asc()).all()
+        alle_partijen = Party.query.order_by(Party.afkorting.asc()).all()
+        huidige_mede_ids = {u.id for u in motie.mede_indieners}
+        actieve_shares = (
+            MotieShare.query
+            .filter(
+                MotieShare.motie_id == motie.id,
+                MotieShare.actief.is_(True),
+                or_(
+                    MotieShare.expires_at.is_(None),
+                    MotieShare.expires_at > dt.datetime.utcnow(),
+                ),
+            )
+            .all()
+        )
+        return render_template(
+            'moties/bewerken.html',
+            motie=motie,
+            constaterende_dat=as_list(motie.constaterende_dat),
+            overwegende_dat=as_list(motie.overwegende_dat),
+            draagt_op=as_list(motie.draagt_college_op),
+            alle_users=alle_users,
+            alle_partijen=alle_partijen,
+            actieve_shares=actieve_shares,
+            huidige_mede_ids=huidige_mede_ids,
+            title="Bewerk Motie",
+            back_url=back_url,
+        )
+
     if request.method == 'POST':
-        # --- gewone velden ---
+        titel = (request.form.get('titel') or '').strip()
+        if not titel:
+            flash('Titel is verplicht.', 'danger')
+            return render_form()
+
         motie.gemeenteraad_datum = request.form.get('gemeenteraad_datum') or motie.gemeenteraad_datum
         motie.agendapunt = request.form.get('agendapunt')
-        motie.titel = request.form.get('titel') or motie.titel
+        motie.titel = titel
         motie.opdracht_formulering = request.form.get('opdracht_formulering') or motie.opdracht_formulering
         motie.status = request.form.get('status') or motie.status
 
-        # --- JSON arrays ---
         const_json = request.form.get('constaterende_dat_json') or "[]"
         overw_json = request.form.get('overwegende_dat_json') or "[]"
         draagt_json = request.form.get('draagt_json') or "[]"
@@ -702,14 +868,12 @@ def bewerken(motie_id):
             motie.overwegende_dat = json.loads(overw_json)
             motie.draagt_college_op = json.loads(draagt_json)
         except json.JSONDecodeError:
-            flash("Kon de dynamische lijsten niet opslaan (ongeldige JSON).", "danger")
-            return redirect(url_for('moties.bewerken', motie_id=motie.id))
+            flash("Kon de dynamische lijsten niet opslaan (ongeldige JSON).", 'danger')
+            return render_form()
 
-        # --- mede-indieners sync ---
-        raw_ids = request.form.getlist('mede_indieners')  # ['3','12',...]
+        raw_ids = request.form.getlist('mede_indieners')
         nieuwe_ids = {int(x) for x in raw_ids if x.strip().isdigit()}
 
-        # primaire indiener niet als mede-indiener
         if motie.indiener_id:
             nieuwe_ids.discard(motie.indiener_id)
 
@@ -721,54 +885,20 @@ def bewerken(motie_id):
         if to_remove:
             motie.mede_indieners[:] = [u for u in motie.mede_indieners if u.id not in to_remove]
 
-        added_user_ids = []
+        added_user_ids: list[int] = []
         if to_add:
             toe_te_voegen = User.query.filter(User.id.in_(to_add)).all()
             for u in toe_te_voegen:
                 motie.mede_indieners.append(u)
                 added_user_ids.append(u.id)
 
-        # Notificaties naar nieuw toegevoegde mede-indieners
         _notify_coauthors_added(motie, added_user_ids)
 
-        db.session.commit()        
+        db.session.commit()
         flash("Motie bijgewerkt.", "success")
         return redirect(url_for('moties.bekijken', motie_id=motie.id))
 
-    # GET: alle users voor de select + huidige selectie
-    alle_users = User.query.order_by(User.naam.asc()).all()
-    huidige_mede_ids = {u.id for u in motie.mede_indieners}
-
-    actieve_shares = (
-        MotieShare.query
-        .filter(
-            MotieShare.motie_id == motie.id,
-            MotieShare.actief.is_(True),
-            # alleen niet-verlopen of zonder einddatum
-            or_(MotieShare.expires_at.is_(None), MotieShare.expires_at > dt.datetime.utcnow())
-        )
-        .all()
-    )
-
-    # Lijsten voor select
-    alle_users = User.query.order_by(User.naam.asc()).all()
-    alle_partijen = Party.query.order_by(Party.afkorting.asc()).all()
-
-    huidige_mede_ids = {u.id for u in motie.mede_indieners}
-
-    return render_template(
-        'moties/bewerken.html',
-        motie=motie,
-        constaterende_dat=as_list(motie.constaterende_dat),
-        overwegende_dat=as_list(motie.overwegende_dat),
-        draagt_op=as_list(motie.draagt_college_op),
-        alle_users=alle_users,
-        alle_partijen=alle_partijen,
-        actieve_shares=actieve_shares,
-        huidige_mede_ids=huidige_mede_ids,
-        title="Bewerk Motie",
-        back_url=_safe_back_url()
-    )
+    return render_form()
 
 @bp.route('/<int:motie_id>/verwijderen', methods=['POST', 'GET'])
 @login_and_active_required

@@ -1,52 +1,102 @@
 {% extends "base.html" %}
 {% block content %}
-<div class="max-w-7xl mx-auto ">
-<div class="sticky top-0 z-10 max-w-7xl mx-auto bg-white/80 backdrop-blur border-b print:hidden mb-6">
-    <div class="mx-auto max-w-7xl px-4 py-2 flex items-center justify-between">
-        <h1 class="text-2xl font-semibold mb-4">{{ title }}</h1>
-      <div class="inline-flex rounded-md shadow-xs" role="group">
-        <a href="{{ url_for('partijen.index') }}" type="button" class="px-4 py-2 text-sm font-medium text-gray-900 bg-white border border-gray-200 rounded-s-lg hover:bg-gray-100 hover:text-blue-700 focus:z-10 focus:ring-2 focus:ring-blue-700 focus:text-blue-700 dark:bg-gray-800 dark:border-gray-700 dark:text-white dark:hover:text-white dark:hover:bg-gray-700 dark:focus:ring-blue-500 dark:focus:text-white">
-          Terug naar overzicht
-        </a>
-        {% if user_has_role('griffie') %}
-        <a href="{{ url_for('partijen.index') }}" type="button" class="px-4 py-2 text-sm font-medium text-white bg-blue-500 border-t border-b border-gray-200 hover:bg-blue-900 hover:text-white focus:z-10 focus:ring-2 focus:ring-blue-700 focus:text-blue-700 dark:bg-gray-800 dark:border-gray-700 dark:text-white dark:hover:text-white dark:hover:bg-gray-700 dark:focus:ring-blue-500 dark:focus:text-white">
-          <i class="fa fa-edit"></i> Bewerken
-        </a>
-        <a href="{{ url_for('partijen.verwijderen', partij_id=partij.id) }}" type="button" class="px-4 py-2 text-sm font-medium text-white bg-red-500 border border-gray-200 rounded-e-lg hover:bg-red-900 hover:text-white-700 focus:z-10 focus:ring-2 focus:ring-blue-700 focus:text-blue-700 dark:bg-gray-800 dark:border-gray-700 dark:text-white dark:hover:text-white dark:hover:bg-gray-700 dark:focus:ring-blue-500 dark:focus:text-white">
-          <i class="fa fa-trash"></i> Verwijderen
-        </a>
+<main class="max-w-7xl mx-auto px-4 py-8 space-y-6">
+  <div class="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+    <div>
+      <p class="text-sm uppercase tracking-wide text-gray-500">Partij</p>
+      <div class="flex items-center gap-3">
+        <h1 class="text-3xl font-semibold text-gray-900">{{ partij.naam }}</h1>
+        {% if partij.actief %}
+          <span class="inline-flex items-center gap-1 rounded-full bg-green-100 px-3 py-1 text-xs font-semibold text-green-700">
+            <i class="fa fa-check text-green-600"></i> Actief
+          </span>
+        {% else %}
+          <span class="inline-flex items-center gap-1 rounded-full bg-gray-200 px-3 py-1 text-xs font-semibold text-gray-600">
+            <i class="fa fa-moon"></i> Inactief
+          </span>
         {% endif %}
       </div>
+      <p class="mt-1 text-sm text-gray-500">Afkorting: {{ partij.afkorting or 'n.v.t.' }}</p>
     </div>
-  </div>
-<div class="p-4 border border-gray-200 rounded-lg grid grid-cols-2 md:grid-cols-2 gap-4">
-  <div>
-    <h1 class="text-2xl font-semibold mb-4">{{ partij.naam }} ({{ partij.afkorting }})</h1>
-    <p>Status: {{ "Actief" if partij.actief else "Inactief" }}</p>
-    {% if partij.logo_src %}
-      <img src="{{ partij.logo_src }}" alt="Logo van {{ partij.naam }}" class="h-24 mt-4">
-    {% else %}
-      <p class="text-gray-500 mt-4">Geen logo beschikbaar</p>
-    {% endif %}
-  </div>
-  <div>
-    <h2 class="text-xl font-semibold mb-4">Gebruikers gekoppeld aan {{ partij.naam }}</h2>
-    <div class="space-y-2">
-      {% if list_gebruikers %}
-        {% for gebruiker in list_gebruikers %}
-          <div class="p-2 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors duration-200">
-            {% if gebruiker.profile_filename %}
-            <img src="{{ gebruiker.profile_src }}" alt="Profielfoto van {{ gebruiker.naam }}" class="h-10 w-10 rounded-full inline-block mr-2">
-            {% else %}
-            <img src="{{ gebruiker.profile_src }}" alt="Profielfoto van {{ gebruiker.naam }}" class="h-10 w-10 rounded-full inline-block mr-2">
-            {% endif %}
-            <a href="{{ url_for('gebruikers.bekijken', user_id=gebruiker.id) }}" class="text-blue-600 hover:underline">{{ gebruiker.naam }} ({{ gebruiker.email }})</a>
-          </div>
-        {% endfor %}
-      {% else %}
-        <p class="text-gray-500">Er zijn geen gebruikers gekoppeld aan deze partij.</p>
+    <div class="flex flex-wrap items-center gap-2">
+      <a href="{{ url_for('partijen.index') }}" class="inline-flex items-center gap-2 rounded-md border border-gray-300 px-4 py-2 text-sm text-gray-700 hover:bg-gray-50">
+        <i class="fa fa-arrow-left"></i> Terug naar overzicht
+      </a>
+      {% if user_has_role('griffie') %}
+      <a href="{{ url_for('partijen.bewerken', partij_id=partij.id) }}" class="inline-flex items-center gap-2 rounded-md bg-gray-900 px-4 py-2 text-sm font-semibold text-white hover:bg-black">
+        <i class="fa fa-edit"></i> Bewerken
+      </a>
+      <form method="post" action="{{ url_for('partijen.verwijderen', partij_id=partij.id) }}" onsubmit="return confirm('Weet je zeker dat je {{ partij.naam }} wilt verwijderen?');">
+        <button type="submit" class="inline-flex items-center gap-2 rounded-md px-4 py-2 text-sm text-red-600 border border-red-200 hover:bg-red-50">
+          <i class="fa fa-trash"></i> Verwijderen
+        </button>
+      </form>
       {% endif %}
     </div>
   </div>
-</div>
+
+  <div class="grid gap-6 lg:grid-cols-3">
+    <section class="lg:col-span-1 rounded-2xl border border-gray-200 bg-white p-6 shadow-sm">
+      <h2 class="text-lg font-semibold text-gray-900">Partijgegevens</h2>
+      <div class="mt-4 flex flex-col items-center gap-4">
+        <div class="relative inline-flex h-32 w-32 items-center justify-center rounded-full border border-gray-200 bg-gray-50">
+          {% if partij.logo_src %}
+            <img src="{{ partij.logo_src }}" alt="Logo {{ partij.naam }}" class="h-28 w-28 rounded-full object-cover">
+          {% else %}
+            <span class="text-2xl font-semibold text-gray-400">{{ (partij.afkorting or partij.naam[:2]).upper() }}</span>
+          {% endif %}
+        </div>
+        <dl class="w-full space-y-3 text-sm text-gray-600">
+          <div class="flex justify-between">
+            <dt class="font-medium text-gray-500">Naam</dt>
+            <dd class="text-gray-900">{{ partij.naam }}</dd>
+          </div>
+          <div class="flex justify-between">
+            <dt class="font-medium text-gray-500">Afkorting</dt>
+            <dd class="text-gray-900">{{ partij.afkorting or 'n.v.t.' }}</dd>
+          </div>
+          <div class="flex justify-between">
+            <dt class="font-medium text-gray-500">Status</dt>
+            <dd class="text-gray-900">{{ 'Actief' if partij.actief else 'Inactief' }}</dd>
+          </div>
+          <div class="flex justify-between">
+            <dt class="font-medium text-gray-500">Aangemaakt op</dt>
+            <dd class="text-gray-900">{{ partij.created_at.strftime('%d-%m-%Y') if partij.created_at else 'Onbekend' }}</dd>
+          </div>
+        </dl>
+      </div>
+    </section>
+
+    <section class="lg:col-span-2 rounded-2xl border border-gray-200 bg-white p-6 shadow-sm">
+      <div class="flex items-center justify-between">
+        <h2 class="text-lg font-semibold text-gray-900">Gekoppelde gebruikers</h2>
+        <span class="text-sm text-gray-500">{{ list_gebruikers|length }} gebruiker(s)</span>
+      </div>
+      <div class="mt-4 space-y-3">
+        {% if list_gebruikers %}
+          {% for gebruiker in list_gebruikers %}
+            <article class="flex items-center justify-between rounded-xl border border-gray-200 p-3 hover:bg-gray-50 transition">
+              <div class="flex items-center gap-3">
+                {% if gebruiker.profile_src %}
+                  <img src="{{ gebruiker.profile_src }}" alt="{{ gebruiker.naam }}" class="h-10 w-10 rounded-full object-cover border border-gray-200">
+                {% else %}
+                  <div class="h-10 w-10 rounded-full bg-gray-100 border border-dashed border-gray-300 flex items-center justify-center text-gray-400 text-xs">Geen foto</div>
+                {% endif %}
+                <div>
+                  <a href="{{ url_for('gebruikers.bekijken', user_id=gebruiker.id) }}" class="font-semibold text-gray-900 hover:text-gray-600">{{ gebruiker.naam }}</a>
+                  <p class="text-xs text-gray-500">{{ gebruiker.email }}</p>
+                </div>
+              </div>
+              <span class="text-xs text-gray-500">{{ gebruiker.role|capitalize }}</span>
+            </article>
+          {% endfor %}
+        {% else %}
+          <div class="rounded-xl border border-dashed border-gray-300 bg-gray-50 p-6 text-center text-gray-500">
+            Geen gebruikers gekoppeld aan deze partij.
+          </div>
+        {% endif %}
+      </div>
+    </section>
+  </div>
+</main>
 {% endblock %}

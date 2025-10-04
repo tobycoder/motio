@@ -15,7 +15,7 @@
   <script src="https://cdnjs.cloudflare.com/ajax/libs/flowbite/2.5.2/flowbite.min.js" defer></script>
 
   {# ---------------- Topbar: compact, sticky ---------------- #}
-  <div class="sticky top-[var(--nav-h)] page-chrome bg-white/90 pt-4 backdrop-blur border-b print:hidden">
+  <div class="sticky top-[var(--nav-h)] page-chrome-low bg-white/90 pt-4 backdrop-blur border-b print:hidden">
     <div class="mx-auto max-w-7xl px-4 py-2 flex items-center gap-2">
       {# Terug-knop: naar laatste overzicht / fallback #}
       <a href="{{ back_url or url_for('moties.index') }}"

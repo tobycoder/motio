@@ -98,3 +98,60 @@ def verwijderen(partij_id):
     db.session.commit()
     flash(f"Partij '{partij.naam}' is verwijderd.", "success")
     return redirect(url_for('partijen.index'))
+
+@bp.route('/<int:partij_id>/bewerken', methods=['GET', 'POST'])
+@login_and_active_required
+@user_has_role('griffie')
+def bewerken(partij_id):
+    partij = Party.query.get_or_404(partij_id)
+
+    if request.method == 'POST':
+        naam = (request.form.get('naam') or '').strip()
+        afkorting = (request.form.get('afkorting') or '').strip()
+        actief_raw = (request.form.get('actief') or '').lower()
+        actief = actief_raw in {'on', 'true', '1', 'yes'}
+        logo_url = (request.form.get('logo_url') or '').strip()
+        remove_logo = (request.form.get('remove_logo') or '').lower() in {'on', 'true', '1', 'yes'}
+        file = request.files.get('logo_file')
+
+        if not naam or not afkorting:
+            flash('Naam en afkorting zijn verplicht.', 'error')
+            return render_template('partijen/bewerken.html', partij=partij, title=f'Bewerk {partij.naam}')
+
+        partij.naam = naam
+        partij.afkorting = afkorting
+        partij.actief = actief
+
+        if remove_logo:
+            partij.logo_url = None
+            partij.logo_filename = None
+        elif logo_url:
+            partij.logo_url = logo_url
+            partij.logo_filename = None
+        elif file and getattr(file, 'filename', ''):
+            if not _allowed_logo(file.filename):
+                flash('Bestandstype niet toegestaan. Gebruik png, jpg, jpeg, webp of svg.', 'error')
+                return render_template('partijen/bewerken.html', partij=partij, title=f'Bewerk {partij.naam}')
+            try:
+                filename = _save_logo_file(file, suggested_slug=afkorting or naam)
+            except Exception as e:
+                current_app.logger.exception('Logo opslaan mislukt')
+                flash(f'Opslaan van logo mislukt: {e}', 'error')
+                return render_template('partijen/bewerken.html', partij=partij, title=f'Bewerk {partij.naam}')
+            else:
+                partij.logo_filename = filename
+                partij.logo_url = None
+
+        try:
+            db.session.commit()
+        except IntegrityError:
+            db.session.rollback()
+            flash('Naam of afkorting is al in gebruik.', 'error')
+            return render_template('partijen/bewerken.html', partij=partij, title=f'Bewerk {partij.naam}')
+
+        flash('Partij bijgewerkt.', 'success')
+        return redirect(url_for('partijen.bekijken', partij_id=partij.id))
+
+    return render_template('partijen/bewerken.html', partij=partij, title=f'Bewerk {partij.naam}')
+
+

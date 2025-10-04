@@ -1,0 +1,84 @@
+{% extends "base.html" %}
+{% block content %}
+<main class="max-w-4xl mx-auto px-4 py-8">
+  <div class="flex items-center justify-between mb-6">
+    <div>
+      <h1 class="text-2xl font-semibold">Profiel van {{ user.naam }}</h1>
+      <p class="text-sm text-gray-500">{{ user.email }}</p>
+    </div>
+    {% set edit_url = url_for('gebruikers.edit_profiel') if user.id == current_user.id else url_for('gebruikers.bewerken', user_id=user.id) %}
+    <a href="{{ edit_url }}" class="inline-flex items-center gap-2 px-4 py-2 rounded-md bg-gray-900 text-white hover:bg-black">
+      <i class="fa fa-edit"></i>
+      Bewerken
+    </a>
+  </div>
+
+  <section class="bg-white p-6 rounded-xl shadow border border-gray-200">
+    <div class="flex flex-col sm:flex-row sm:items-center gap-6">
+      <div class="relative inline-block">
+        {% if user.profile_src %}
+          <img src="{{ user.profile_src }}" alt="Profielfoto van {{ user.naam }}" class="h-24 w-24 rounded-full object-cover border border-gray-200">
+        {% else %}
+          <div class="h-24 w-24 rounded-full bg-gray-100 border border-dashed border-gray-300 flex items-center justify-center text-gray-400 text-sm">
+            Geen foto
+          </div>
+        {% endif %}
+        {% if user.partij and user.partij.logo_src %}
+          <img src="{{ user.partij.logo_src }}" alt="Logo {{ user.partij.naam }}" class="absolute -bottom-1 -right-1 h-10 w-10 rounded-full border-2 border-white bg-white object-cover shadow">
+        {% elif user.partij %}
+          <div class="absolute -bottom-1 -right-1 h-10 w-10 rounded-full border-2 border-white bg-gray-800 text-white text-xs font-semibold flex items-center justify-center shadow">
+            {{ (user.partij.afkorting or user.partij.naam[:2]).upper() }}
+          </div>
+        {% endif %}
+      </div>
+      <div>
+        <h2 class="text-xl font-semibold">{{ user.naam }}</h2>
+        <div class="mt-2 flex flex-wrap items-center gap-2">
+          <span class="inline-flex items-center px-3 py-1 text-xs font-semibold uppercase tracking-wide rounded-full bg-gray-100 text-gray-700">
+            {{ user.role|replace('_', ' ')|capitalize }}
+          </span>
+          {% if user.actief %}
+          <span class="inline-flex items-center gap-1 px-3 py-1 text-xs font-semibold uppercase tracking-wide rounded-full bg-green-100 text-green-700">
+            <i class="fa fa-check text-green-600"></i> Actief
+          </span>
+          {% else %}
+          <span class="inline-flex items-center gap-1 px-3 py-1 text-xs font-semibold uppercase tracking-wide rounded-full bg-gray-200 text-gray-700">
+            <i class="fa fa-minus-circle text-gray-500"></i> Inactief
+          </span>
+          {% endif %}
+        </div>
+      </div>
+    </div>
+
+    <dl class="grid grid-cols-1 sm:grid-cols-2 gap-6 mt-6">
+      <div>
+        <dt class="text-xs uppercase tracking-wide text-gray-500">E-mail</dt>
+        <dd class="text-gray-900">{{ user.email }}</dd>
+      </div>
+      <div>
+        <dt class="text-xs uppercase tracking-wide text-gray-500">Partij</dt>
+        {% if user.partij %}
+          <dd class="text-gray-900">{{ user.partij.naam }}{% if user.partij.afkorting %} ({{ user.partij.afkorting }}){% endif %}</dd>
+        {% else %}
+          <dd class="text-gray-500">Geen partij gekoppeld</dd>
+        {% endif %}
+      </div>
+      <div>
+        <dt class="text-xs uppercase tracking-wide text-gray-500">Aangemaakt op</dt>
+        <dd class="text-gray-900">{{ user.created_at.strftime('%d-%m-%Y') if user.created_at else 'Onbekend' }}</dd>
+      </div>
+      <div>
+        <dt class="text-xs uppercase tracking-wide text-gray-500">Profielfoto bron</dt>
+        {% if user.profile_url %}
+          <dd class="text-gray-900">URL</dd>
+        {% elif user.profile_filename %}
+          <dd class="text-gray-900">Upload</dd>
+        {% else %}
+          <dd class="text-gray-500">Niet ingesteld</dd>
+        {% endif %}
+      </div>
+    </dl>
+  </section>
+</main>
+{% endblock %}
+

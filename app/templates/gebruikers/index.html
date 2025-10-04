@@ -1,81 +1,211 @@
 {% extends 'base.html' %}
 {% block content %}
+{% set stats = namespace(total=0, active=0, griffie=0) %}
+{% for u in users %}
+  {% set stats.total = stats.total + 1 %}
+  {% if u.actief %}{% set stats.active = stats.active + 1 %}{% endif %}
+  {% if (u.role or '').lower() == 'griffie' %}{% set stats.griffie = stats.griffie + 1 %}{% endif %}
+{% endfor %}
 
-{# Sticky header + acties #}
-<div class="sticky top-0 z-10 bg-white/80 backdrop-blur border-b print:hidden">
-  <div class="mx-auto max-w-7xl px-4 py-3 flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
-    <h1 class="text-xl md:text-2xl font-semibold">Overzicht van {{ title }}</h1>
-    <div class="flex flex-wrap gap-2">
-      <a href="{{ url_for('dashboard.home') }}" class="px-4 py-2 text-sm font-medium text-gray-900 bg-white border border-gray-200 rounded-lg hover:bg-gray-100 hover:text-blue-700 dark:bg-gray-800 dark:border-gray-700 dark:text-white">
-        Terug naar dashboard
+<div class="sticky top-[var(--nav-h)] page-chrome z-20 bg-white/90 backdrop-blur border-b shadow-sm">
+  <div class="mx-auto max-w-7xl px-4 py-4 flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+    <div>
+      <p class="text-sm uppercase tracking-wide text-gray-500">Gebruikersbeheer</p>
+      <h1 class="text-2xl font-semibold text-gray-900">{{ title|capitalize }}</h1>
+      <div class="mt-3 flex flex-wrap gap-2 text-sm text-gray-500">
+        <span class="inline-flex items-center gap-1 rounded-full bg-gray-100 px-3 py-1">{{ stats.total }} totaal</span>
+        <span class="inline-flex items-center gap-1 rounded-full bg-green-100 text-green-700 px-3 py-1">{{ stats.active }} actief</span>
+        <span class="inline-flex items-center gap-1 rounded-full bg-blue-100 text-blue-700 px-3 py-1">{{ stats.griffie }} griffie</span>
+      </div>
+    </div>
+    <div class="flex flex-col sm:flex-row gap-2">
+      <a href="{{ url_for('dashboard.home') }}" class="inline-flex items-center justify-center gap-2 rounded-md border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 transition">
+        <i class="fa fa-arrow-left"></i> Terug
       </a>
-      <a href="{{ url_for('gebruikers.toevoegen') }}" class="px-4 py-2 text-sm font-medium text-white bg-green-600 rounded-lg hover:bg-green-700">
-        Nieuwe gebruiker
+      <a href="{{ url_for('gebruikers.toevoegen') }}" class="inline-flex items-center justify-center gap-2 rounded-md bg-gray-900 px-4 py-2 text-sm font-semibold text-white shadow-sm hover:bg-black transition">
+        <i class="fa fa-user-plus"></i> Nieuwe gebruiker
       </a>
     </div>
   </div>
 </div>
 
-{# Filters: responsive grid #}
-<form method="get" class="mx-auto max-w-7xl px-4 mt-6">
-  <div class="rounded-xl border border-gray-200 shadow-sm p-4">
-    <h3 class="text-base font-semibold mb-3">Filter</h3>
-    <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
-      <div class="md:col-span-2">
-        <input class="w-full h-10 px-4 text-sm border border-slate-200 rounded focus:outline-none focus:border-slate-400 shadow-sm" type="search" name="q" placeholder="Zoeken..." value="{{ q or '' }}">
+<section class="mx-auto max-w-7xl px-4 py-6 space-y-6">
+  <div class="rounded-2xl border border-gray-200 bg-white shadow-sm">
+    <div class="flex flex-col gap-4 p-6 lg:flex-row lg:items-center lg:justify-between">
+      <div class="relative w-full lg:max-w-md">
+        <span class="pointer-events-none absolute inset-y-0 left-3 flex items-center text-gray-400"><i class="fa fa-search"></i></span>
+        <input id="user-search"
+               type="search"
+               name="q"
+               placeholder="Zoek op naam, e-mail of partij..."
+               value="{{ q or '' }}"
+               class="w-full rounded-lg border border-gray-300 bg-white pl-10 pr-4 py-2 text-sm text-gray-700 shadow-sm focus:border-gray-900 focus:outline-none focus:ring-2 focus:ring-gray-900/20 transition" />
+      </div>
+      <div class="flex flex-wrap items-center gap-2">
+        <span class="text-xs font-semibold uppercase tracking-wide text-gray-400">Rol</span>
+        <div class="flex flex-wrap gap-2" id="role-filters">
+          {% set roles = ['all', 'superadmin', 'griffie', 'gebruiker'] %}
+          {% for role in roles %}
+            <button type="button" class="filter-chip" data-role-filter="{{ role }}">
+              {% if role == 'all' %}Alle rollen{% else %}{{ role|capitalize }}{% endif %}
+            </button>
+          {% endfor %}
+        </div>
+      </div>
+      <div class="flex items-center gap-2">
+        <span class="text-xs font-semibold uppercase tracking-wide text-gray-400">Status</span>
+        <button type="button" id="status-toggle" data-status="all" class="filter-chip">
+          Alleen actieve
+        </button>
       </div>
     </div>
-    <div class="mt-3 flex justify-end">
-      <button type="submit" class="inline-flex items-center px-4 py-2 rounded-md bg-gray-900 text-white hover:bg-black">Filter</button>
-    </div>
-
-    {# Sorteerwaarden behouden #}
-    <input type="hidden" name="sort" value="{{ sort }}">
-    <input type="hidden" name="dir" value="{{ direction }}">
   </div>
-</form>
 
-{# Tabel + bulk export #}
-  <div class="overflow-x-auto max-w-7xl mx-auto rounded-xl border border-gray-200 shadow-sm">
-    <table class="min-w-full text-sm text-left text-gray-700 dark:text-gray-300">
-      <thead class="text-xs uppercase bg-gray-50 dark:bg-gray-700 dark:text-gray-400">
-        <tr>
-          <th class="px-2 py-3">
-            Profielfoto
-          </th>
-          <th class="px-2 py-3 hidden md:table-cell">
-            Naam
-          </th>
-          <th class="px-2 py-3 hidden lg:table-cell">E-mail</th>
-          <th class="px-2 py-3 hidden lg:table-cell">Partij</th>
-        </tr>
-      </thead>
-      <tbody>
-        {% for m in users %}
-          <tr class="bg-white border-b border-gray-200 hover:bg-gray-50 dark:bg-gray-800 dark:border-gray-700 dark:hover:bg-gray-600">
-            <td class="px-2 py-4 font-medium text-blue-600 dark:text-blue-400 hover:underline whitespace-nowrap">
-              <a href="{{ url_for('gebruikers.bekijken', user_id=m.id) }}"><img src="{{ m.profile_src }}" class="h-8 w-auto rounded"></a>
-              {# Compacte meta op mobiel #}
-              <div class="mt-1 text-xs text-gray-500 md:hidden">
-                {{ m.created_at.strftime('%d-%m-%Y') if m.created_at else '' }} • {{ m.partij.naam if m.partij.naam else '-' }}
+  <div id="user-grid" class="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+    {% for m in users %}
+      {% set partij_naam = m.partij.naam if m.partij else 'Geen partij' %}
+      <article class="group relative overflow-hidden rounded-2xl border border-gray-200 bg-white p-5 shadow-sm transition hover:-translate-y-1 hover:shadow-lg"
+               data-user-card
+               data-role="{{ (m.role or 'onbekend')|lower }}"
+               data-status="{{ 'actief' if m.actief else 'inactief' }}"
+               data-party="{{ (m.partij.afkorting or partij_naam)|lower if m.partij else 'geen' }}"
+               data-search="{{ (m.naam ~ ' ' ~ m.email ~ ' ' ~ partij_naam)|lower }}">
+        <div class="flex items-start gap-4">
+          <div class="relative inline-block">
+            {% if m.profile_src %}
+              <img src="{{ m.profile_src }}" alt="{{ m.naam }}" class="h-16 w-16 rounded-full object-cover border border-gray-200">
+            {% else %}
+              <div class="h-16 w-16 rounded-full bg-gray-100 border border-dashed border-gray-300 flex items-center justify-center text-gray-400 text-sm">Geen foto</div>
+            {% endif %}
+            {% if m.partij and m.partij.logo_src %}
+              <img src="{{ m.partij.logo_src }}" alt="Logo {{ partij_naam }}" class="absolute -bottom-1 -right-1 h-9 w-9 rounded-full border-2 border-white bg-white object-cover shadow">
+            {% elif m.partij %}
+              <div class="absolute -bottom-1 -right-1 h-9 w-9 rounded-full border-2 border-white bg-gray-800 text-white text-xs font-semibold flex items-center justify-center shadow">
+                {{ (m.partij.afkorting or partij_naam[:2]).upper() }}
               </div>
-            </td>
-            <td class="px-2 py-4 font-medium text-blue-600 dark:text-blue-400 hover:underline whitespace-nowrap">
-              <a href="{{ url_for('gebruikers.bekijken', user_id=m.id) }}">{{ m.naam }}</a>
-            </td>
-            <td class="px-2 py-4 hidden md:table-cell">
-              {{ m.email }}
-            </td>
-            <td class="px-2 py-4 hidden lg:table-cell">
-              {{ m.partij.naam if m.partij.naam else '-' }}
-            </td>
-          </tr>
-        {% endfor %}
-        {% if not users %}
-          <tr><td class="px-6 py-6 text-sm text-gray-500" colspan="5">Geen resultaten.</td></tr>
-        {% endif %}
-      </tbody>
-    </table>
+            {% endif %}
+          </div>
+          <div class="min-w-0 flex-1">
+            <div class="flex flex-wrap items-center gap-2">
+              <h2 class="truncate text-lg font-semibold text-gray-900">{{ m.naam }}</h2>
+              {% if m.actief %}
+                <span class="inline-flex items-center gap-1 rounded-full bg-green-100 px-2.5 py-0.5 text-xs font-medium text-green-700">
+                  <i class="fa fa-check text-green-600"></i> Actief
+                </span>
+              {% else %}
+                <span class="inline-flex items-center gap-1 rounded-full bg-gray-200 px-2.5 py-0.5 text-xs font-medium text-gray-600">
+                  <i class="fa fa-moon"></i> Inactief
+                </span>
+              {% endif %}
+            </div>
+            <p class="mt-1 text-sm text-gray-500">{{ m.email }}</p>
+            <div class="mt-3 flex flex-wrap items-center gap-2 text-xs">
+              <span class="inline-flex items-center rounded-full bg-gray-100 px-2.5 py-1 font-semibold text-gray-700">
+                {{ (m.role or 'Onbekend')|replace('_', ' ')|capitalize }}
+              </span>
+              <span class="inline-flex items-center gap-1 rounded-full bg-blue-50 px-2.5 py-1 font-medium text-blue-600">
+                <i class="fa fa-flag"></i>
+                {{ partij_naam }}
+              </span>
+              <span class="inline-flex items-center gap-1 rounded-full bg-gray-50 px-2.5 py-1 font-medium text-gray-500">
+                <i class="fa fa-calendar"></i>
+                {{ m.created_at.strftime('%d-%m-%Y') if m.created_at else 'Onbekend' }}
+              </span>
+            </div>
+          </div>
+        </div>
+        <div class="mt-5 flex items-center justify-between">
+          <div class="flex gap-2">
+            <a href="{{ url_for('gebruikers.bekijken', user_id=m.id) }}" class="inline-flex items-center gap-1 rounded-md border border-gray-300 px-3 py-1.5 text-sm text-gray-700 transition hover:bg-gray-50">
+              <i class="fa fa-eye"></i> Bekijken
+            </a>
+            {% if user_has_role('griffie') %}
+            <a href="{{ url_for('gebruikers.bewerken', user_id=m.id) }}" class="inline-flex items-center gap-1 rounded-md bg-gray-900 px-3 py-1.5 text-sm text-white transition hover:bg-black">
+              <i class="fa fa-edit"></i> Bewerken
+            </a>
+            {% endif %}
+          </div>
+          {% if user_has_role('superadmin') and m.id != current_user.id %}
+          <form method="post" action="{{ url_for('gebruikers.verwijderen', user_id=m.id) }}" onsubmit="return confirm('Weet je zeker dat je {{ m.naam }} wilt verwijderen?');">
+            <button type="submit" class="inline-flex items-center gap-1 rounded-md px-3 py-1.5 text-sm text-red-600 hover:bg-red-50 transition">
+              <i class="fa fa-trash"></i>
+            </button>
+          </form>
+          {% endif %}
+        </div>
+        <span class="pointer-events-none absolute inset-x-0 -bottom-0.5 h-1 bg-gradient-to-r from-transparent via-gray-900/10 to-transparent opacity-0 transition group-hover:opacity-100"></span>
+      </article>
+    {% endfor %}
   </div>
 
+  {% if not users %}
+    <div class="rounded-2xl border border-dashed border-gray-300 bg-gray-50 px-6 py-12 text-center text-gray-500">
+      <i class="fa fa-users text-3xl mb-4"></i>
+      <p>Er zijn nog geen gebruikers gevonden. Probeer een andere filter of voeg een gebruiker toe.</p>
+    </div>
+  {% endif %}
+</section>
+
+<script>
+  document.addEventListener('DOMContentLoaded', () => {
+    const cards = Array.from(document.querySelectorAll('[data-user-card]'));
+    const searchInput = document.getElementById('user-search');
+    const roleButtons = document.querySelectorAll('[data-role-filter]');
+    const statusToggle = document.getElementById('status-toggle');
+
+    let activeRole = 'all';
+    let statusFilter = 'all';
+
+    const addBaseChipClasses = (button) => {
+      button.classList.add('border', 'border-gray-300', 'rounded-full', 'px-3', 'py-1.5', 'text-xs', 'font-semibold', 'text-gray-600', 'bg-white', 'hover:bg-gray-100', 'transition');
+    };
+
+    const setFilterChipState = (button, active) => {
+      button.classList.toggle('bg-gray-900', active);
+      button.classList.toggle('text-white', active);
+      button.classList.toggle('border-gray-900', active);
+      button.classList.toggle('shadow', active);
+      button.classList.toggle('bg-white', !active);
+      button.classList.toggle('text-gray-600', !active);
+      button.classList.toggle('border-gray-300', !active);
+    };
+
+    roleButtons.forEach(btn => {
+      addBaseChipClasses(btn);
+      setFilterChipState(btn, btn.dataset.roleFilter === activeRole);
+      btn.addEventListener('click', () => {
+        activeRole = btn.dataset.roleFilter;
+        roleButtons.forEach(other => setFilterChipState(other, other === btn));
+        applyFilters();
+      });
+    });
+
+    addBaseChipClasses(statusToggle);
+    setFilterChipState(statusToggle, false);
+    statusToggle.addEventListener('click', () => {
+      statusFilter = statusFilter === 'all' ? 'actief' : 'all';
+      const isActiveOnly = statusFilter === 'actief';
+      setFilterChipState(statusToggle, isActiveOnly);
+      statusToggle.textContent = isActiveOnly ? 'Toon alle' : 'Alleen actieve';
+      applyFilters();
+    });
+
+    const applyFilters = () => {
+      const query = (searchInput.value || '').trim().toLowerCase();
+      cards.forEach(card => {
+        const matchesSearch = !query || card.dataset.search.includes(query);
+        const matchesRole = activeRole === 'all' || card.dataset.role === activeRole;
+        const matchesStatus = statusFilter === 'all' || card.dataset.status === statusFilter;
+        const visible = matchesSearch && matchesRole && matchesStatus;
+        card.classList.toggle('hidden', !visible);
+      });
+    };
+
+    searchInput.addEventListener('input', () => {
+      window.requestAnimationFrame(applyFilters);
+    });
+
+    applyFilters();
+  });
+</script>
 {% endblock %}

@@ -3,7 +3,7 @@
   <script src="https://cdnjs.cloudflare.com/ajax/libs/flowbite/2.5.2/flowbite.min.js" defer></script>
 
   {# ---------------- Sticky topbar ---------------- #}
-  <div class="sticky top-[var(--nav-h)] pt-4 z-20 bg-white/90 backdrop-blur border-b print:hidden">
+  <div class="sticky top-[var(--nav-h)] page-chrome-low pt-4 bg-white/90 backdrop-blur border-b print:hidden">
     <div class="mx-auto max-w-7xl px-4 py-2 flex items-center gap-2">
       <a href="{{ back_url or url_for('moties.index') }}"
          class="inline-flex items-center gap-2 rounded-lg border px-3 py-1.5 text-sm hover:bg-gray-50">
@@ -92,9 +92,9 @@
           </div>
 
           <div>
-            <label class="text-sm font-medium">Titel</label>
-            <input name="titel" value="{{ motie.titel or '' }}"
-                   class="w-full rounded-md border border-gray-300 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-gray-900"/>
+            <label class="text-sm font-medium">Titel <span class="text-red-600">*</span></label>
+            <input name="titel" value="{{ request.form.get('titel', motie.titel or '') }}"
+                   class="w-full rounded-md border border-gray-300 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-gray-900" required aria-required="true"/>
           </div>
 
           <section>

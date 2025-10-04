@@ -1,14 +1,49 @@
-﻿from flask import render_template, current_app, request, flash, redirect, url_for, abort
+from flask import render_template, current_app, request, flash, redirect, url_for, abort
 from app.models import User, Party, Notification
 from app.gebruikers import bp
 from flask_login import login_required, current_user
-from app.auth.forms import RegistrationForm
+from app.auth.forms import RegistrationForm, UserCreateForm
+from app.gebruikers.forms import ProfileUpdateForm
+from app.auth.routes import _allowed_profile, _save_profile_file
 from app import db, send_email
-from app.auth.forms import UserCreateForm
 import secrets
 from werkzeug.security import generate_password_hash
 from app.auth.utils import user_has_role, roles_required, login_and_active_required
 from sqlalchemy import func
+
+
+def _update_user_profile_from_form(user: User, form: ProfileUpdateForm, render_args: dict):
+    new_name = (form.naam.data or '').strip()
+    new_email = (form.email.data or '').strip().lower()
+
+    profile_url = (form.profile_url.data or '').strip()
+    profile_file = request.files.get('profile_file')
+
+    new_profile_url = user.profile_url
+    new_profile_filename = user.profile_filename
+
+    if profile_url:
+        new_profile_url = profile_url
+        new_profile_filename = None
+    elif profile_file and getattr(profile_file, 'filename', ''):
+        if not _allowed_profile(profile_file.filename):
+            flash('Bestandstype niet toegestaan. Gebruik png, jpg, jpeg, webp of svg.', 'warning')
+            return render_template('gebruikers/profiel_bewerken.html', **render_args)
+        try:
+            filename = _save_profile_file(profile_file, suggested_slug=new_name or user.naam or 'user')
+        except Exception:
+            current_app.logger.exception('Opslaan van profielfoto mislukt')
+            flash('Opslaan van profielfoto mislukt. Probeer het opnieuw met een andere afbeelding.', 'danger')
+            return render_template('gebruikers/profiel_bewerken.html', **render_args)
+        else:
+            new_profile_filename = filename
+            new_profile_url = None
+
+    user.naam = new_name
+    user.email = new_email
+    user.profile_url = new_profile_url
+    user.profile_filename = new_profile_filename
+    return None
 
 
 @bp.route('/')
@@ -21,33 +56,45 @@ def index():
 
 @bp.route('/<int:user_id>/bekijken')
 @login_and_active_required
-@roles_required('griffie')
 def bekijken(user_id):
     user = User.query.get_or_404(user_id)
-    return render_template('gebruikers/bekijken.html', user=user)
+    return render_template('gebruikers/profiel_bekijken.html', user=user)
 
 
-@bp.route('/<int:user_id>/bewerken', methods=['POST', 'GET'])
+@bp.route('/<int:user_id>/bewerken', methods=['GET', 'POST'])
 @login_and_active_required
 @roles_required('griffie')
 def bewerken(user_id):
     user = User.query.get_or_404(user_id)
-    form = UserCreateForm(obj=user)
+    form = ProfileUpdateForm(user=user, obj=user, allow_admin_fields=True)
+
+    render_args = {
+        'form': form,
+        'user': user,
+        'title': f'Gebruiker bewerken: {user.naam}',
+        'subtitle': user.email,
+        'cancel_url': url_for('gebruikers.bekijken', user_id=user.id),
+    }
 
     if request.method == 'GET':
-        form.partij.data = Party.query.get(user.partij_id) if user.partij_id else None
+        if user.profile_url:
+            form.profile_url.data = user.profile_url
+        form.partij.data = user.partij
+        form.role.data = user.role or 'gebruiker'
 
-    if request.method == 'POST':
-        user = User.query.get_or_404(user_id)
-        user.naam = form.naam.data
-        user.email = form.email.data
+    if form.validate_on_submit():
+        response = _update_user_profile_from_form(user, form, render_args)
+        if response is not None:
+            return response
+
         user.partij = form.partij.data
         user.role = form.role.data
+
         db.session.commit()
-        flash("Gebruiker bijgewerkt", "success")
+        flash('Gebruiker bijgewerkt.', 'success')
         return redirect(url_for('gebruikers.bekijken', user_id=user.id))
 
-    return render_template('gebruikers/bewerken.html', form=form, user=user)
+    return render_template('gebruikers/profiel_bewerken.html', **render_args)
 
 
 @bp.route('/<int:user_id>/verwijderen', methods=['POST', 'GET'])
@@ -156,3 +203,39 @@ def open(notification_id: int):
             target = url_for('dashboard.home')
 
     return redirect(target)
+
+
+@bp.route('/mijn-profiel')
+@login_and_active_required
+def view_profiel():
+    user = User.query.get_or_404(current_user.id)
+    return render_template('gebruikers/profiel_bekijken.html', user=user, title='Mijn profiel')
+
+
+@bp.route('/mijn-profiel/bewerken', methods=['GET', 'POST'])
+@login_and_active_required
+def edit_profiel():
+    user = User.query.get_or_404(current_user.id)
+    form = ProfileUpdateForm(user=user, obj=user)
+
+    render_args = {
+        'form': form,
+        'user': user,
+        'title': 'Profiel bewerken',
+        'subtitle': 'Werk je persoonlijke gegevens bij.',
+        'cancel_url': url_for('gebruikers.view_profiel'),
+    }
+
+    if form.validate_on_submit():
+        response = _update_user_profile_from_form(user, form, render_args)
+        if response is not None:
+            return response
+
+        db.session.commit()
+        flash('Je profiel is bijgewerkt.', 'success')
+        return redirect(url_for('gebruikers.view_profiel'))
+
+    if request.method == 'GET' and user.profile_url:
+        form.profile_url.data = user.profile_url
+
+    return render_template('gebruikers/profiel_bewerken.html', **render_args)

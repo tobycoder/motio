@@ -1,178 +1,292 @@
-{% extends 'base.html' %}
+﻿{% extends 'base.html' %}
 {% block content %}
-<stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css"/>
+<main class="max-w-7xl mx-auto px-4 lg:px-6 py-8 space-y-8">
+  <section class="flex flex-col md:flex-row md:items-center md:justify-between gap-6">
+    <div>
+      <p class="text-sm uppercase tracking-wide text-gray-500">Welkom terug</p>
+      <h1 class="text-3xl font-semibold text-gray-900 leading-tight flex items-center gap-2"><i class="fa fa-tachometer text-gray-400"></i><span>Raadsdashboard</span></h1>
+      <p class="mt-2 text-sm text-gray-500 max-w-xl">Overzicht van jouw moties, gedeelde documenten en samenwerkingen. Alles wat je nodig hebt om voorbereid de raadzaal in te gaan.</p>
+      <div class="mt-4 flex flex-wrap gap-2">
+        <a href="{{ url_for('moties.toevoegen') }}" class="inline-flex items-center gap-2 rounded-md bg-gray-900 px-4 py-2 text-sm font-semibold text-white shadow-sm hover:bg-black transition">
+          <i class="fa fa-plus"></i> Nieuwe motie starten
+        </a>
+        <a href="{{ url_for('moties.index_personal') }}" class="inline-flex items-center gap-2 rounded-md border border-gray-300 px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 transition">
+          Mijn moties bekijken
+        </a>
+      </div>
+    </div>
+    <div class="grid grid-cols-2 gap-4 w-full md:w-auto md:max-w-md">
+      <div class="rounded-2xl border border-gray-200 bg-white p-4 shadow-sm">
+        <p class="text-xs uppercase tracking-wide text-gray-500">Actieve moties</p>
+        <p class="mt-1 text-2xl font-semibold text-gray-900">{{ total }}</p>
+      </div>
+      <div class="rounded-2xl border border-gray-200 bg-white p-4 shadow-sm">
+        <p class="text-xs uppercase tracking-wide text-gray-500">Gedeeld met jou</p>
+        <p class="mt-1 text-2xl font-semibold text-gray-900">{{ gedeeld_total }}</p>
+      </div>
+      <div class="rounded-2xl border border-gray-200 bg-white p-4 shadow-sm">
+        <p class="text-xs uppercase tracking-wide text-gray-500">Gem. mede-indieners</p>
+        <p class="mt-1 text-2xl font-semibold text-gray-900">{{ '%.1f'|format(avg_indieners or 0) }}</p>
+      </div>
+      <div class="rounded-2xl border border-gray-200 bg-white p-4 shadow-sm">
+        <p class="text-xs uppercase tracking-wide text-gray-500">Ongelezen notificaties</p>
+        <p class="mt-1 text-2xl font-semibold text-gray-900">{{ unread_notifications }}</p>
+      </div>
+    </div>
+  </section>
 
-  <style>
-    /* Helper voor scrollbar op sidebar (optioneel) */
-    .scroll-thin::-webkit-scrollbar { height: 6px; width: 6px; }
-    .scroll-thin::-webkit-scrollbar-thumb { background: #e5e7eb; border-radius: 999px; }
-  </style>
-</head>
-<body class="bg-gray-50 text-gray-800">
+  <section class="grid gap-6 lg:grid-cols-12">
+    <div class="lg:col-span-7 rounded-2xl border border-gray-200 bg-white p-6 shadow-sm">
+      <div class="flex items-center justify-between mb-4">
+        <h2 class="text-lg font-semibold text-gray-900 flex items-center gap-2"><i class="fa fa-pie-chart text-gray-400"></i><span>Moties naar status</span></h2>
+        <button id="refresh-status" class="text-xs text-gray-500 hover:text-gray-700 transition">Vernieuwen</button>
+      </div>
+      <canvas id="statusChart" class="w-full h-64"></canvas>
+    </div>
+    <div class="lg:col-span-5 rounded-2xl border border-gray-200 bg-white p-6 shadow-sm">
+      <div class="flex items-center justify-between mb-4">
+        <h2 class="text-lg font-semibold text-gray-900 flex items-center gap-2"><i class="fa fa-users text-gray-400"></i><span>Top samenwerkingen</span></h2>
+        <span class="text-xs text-gray-400">Laatste 5</span>
+      </div>
+      <div id="collab-list" class="space-y-3">
+        <p class="text-sm text-gray-500">Laden...</p>
+      </div>
+    </div>
+  </section>
 
- 
+  <section class="grid gap-6 lg:grid-cols-12">
+    <div class="lg:col-span-6 rounded-2xl border border-gray-200 bg-white p-6 shadow-sm">
+      <div class="flex items-center justify-between mb-4">
+        <h2 class="text-lg font-semibold text-gray-900 flex items-center gap-2"><i class="fa fa-file-text-o text-gray-400"></i><span>Mijn laatste moties</span></h2>
+        <a href="{{ url_for('moties.index_personal') }}" class="text-xs text-blue-600 hover:underline">Alle moties</a>
+      </div>
+      {% if items %}
+        <ul class="space-y-3">
+          {% for motie in items[:5] %}
+            <li class="rounded-xl border border-gray-200 p-3 hover:bg-gray-50 transition">
+              <div class="flex items-start justify-between">
+                <div>
+                  <a href="{{ url_for('moties.bekijken', motie_id=motie.id) }}" class="text-sm font-semibold text-gray-900 hover:text-gray-600 transition">{{ motie.titel }}</a>
+                  <p class="text-xs text-gray-500 mt-1">
+                    {% if motie.indiener %}Indiener: {{ motie.indiener.naam }} &middot; {% endif %}
+                    Aangemaakt: {{ motie.created_at.strftime('%d-%m-%Y') if motie.created_at else 'Onbekend' }}
+                  </p>
+                </div>
+                <span class="text-xs uppercase tracking-wide text-gray-400">{{ motie.status or 'Onbekend' }}</span>
+              </div>
+            </li>
+          {% endfor %}
+        </ul>
+      {% else %}
+        <p class="text-sm text-gray-500">Je hebt nog geen moties als indiener of mede-indiener.</p>
+      {% endif %}
+    </div>
 
-  <!-- Layout -->
+    <div class="lg:col-span-6 rounded-2xl border border-gray-200 bg-white p-6 shadow-sm">
+      <div class="flex items-center justify-between mb-4">
+        <h2 class="text-lg font-semibold text-gray-900 flex items-center gap-2"><i class="fa fa-share-alt text-gray-400"></i><span>Gedeeld met mij</span></h2>
+        <a href="{{ moties_index_shared_url or '#' }}" class="text-xs text-blue-600 hover:underline">Alles bekijken</a>
+      </div>
+      {% if gedeeld_met_mij %}
+        <ul class="space-y-3">
+          {% for motie in gedeeld_met_mij %}
+            <li class="rounded-xl border border-gray-200 p-3 hover:bg-gray-50 transition">
+              <div class="flex items-start justify-between">
+                <div>
+                  <a href="{{ url_for('moties.bekijken', motie_id=motie.id) }}" class="text-sm font-semibold text-gray-900 hover:text-gray-600 transition">{{ motie.titel }}</a>
+                  <p class="text-xs text-gray-500 mt-1">
+                    {% if motie.indiener %}Indiener: {{ motie.indiener.naam }} &middot; {% endif %}
+                    Laatst bijgewerkt: {{ motie.updated_at.strftime('%d-%m-%Y %H:%M') if motie.updated_at else 'Onbekend' }}
+                  </p>
+                </div>
+              </div>
+            </li>
+          {% endfor %}
+        </ul>
+      {% else %}
+        <p class="text-sm text-gray-500">Er zijn nog geen moties met je gedeeld.</p>
+      {% endif %}
+    </div>
+  </section>
 
+  <section class="grid gap-6 lg:grid-cols-12">
+    <div class="lg:col-span-5 rounded-2xl border border-gray-200 bg-white p-6 shadow-sm">
+      <div class="flex items-center justify-between mb-4">
+        <h2 class="text-lg font-semibold text-gray-900 flex items-center gap-2"><i class="fa fa-calendar text-gray-400"></i><span>Aanstaande vergaderingen</span></h2>
+        <span class="text-xs text-gray-400">Komende weken</span>
+      </div>
+      {% if upcoming_meetings %}
+        <ul class="space-y-3">
+          {% for motie, datum in upcoming_meetings %}
+            <li class="rounded-xl border border-gray-200 p-3 hover:bg-gray-50 transition">
+              <p class="text-sm font-semibold text-gray-900">{{ motie.titel }}</p>
+              <p class="text-xs text-gray-500 mt-1">{{ datum.strftime('%A %d %B %Y') }}</p>
+              {% if motie.status %}<span class="mt-2 inline-flex items-center rounded-full bg-blue-50 px-2.5 py-1 text-xs font-medium text-blue-600">{{ motie.status }}</span>{% endif %}
+            </li>
+          {% endfor %}
+        </ul>
+      {% else %}
+        <p class="text-sm text-gray-500">Er zijn geen geplande vergaderingen voor jouw moties.</p>
+      {% endif %}
+    </div>
 
-    <!-- Main -->
-    <main id="main" class="">
-      <section class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
-        <!-- Breadcrumbs -->
-        <nav class="text-sm text-gray-500">
-          <ol class="flex items-center gap-2">
-            <li><a href="#" class="hover:underline">Home</a></li>
-            <li>/</li>
-            <li class="text-gray-700">Dashboard</li>
-          </ol>
-        </nav>
+    <div class="lg:col-span-4 rounded-2xl border border-gray-200 bg-white p-6 shadow-sm">
+      <div class="flex items-center justify-between mb-4">
+        <h2 class="text-lg font-semibold text-gray-900 flex items-center gap-2"><i class="fa fa-history text-gray-400"></i><span>Recente activiteit</span></h2>
+        <span class="text-xs text-gray-400">Laatste updates</span>
+      </div>
+      {% if recent_activity %}
+        <ul class="space-y-3">
+          {% for motie in recent_activity %}
+            <li class="rounded-xl border border-gray-200 p-3">
+              <a href="{{ url_for('moties.bekijken', motie_id=motie.id) }}" class="text-sm font-semibold text-gray-900 hover:text-gray-600 transition">{{ motie.titel }}</a>
+              <p class="text-xs text-gray-500 mt-1">
+                Bijgewerkt op {{ motie.updated_at.strftime('%d-%m-%Y %H:%M') if motie.updated_at else 'Onbekend' }}
+              </p>
+            </li>
+          {% endfor %}
+        </ul>
+      {% else %}
+        <p class="text-sm text-gray-500">Nog geen recente activiteit.</p>
+      {% endif %}
+    </div>
 
-        <!-- KPI cards -->
-        <div class="mt-4 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-          <div class="bg-white rounded-xl shadow-card p-5">
-            <p class="text-sm text-gray-500">Aantal actieve moties</p>
-            <p class="text-2xl font-bold mt-1">{{ items|length }}</p>
-          </div>
-          <div class="bg-white rounded-xl shadow-card p-5">
-            <p class="text-sm text-gray-500">Gedeelde moties met mij</p>
-            <p class="text-2xl font-bold mt-1">{{ gedeeld_total }}</p>
-          </div>
-          <div class="bg-white rounded-xl shadow-card p-5">
-            <p class="text-sm text-gray-500">Gem. mede-indieners</p>
-            <p class="text-2xl font-bold mt-1">{{ avg_indieners }}</p>
-            <span class="mt-2 inline-block px-2 py-0.5 rounded-full text-xs font-medium bg-accent text-white">Samenwerking ↑</span>
-          </div>
-          <div class="bg-white rounded-xl shadow-card p-5">
-            <p class="text-sm text-gray-500">Laatste update</p>
-            <p class="text-lg font-semibold mt-1 flex items-center gap-2">
-              <i class="fa-regular fa-clock"></i>{% if latest %} {{ latest.strftime('%d %B %Y, %H:%M') }} {% else %} Geen data {% endif %}
-            </p>
-          </div>
-        </div>
+    <div class="lg:col-span-3 rounded-2xl border border-gray-200 bg-white p-6 shadow-sm">
+      <div class="flex items-center justify-between mb-4">
+        <h2 class="text-lg font-semibold text-gray-900 flex items-center gap-2"><i class="fa fa-bell text-gray-400"></i><span>Notificaties</span></h2>
+        <a href="{{ url_for('gebruikers.mark_all_read') }}" class="text-xs text-blue-600 hover:underline">Markeer als gelezen</a>
+      </div>
+      {% if notifications_recent %}
+        <ul class="space-y-3">
+          {% for notif in notifications_recent %}
+            <li class="rounded-xl border border-gray-200 p-3 {% if notif.read_at is none %}bg-gray-50{% endif %}">
+              <p class="text-sm font-semibold text-gray-900">{{ notif.type|replace('_', ' ')|capitalize }}</p>
+              <p class="text-xs text-gray-500 mt-1">{{ notif.created_at.strftime('%d-%m-%Y %H:%M') if notif.created_at else 'Onbekend' }}</p>
+            </li>
+          {% endfor %}
+        </ul>
+      {% else %}
+        <p class="text-sm text-gray-500">Geen recente notificaties.</p>
+      {% endif %}
+    </div>
+  </section>
+</main>
 
-        <!-- Tabs & actions -->
-        <div class="sticky top-0 bg-gray-50 pt-4 pb-3 z-10">
-          <div class="flex items-center justify-between">
-            <div class="inline-flex overflow-hidden border bg-white">
-              <button class="px-4 py-2 mx-4 bg-accent text-grey-500 text-sm font-medium rounded-sm">Moties</button>
-              <button class="px-4 py-2 text-sm hover:bg-gray-50 rounded-sm">Amendementen</button>
-            </div>
-            <div class="flex gap-2">
-              <a href="{{ url_for('moties.toevoegen') }}" id="btnNewMotion2" class="px-3 py-2 text-sm rounded bg-blue-600 text-white hover:bg-blue-700">
-                <i class="fa-solid fa-plus mr-2"></i>Nieuwe motie
-              </a>
-            </div>
-          </div>
-        </div>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js" integrity="sha256-eVutCw7cUvQSP5jx2Hu9q1R1Bl6wVKW/ydE9ZKyekyo=" crossorigin="anonymous"></script>
+<script>
+  document.addEventListener('DOMContentLoaded', () => {
+    const statusCtx = document.getElementById('statusChart');
+    const collabList = document.getElementById('collab-list');
+    const refreshBtn = document.getElementById('refresh-status');
+    let statusChart;
 
-        <!-- Filters row -->
-              <!-- <div class="mt-4 bg-white rounded-xl shadow-card p-4">
-          <div class="grid md:grid-cols-4 gap-4">
-            <div>
-              <label class="block text-xs text-gray-500 mb-1">Status</label>
-              <select class="w-full border rounded px-3 py-2">
-                <option>Alle</option>
-                <option>Ingediend</option>
-                <option>Aangenomen</option>
-                <option>Verworpen</option>
-                <option>Aangehouden</option>
-              </select>
-            </div>
-            <div>
-              <label class="block text-xs text-gray-500 mb-1">Commissie</label>
-              <select class="w-full border rounded px-3 py-2">
-                <option>Alle</option>
-                <option>Bestuur</option>
-                <option>Beheer</option>
-                <option>Ontwikkeling</option>
-                <option>Samenleving</option>
-              </select>
-            </div>
-            <div>
-              <label class="block text-xs text-gray-500 mb-1">Periode</label>
-              <div class="flex">
-                <input type="date" class="w-full border rounded-l px-3 py-2">
-                <span class="inline-flex items-center px-2 border-t border-b bg-gray-50 text-gray-500 text-sm">tot</span>
-                <input type="date" class="w-full border rounded-r px-3 py-2">
+    const renderStatusChart = (data) => {
+      if (!statusCtx) return;
+      const labels = data.map(item => item.status || 'Onbekend');
+      const counts = data.map(item => item.count);
+      const palette = ['#1D4ED8', '#0F766E', '#9333EA', '#DC2626', '#F97316', '#4B5563'];
+
+      if (statusChart) {
+        statusChart.destroy();
+      }
+      statusChart = new Chart(statusCtx, {
+        type: 'doughnut',
+        data: {
+          labels,
+          datasets: [{
+            data: counts,
+            backgroundColor: labels.map((_, idx) => palette[idx % palette.length]),
+            borderWidth: 0,
+          }],
+        },
+        options: {
+          responsive: true,
+          plugins: {
+            legend: {
+              position: 'bottom',
+              labels: { usePointStyle: true },
+            },
+          },
+        },
+      });
+    };
+
+    const fetchStatus = () => {
+      fetch('{{ url_for('dashboard.moties_per_status') }}')
+        .then(resp => resp.json())
+        .then(data => renderStatusChart(data))
+        .catch(() => {
+          if (statusCtx) {
+            statusCtx.replaceWith(Object.assign(document.createElement('p'), {
+              className: 'text-sm text-gray-500',
+              textContent: 'Kan statusgegevens niet laden.',
+            }));
+          }
+        });
+    };
+
+    const fetchCollaborators = () => {
+      fetch('{{ url_for('dashboard.collaborator_overview') }}')
+        .then(resp => resp.json())
+        .then(rows => {
+          if (!rows.length) {
+            collabList.innerHTML = '<p class="text-sm text-gray-500">Nog geen samenwerkingen geregistreerd.</p>';
+            return;
+          }
+          collabList.innerHTML = rows.map((row, idx) => `
+            <div class="flex items-center justify-between rounded-xl border border-gray-200 px-3 py-2">
+              <div class="flex items-center gap-3">
+                <span class="h-8 w-8 flex items-center justify-center rounded-full bg-gray-900 text-white text-xs font-semibold">${idx + 1}</span>
+                <div>
+                  <p class="text-sm font-semibold text-gray-900">${row.naam}</p>
+                  <p class="text-xs text-gray-500">${row.aantal} gezamenlijke motie${row.aantal === 1 ? '' : 's'}</p>
+                </div>
               </div>
             </div>
-            <div>
-              <label class="block text-xs text-gray-500 mb-1">Fractie</label>
-              <select class="w-full border rounded px-3 py-2">
-                <option>Alle fracties</option>
-                <option>GL-PvdA</option>
-                <option>VVD</option>
-                <option>D66</option>
-                <option>CDA</option>
-                <option>OPH</option>
-              </select>
-            </div>
-          </div>
-          <div class="mt-3 flex items-center justify-between">
-            <div class="flex flex-wrap gap-2 text-xs">
-              <span class="px-2 py-1 rounded-full bg-gray-100">Status: Alle</span>
-              <span class="px-2 py-1 rounded-full bg-gray-100">Periode: Q3 2025</span>
-              <span class="px-2 py-1 rounded-full bg-gray-100">Fractie: Alle</span>
-            </div>
-            <div class="space-x-2">
-              <button class="px-3 py-1.5 text-sm rounded border hover:bg-gray-50">Reset</button>
-              <button class="px-3 py-1.5 text-sm rounded bg-blue-600 text-white hover:bg-blue-700">Toepassen</button>
-            </div>
-          </div>
-        </div> -->
-        <div class="mt-4 grid lg:grid-cols-2 gap-4">
-          <div class="lg:col-span-1">
-            <div class="p-4 bg-white rounded-xl shadow-card">
-              <div class="flex items-center justify-between px-2 border-b mb-4">
-                <h1 class="text-2xl font-semibold mb-4">Mijn moties</h1>
-              </div>
-                    {% if items %}
-                      <ul class="space-y-3">
-                        {% for m in items %}
-                          <li class="p-3 border rounded">
-                            <a class="font-medium text-blue-600 hover:underline" href="{{ url_for('moties.bekijken', motie_id=m.id) }}">{{ m.titel }}</a>
-                            <div class="text-sm text-gray-600">
-                              Indiener: {{ m.indiener.naam if m.indiener else '-' }}
-                              {% set meds = m.mede_indieners %}
-                              {% if meds %}
-                                • Mede-indieners: {{ meds | map(attribute='naam') | join(', ') }}
-                              {% endif %}
-                              • {{ m.created_at.strftime('%d-%m-%Y') if m.created_at else '' }}
-                            </div>
-                          </li>
-                        {% endfor %}
-                      </ul>
-                    {% else %}
-                      <p>Je hebt nog geen moties als indiener of mede-indiener.</p>
-                    {% endif %}
-              </div>
-            </div>
-          <div class="lg:col-span-1">
-            <div class="p-4 bg-white rounded-xl shadow-card">
-              <div class="flex items-center justify-between px-2 border-b mb-4">
-                <h1 class="text-2xl font-semibold mb-4">Gedeeld met mij</h1>
-              </div>
-                    {% if gedeeld_met_mij %}
-                      <ul class="space-y-3">
-                        {% for m in gedeeld_met_mij %}
-                          <li class="p-3 border rounded">
-                            <a class="font-medium text-blue-600 hover:underline" href="{{ url_for('moties.bekijken', motie_id=m.id) }}">{{ m.titel }}</a>
-                            <div class="text-sm text-gray-600">
-                              Indiener: {{ m.indiener.naam if m.indiener else '-' }}
-                              {% set meds = m.mede_indieners %}
-                              {% if meds %}
-                                • Mede-indieners: {{ meds | map(attribute='naam') | join(', ') }}
-                              {% endif %}
-                              • {{ m.created_at.strftime('%d-%m-%Y') if m.created_at else '' }}
-                            </div>
-                          </li>
-                        {% endfor %}
-                      </ul>
-                    {% else %}
-                      <p>Er zijn nog geen moties met je gedeeld</p>
-                    {% endif %}
-              </div>
-            </div>
-          </div>
-          </div>
+          `).join('');
+        })
+        .catch(() => {
+          collabList.innerHTML = '<p class="text-sm text-gray-500">Kan samenwerkingsgegevens niet laden.</p>';
+        });
+    };
+
+    [document.getElementById('motie-search'), document.getElementById('filter-meeting'), document.getElementById('filter-created'), document.getElementById('filter-indiener')]
+      .forEach(el => el && el.addEventListener(el.tagName === 'SELECT' ? 'change' : 'input', () => {
+        window.requestAnimationFrame(applyMotieFilters);
+      }));
+
+    const rows = Array.from(document.querySelectorAll('[data-motie-row]'));
+    const emptyState = document.getElementById('motie-empty-state');
+
+    function applyMotieFilters() {
+      const searchValue = (document.getElementById('motie-search').value || '').trim().toLowerCase();
+      const meetingValue = (document.getElementById('filter-meeting').value || '').trim();
+      const createdValue = (document.getElementById('filter-created').value || '').trim();
+      const indienerValue = (document.getElementById('filter-indiener').value || '').trim();
+
+      let visible = 0;
+      rows.forEach(row => {
+        const matchesSearch = !searchValue || row.dataset.search.includes(searchValue);
+        const matchesMeeting = !meetingValue || row.dataset.meeting === meetingValue;
+        const matchesCreated = !createdValue || row.dataset.created === createdValue;
+        const matchesIndiener = !indienerValue || row.dataset.indiener === indienerValue;
+        const show = matchesSearch && matchesMeeting && matchesCreated && matchesIndiener;
+        row.classList.toggle('hidden', !show);
+        if (show) visible += 1;
+      });
+
+      if (emptyState) {
+        emptyState.classList.toggle('hidden', visible !== 0);
+      }
+    }
+
+    if (refreshBtn) {
+      refreshBtn.addEventListener('click', () => fetchStatus());
+    }
+
+    fetchStatus();
+    fetchCollaborators();
+    applyMotieFilters();
+  });
+</script>
 {% endblock %}

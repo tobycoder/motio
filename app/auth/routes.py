@@ -9,6 +9,8 @@ from werkzeug.utils import secure_filename
 from PIL import Image, ImageOps
 from io import BytesIO
 from itsdangerous import URLSafeTimedSerializer, BadSignature, SignatureExpired
+from app.auth.utils import login_and_active_required, roles_required 
+
 
 PROFILE_SIZE = 1024  # kies je eigen doelgrootte (bv. 256/512/1024)
 
@@ -135,7 +137,7 @@ def register():
 
         user = User(
             email=email_norm,
-            role=form.role.data,
+            role="gebruiker",
             naam=(form.naam.data or "").strip(),
             partij_id=(form.partijen.data.id if getattr(form, "partijen", None) and form.partijen.data else None)
         )
@@ -180,6 +182,19 @@ def _send_reset_email(user):
         f"Niet door jou aangevraagd? Negeer deze e-mail."
     )
     send_email(subject="Wachtwoord resetten", recipients=user.email, text_body=text_body)
+
+@bp.route('<int:user_id>/admin-wachtwoord-reset', methods=["GET", "POST"])
+@login_and_active_required
+@roles_required('griffie')
+def reset_password_admin(user_id):
+    user = User.query.get_or_404(user_id)
+    if user.email:
+        _send_reset_email(user)
+        flash("Email verzonden, laat gebruiker ook de spam checken", "success")
+        return redirect('gebruikers.bekijken', user_id=user.id)
+    else:
+        flash("Geen email opgegeven.", "error")
+        return redirect('gebruikers.bekijken', user_id=user.id)
 
 @bp.route("/wachtwoord-vergeten", methods=["GET","POST"])
 def forgot_password():

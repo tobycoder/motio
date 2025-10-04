@@ -1,101 +1,110 @@
 {% extends 'base.html' %}
+{% macro iso_date(value) -%}
+    {%- if value is string -%}
+        {{ value }}
+    {%- elif value -%}
+        {{ value.strftime('%Y-%m-%d') }}
+    {%- else -%}{%- endif -%}
+{%- endmacro %}
+{% macro display_date(value, default='') -%}
+    {%- if value is string -%}
+        {{ value }}
+    {%- elif value -%}
+        {{ value.strftime('%d-%m-%Y') }}
+    {%- else -%}
+        {{ default }}
+    {%- endif -%}
+{%- endmacro %}
 {% block content %}
+{% set stats = namespace(total=0) %}
+{% set indieners = namespace(values=[]) %}
+{% for item in items %}
+  {% set m = item.motie if item is mapping and 'motie' in item else item %}
+  {% set stats.total = stats.total + 1 %}
+  {% if m.indiener and m.indiener.naam and (m.indiener.naam not in indieners.values) %}
+    {% set indieners.values = indieners.values + [m.indiener.naam] %}
+  {% endif %}
+{% endfor %}
 
-{# Sticky header + acties #}
-<div class="sticky top-0 z-10 bg-white/80 backdrop-blur border-b print:hidden">
-  <div class="mx-auto max-w-7xl px-4 py-3 flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
-    <h1 class="text-xl md:text-2xl font-semibold">Overzicht van {{ title }}</h1>
-    <div class="flex flex-wrap gap-2">
-      <a href="{{ url_for('dashboard.home') }}" class="px-4 py-2 text-sm font-medium text-gray-900 bg-white border border-gray-200 rounded-lg hover:bg-gray-100 hover:text-blue-700 dark:bg-gray-800 dark:border-gray-700 dark:text-white">
-        Terug naar dashboard
-      </a>
-      <a href="{{ url_for('moties.toevoegen') }}" class="px-4 py-2 text-sm font-medium text-white bg-green-600 rounded-lg hover:bg-green-700">
-        Nieuwe motie
-      </a>
+<div class="sticky top-0 page-chrome-low bg-white/90 backdrop-blur border-b shadow-sm">
+  <div class="mx-auto max-w-7xl px-4 py-4 flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+    <div>
+      <p class="text-sm uppercase tracking-wide text-gray-500">Moties</p>
+      <h1 class="text-2xl font-semibold text-gray-900">{{ title or 'Overzicht' }}</h1>
+      <div class="mt-3 flex flex-wrap gap-2 text-sm text-gray-500">
+        <span class="inline-flex items-center gap-1 rounded-full bg-gray-100 px-3 py-1">{{ stats.total }} moties</span>
+      </div>
     </div>
+    <a href="{{ url_for('moties.toevoegen') }}" class="inline-flex items-center justify-center gap-2 rounded-md bg-gray-900 px-4 py-2 text-sm font-semibold text-white shadow-sm hover:bg-black transition">
+      <i class="fa fa-plus"></i> Nieuwe motie
+    </a>
   </div>
 </div>
 
-{# Filters #}
-<form method="get" class="mx-auto max-w-7xl px-4 mt-6">
-  <div class="rounded-xl border border-gray-200 shadow-sm p-4">
-    <h3 class="text-base font-semibold mb-3">Filter</h3>
-    <div class="grid grid-cols-1 md:grid-cols-5 gap-3">
-      <div class="md:col-span-2">
-        <input class="w-full h-10 px-4 text-sm border border-slate-200 rounded focus:outline-none focus:border-slate-400 shadow-sm" type="search" name="q" placeholder="Zoeken..." value="{{ q or '' }}">
+<section class="mx-auto max-w-7xl px-4 py-6 space-y-6">
+  <div class="rounded-2xl border border-gray-200 bg-white shadow-sm">
+    <div class="grid gap-4 p-6 lg:grid-cols-4 lg:items-end">
+      <div class="lg:col-span-2 relative">
+        <span class="pointer-events-none absolute inset-y-0 left-3 flex items-center text-gray-400"><i class="fa fa-search"></i></span>
+        <input id="motie-search" type="search" placeholder="Zoek op titel, status, partij..."
+               class="w-full rounded-lg border border-gray-300 bg-white pl-10 pr-4 py-2 text-sm text-gray-700 shadow-sm focus:border-gray-900 focus:outline-none focus:ring-2 focus:ring-gray-900/20 transition" />
       </div>
       <div>
-        <select name="status" class="w-full h-10 px-3 text-sm border border-gray-300 rounded bg-gray-50 focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white">
-          <option value="">Alle statussen</option>
-          {% for s in ['Concept','GereedAdvies','GereedPublicatie'] %}
-            <option value="{{ s }}" {{ 'selected' if status==s else '' }}>{{ s }}</option>
+        <label for="filter-meeting" class="block text-xs font-semibold uppercase tracking-wide text-gray-500 mb-1">Datum vergadering</label>
+        <input id="filter-meeting" type="date" class="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-gray-900 focus:outline-none focus:ring-2 focus:ring-gray-900/20 transition" />
+      </div>
+      <div>
+        <label for="filter-created" class="block text-xs font-semibold uppercase tracking-wide text-gray-500 mb-1">Aangemaakt op</label>
+        <input id="filter-created" type="date" class="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-gray-900 focus:outline-none focus:ring-2 focus:ring-gray-900/20 transition" />
+      </div>
+      <div class="lg:col-span-4">
+        <label for="filter-indiener" class="block text-xs font-semibold uppercase tracking-wide text-gray-500 mb-1">Indiener</label>
+        <select id="filter-indiener" class="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm bg-white focus:border-gray-900 focus:outline-none focus:ring-2 focus:ring-gray-900/20 transition">
+          <option value="">Alle indieners</option>
+          {% for naam in indieners.values|sort %}
+            <option value="{{ naam|lower }}">{{ naam }}</option>
           {% endfor %}
         </select>
       </div>
-      <div>
-        <input type="date" name="date_from" value="{{ date_from or '' }}" class="w-full h-10 px-4 text-sm border border-slate-200 rounded focus:outline-none focus:border-slate-400 shadow-sm bg-white">
-      </div>
-      <div>
-        <input type="date" name="date_to" value="{{ date_to or '' }}" class="w-full h-10 px-4 text-sm border border-slate-200 rounded focus:outline-none focus:border-slate-400 shadow-sm bg-white">
-      </div>
     </div>
-    <div class="mt-3 flex justify-end">
-      <button type="submit" class="inline-flex items-center px-4 py-2 rounded-md bg-gray-900 text-white hover:bg-black">Filter</button>
-    </div>
-
-    {# Sorteerwaarden behouden #}
-    <input type="hidden" name="sort" value="{{ sort }}">
-    <input type="hidden" name="dir" value="{{ direction }}">
   </div>
-</form>
 
-{# Tabel + bulk export #}
-<form method="post" action="{{ url_for('moties.export_bulk_zip') }}" class="mx-auto max-w-7xl px-4 mt-6">
-  <div class="overflow-x-auto rounded-xl border border-gray-200 shadow-sm">
-    <table class="min-w-full text-sm text-left text-gray-700 dark:text-gray-300">
-      <thead class="text-xs uppercase bg-gray-50 dark:bg-gray-700 dark:text-gray-400">
+  <div class="overflow-x-auto rounded-2xl border border-gray-200 bg-white shadow-sm">
+    <table class="min-w-full text-sm text-left text-gray-700">
+      <thead class="text-xs uppercase bg-gray-50 text-gray-500">
         <tr>
-          <th class="px-3 py-3"><input type="checkbox" id="checkall"></th>
-          <th class="px-6 py-3">
-            {% set new_dir = 'asc' if (sort!='title' or direction=='desc') else 'desc' %}
-            <a href="{{ url_for(request.endpoint, q=q, status=status, date_from=date_from, date_to=date_to, page=1, per_page=per_page, sort='title', dir=new_dir) }}">
-              Titel {% if sort=='title' %}{{ '▲' if direction=='asc' else '▼' }}{% endif %}
-            </a>
-          </th>
-          <th class="px-6 py-3 hidden md:table-cell">
-            {% set new_dir = 'asc' if (sort!='date' or direction=='desc') else 'desc' %}
-            <a href="{{ url_for(request.endpoint, q=q, status=status, date_from=date_from, date_to=date_to, page=1, per_page=per_page, sort='date', dir=new_dir) }}">
-              Datum {% if sort=='date' %}{{ '▲' if direction=='asc' else '▼' }}{% endif %}
-            </a>
-          </th>
+          <th class="px-3 py-3">Titel</th>
+          <th class="px-6 py-3 hidden md:table-cell">Aanmaakdatum</th>
+          <th class="px-6 py-3 hidden md:table-cell">Dag vergadering</th>
           <th class="px-6 py-3 hidden lg:table-cell">Indiener</th>
-          <th class="px-6 py-3 hidden md:table-cell">Mede-indiener</th>
-          <th class="px-6 py-3 hidden md:table-cell">Relatie</th>
+          <th class="px-6 py-3 hidden lg:table-cell">Mede-indiener</th>
+          <th class="px-6 py-3 hidden lg:table-cell">Relatie</th>
         </tr>
       </thead>
       <tbody>
         {% for item in items %}
-          {# Normaliseer: item kan een Motie zijn of een dict {"motie": Motie, "relation": "...", "share_permission": "..."} #}
           {% set m = item.motie if item is mapping and 'motie' in item else item %}
           {% set relation = item.relation if item is mapping and 'relation' in item else None %}
           {% set share_permission = item.share_permission if item is mapping and 'share_permission' in item else None %}
-          <tr class="bg-white border-b border-gray-2 00 hover:bg-gray-50 dark:bg-gray-800 dark:border-gray-700 dark:hover:bg-gray-600" onclick="window.location='{{ url_for('moties.bekijken', motie_id=m.id) }}';">
-            <td class="px-3 py-4"><input type="checkbox" name="motie_ids" value="{{ m.id }}"></td>
-            <td class="px-6 py-4 font-medium text-blue-600 dark:text-blue-400 hover:underline whitespace-nowrap">
-              <a href="{{ url_for('moties.bekijken', motie_id=m.id) }}">{{ m.titel }}</a>
-              {# Compacte meta op mobiel #}
+          {% set meeting_date = iso_date(m.gemeenteraad_datum)|trim %}
+          {% set created_date = iso_date(m.created_at)|trim %}
+          {% set indiener_naam = m.indiener.naam if m.indiener and m.indiener.naam else '' %}
+          {% set search_blob = (m.titel ~ ' ' ~ (m.status or '') ~ ' ' ~ (indiener_naam) ~ ' ' ~ (m.party.naam if m.party and m.party.naam else '') ~ ' ' ~ (meeting_date) ~ ' ' ~ (created_date))|lower %}
+          <tr data-motie-row
+              data-search="{{ search_blob }}"
+              data-meeting="{{ meeting_date }}"
+              data-created="{{ created_date }}"
+              data-indiener="{{ indiener_naam|lower }}"
+              class="bg-white border-b border-gray-200 hover:bg-gray-50 transition">
+            <td class="px-3 py-4 font-medium text-blue-600 whitespace-nowrap">
+              <a href="{{ url_for('moties.bekijken', motie_id=m.id) }}" class="hover:underline">{{ m.titel }}</a>
               <div class="mt-1 text-xs text-gray-500 md:hidden">
-                {{ m.created_at.strftime('%d-%m-%Y') if m.created_at else '' }}
-                • {{ m.party.name if m.party and m.party.name else '-' }}
-                • {{ m.status or '-' }}
+                {{ created_date }} • {{ m.party.naam if m.party and m.party.naam else '-' }} • {{ m.status or '-' }}
               </div>
             </td>
-            <td class="px-6 py-4 hidden md:table-cell">
-              {{ m.created_at.strftime('%d-%m-%Y') if m.created_at else '' }}
-            </td>
-            <td class="px-6 py-4 hidden lg:table-cell">
-              {{ m.indiener.naam if m.indiener and m.indiener.naam else '-' }}
-            </td>
+            <td class="px-6 py-4 hidden md:table-cell">{{ display_date(m.created_at)|trim }}</td>
+            <td class="px-6 py-4 hidden md:table-cell">{{ display_date(m.gemeenteraad_datum, '-')|trim }}</td>
+            <td class="px-6 py-4 hidden lg:table-cell">{{ indiener_naam or '-' }}</td>
             <td class="px-6 py-4 hidden lg:table-cell">
               {% if m.mede_indieners %}
                 {% for mx in m.mede_indieners %}
@@ -105,7 +114,7 @@
                 <span class="text-gray-400">-</span>
               {% endif %}
             </td>
-            <td class="px-6 py-4 hidden md:table-cell">
+            <td class="px-6 py-4 hidden lg:table-cell">
               {% if relation == 'indiener' %}
                 <span class="px-2 py-1 text-xs rounded bg-blue-100 text-blue-800">Indiener</span>
               {% elif relation == 'mede_indiener' %}
@@ -114,52 +123,62 @@
                 <span class="px-2 py-1 text-xs rounded bg-purple-100 text-purple-800">
                   Gedeeld{% if share_permission %}: {{ share_permission }}{% endif %}
                 </span>
+              {% elif relation == 'superadmin' %}
+                <span class="px-2 py-1 text-xs rounded bg-amber-100 text-amber-800">Alle moties</span>
               {% else %}
                 <span class="text-gray-400">-</span>
               {% endif %}
             </td>
           </tr>
         {% endfor %}
-        {% if not items %}
-          <tr><td class="px-6 py-6 text-sm text-gray-500" colspan="6">Geen resultaten.</td></tr>
-        {% endif %}
       </tbody>
     </table>
   </div>
 
-  <div class="mt-4 flex flex-col sm:flex-row gap-2 sm:items-center sm:justify-between">
-    <button type="submit" class="px-4 py-2 rounded-lg bg-black text-white">
-      Exporteer geselecteerd (ZIP)
-    </button>
-
-    {# Paginering #}
-    {% set last_page = (total // per_page) + (1 if total % per_page else 0) %}
-    <nav class="flex items-center gap-3 text-sm">
-      {% if page > 1 %}
-        <a class="px-3 py-1 rounded border hover:bg-gray-50" href="{{ url_for(request.endpoint, q=q, status=status, date_from=date_from, date_to=date_to, sort=sort, dir=direction, page=page-1, per_page=per_page) }}">&laquo; Vorige</a>
-      {% else %}
-        <span class="px-3 py-1 rounded border text-gray-400 cursor-not-allowed">&laquo; Vorige</span>
-      {% endif %}
-      <span>Pagina {{ page }} van {{ last_page }}</span>
-      {% if page < last_page %}
-        <a class="px-3 py-1 rounded border hover:bg-gray-50" href="{{ url_for(request.endpoint, q=q, status=status, date_from=date_from, date_to=date_to, sort=sort, dir=direction, page=page+1, per_page=per_page) }}">Volgende &raquo;</a>
-      {% else %}
-        <span class="px-3 py-1 rounded border text-gray-400 cursor-not-allowed">Volgende &raquo;</span>
-      {% endif %}
-    </nav>
+  <div id="motie-empty-state" class="hidden rounded-2xl border border-dashed border-gray-300 bg-gray-50 px-6 py-12 text-center text-gray-500">
+    <i class="fa fa-list text-3xl mb-4"></i>
+    <p>Geen moties gevonden voor deze filters.</p>
   </div>
-</form>
+</section>
 
 <script>
-  // check/uncheck all
-  const all = document.getElementById('checkall');
-  if (all) {
-    all.addEventListener('change', () => {
-      for (const cb of document.querySelectorAll('input[name="motie_ids"]')) {
-        cb.checked = all.checked;
-      }
-    });
-  }
-</script>
+  document.addEventListener('DOMContentLoaded', () => {
+    const rows = Array.from(document.querySelectorAll('[data-motie-row]'));
+    const searchInput = document.getElementById('motie-search');
+    const meetingInput = document.getElementById('filter-meeting');
+    const createdInput = document.getElementById('filter-created');
+    const indienerSelect = document.getElementById('filter-indiener');
+    const emptyState = document.getElementById('motie-empty-state');
 
+    const applyFilters = () => {
+      const searchValue = (searchInput.value || '').trim().toLowerCase();
+      const meetingValue = (meetingInput.value || '').trim();
+      const createdValue = (createdInput.value || '').trim();
+      const indienerValue = (indienerSelect.value || '').trim();
+
+      let visibleCount = 0;
+
+      rows.forEach(row => {
+        const matchesSearch = !searchValue || row.dataset.search.includes(searchValue);
+        const matchesMeeting = !meetingValue || row.dataset.meeting === meetingValue;
+        const matchesCreated = !createdValue || row.dataset.created === createdValue;
+        const matchesIndiener = !indienerValue || row.dataset.indiener === indienerValue;
+
+        const visible = matchesSearch && matchesMeeting && matchesCreated && matchesIndiener;
+        row.classList.toggle('hidden', !visible);
+        if (visible) visibleCount += 1;
+      });
+
+      emptyState.classList.toggle('hidden', visibleCount !== 0);
+    };
+
+    [searchInput, meetingInput, createdInput, indienerSelect].forEach(el => {
+      el && el.addEventListener(el.tagName === 'SELECT' ? 'change' : 'input', () => {
+        window.requestAnimationFrame(applyFilters);
+      });
+    });
+
+    applyFilters();
+  });
+</script>
 {% endblock %}
