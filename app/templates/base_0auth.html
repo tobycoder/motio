@@ -30,44 +30,46 @@
                 'text-green-600','text-red-600','bg-yellow-100','bg-green-100','bg-red-100'
             ]
             }
-        </script>        
+        </script>
     </head>
-    <body>
-<div class="fixed top-0 left-0 w-full z-50 bg-white border-b backdrop-blur-lg bg-opacity-80">
-    <div class="mx-auto max-w-7xl px-6 sm:px-6 lg:px-8 ">
-        <div class="relative flex h-16 justify-between">
-            <div class="flex flex-1 items-stretch justify-start">
-                <a class="flex flex-shrink-0 items-center" href="#">
+    <body class="bg-gray-50 dark:bg-gray-950 text-gray-900 dark:text-gray-100">
+        <div class="fixed top-0 left-0 z-50 w-full border-b bg-white/90 backdrop-blur-lg">
+            <div class="mx-auto max-w-7xl px-6 sm:px-6 lg:px-8">
+                <div class="relative flex h-16 justify-between">
+                    <div class="flex flex-1 items-stretch justify-start">
+                        <a class="flex flex-shrink-0 items-center" href="#">
                     <img class="block h-10 w-auto" src="/static/img/favicon.png" >
                 </a>
-            </div>
-            <div class="flex-shrink-0 flex px-2 py-3 items-center space-x-8">
-                <a href="{{ url_for('auth.login') }}" class="text-gray-700 hover:text-indigo-700 text-sm font-medium" href="#">Login</a>
-                <a href="{{ url_for('auth.register') }}" class="text-gray-800 bg-indigo-100 hover:bg-indigo-200 inline-flex items-center justify-center px-3 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm "
-                    href="#">Registreer je
-                </a>
+                    </div>
+                    <div class="flex items-center space-x-3 px-2 py-3">
+                        <a href="{{ url_for('auth.login') }}" class="text-sm font-medium text-gray-700 transition hover:text-indigo-700">Login</a>
+                        <a href="{{ url_for('auth.register') }}" class="inline-flex items-center justify-center rounded-md border border-transparent bg-indigo-100 px-3 py-2 text-sm font-medium text-gray-800 shadow-sm transition hover:bg-indigo-200">Registreer je</a>
+                    </div>
+                </div>
             </div>
         </div>
-    </div>
-</div>
 
-{% with messages = get_flashed_messages(with_categories=True) %}
-  {% if messages %}
-    {% for category, message in messages %}
-      <div class="
-        p-4 mb-4 rounded-lg border
-        {% if category == 'success' %} text-green-800 border-green-300 bg-green-50
-        {% elif category in ['error','danger'] %} text-red-800 border-red-300 bg-red-50
-        {% elif category == 'warning' %} text-yellow-800 border-yellow-300 bg-yellow-50
-        {% else %} text-gray-800 border-gray-300 bg-gray-50
-        {% endif %}
-      ">
-        {{ message }}
-      </div>
-    {% endfor %}
-  {% endif %}
-{% endwith %}
+        <main class="min-h-screen pt-28 pb-16">
+            {% with messages = get_flashed_messages(with_categories=True) %}
+              {% if messages %}
+                <div class="px-4">
+                  <div class="mx-auto max-w-2xl space-y-3">
+                  {% for category, message in messages %}
+                    <div class="px-4 py-3 rounded-xl border text-sm
+                      {% if category == 'success' %} text-emerald-800 border-emerald-200 bg-emerald-50
+                      {% elif category in ['error','danger'] %} text-rose-800 border-rose-200 bg-rose-50
+                      {% elif category == 'warning' %} text-amber-800 border-amber-200 bg-amber-50
+                      {% else %} text-slate-700 border-slate-200 bg-white
+                      {% endif %}">
+                      {{ message }}
+                    </div>
+                  {% endfor %}
+                  </div>
+                </div>
+              {% endif %}
+            {% endwith %}
 
-        {% block content %}{% endblock %} 
+            {% block content %}{% endblock %}
+        </main>
     </body>
-    </html> 
+</html>

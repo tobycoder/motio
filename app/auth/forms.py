@@ -1,4 +1,4 @@
-﻿from flask_wtf import FlaskForm
+from flask_wtf import FlaskForm
 from wtforms import (
     StringField,
     PasswordField,
@@ -45,13 +45,6 @@ class RegistrationForm(FlaskForm):
         allow_blank=True,
         blank_text='Geen partij'
     )
-    role = SelectField(
-        'Rol',
-        choices=[('gebruiker', 'Gebruiker'),
-                 ('griffie', 'Griffie'),
-                 ('superadmin', 'Superadmin')],
-        validators=[DataRequired()],
-    )
     profile_file = FileField('Profielfoto (optioneel, png/jpg/jpeg/webp/svg)')
     profile_url = StringField('Profielfoto URL (optioneel)')
 
@@ -82,13 +75,6 @@ class UserCreateForm(FlaskForm):
         get_label='naam',
         allow_blank=True,
         blank_text='Geen partij',
-    )
-    role = SelectField(
-        'Rol',
-        choices=[('gebruiker', 'Gebruiker'),
-                 ('griffie', 'Griffie'),
-                 ('superadmin', 'Superadmin')],
-        validators=[DataRequired()],
     )
     submit = SubmitField('Gebruiker aanmaken')
 
