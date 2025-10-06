@@ -107,7 +107,9 @@ def create_app(config_class=Config):
         app.logger.warning("RESEND_API_KEY ontbreekt; e-mails worden niet verstuurd")
 
     from .models import User  # noqa: F401
-    from .auth.utils import user_has_role
+    from .auth.utils import has_role
+    from flask_login import current_user
+    from app.models import Notification
 
     @login_manager.user_loader
     def load_user(user_id):
@@ -115,10 +117,10 @@ def create_app(config_class=Config):
 
     @app.context_processor
     def inject_role_helpers():
-        return dict(user_has_role=user_has_role)
+        def current_user_has_role(*roles: str, allow_superadmin: bool = True) -> bool:
+            return has_role(current_user, roles, allow_superadmin=allow_superadmin)
 
-    from flask_login import current_user
-    from app.models import Notification
+        return {"user_has_role": current_user_has_role}
 
     @app.context_processor
     def inject_notif_unread():
@@ -167,8 +169,8 @@ def create_app(config_class=Config):
     from .auth import bp as auth_bp
     app.register_blueprint(auth_bp, url_prefix="/auth")
 
-    from .advies import bp as advies_bp
-    app.register_blueprint(advies_bp, url_prefix="/advies")
+    from .griffie import bp as griffie_bp
+    app.register_blueprint(griffie_bp, url_prefix="/griffie")
 
     from .gebruikers import bp as gebruikers_bp
     app.register_blueprint(gebruikers_bp, url_prefix="/gebruikers")

@@ -1,0 +1,75 @@
+{% extends 'base.html' %}
+{% block content %}
+ <main class="mx-auto max-w-5xl px-4 py-6">
+    <!-- Uitleg -->
+    <div class="mb-6 p-4 bg-white rounded-xl border border-slate-200 shadow-sm">
+      <h2 class="text-base font-semibold mb-2">Wat doet dit?</h2>
+      <p class="text-sm text-slate-700">
+        Upload een Excel met in ieder geval deze kolommen:
+        <span class="font-medium">Onderwerp, Omschrijving, pfh code, Ontstaansdatum, Oorspronkelijke planning, Huidige planning</span>.
+        We zetten de kolom <span class="font-medium">Huidige planning</span> automatisch om naar een
+        <span class="font-medium">Triaalcode</span> (T1/T2/T3 per jaar: T1 = jan–apr, T2 = mei–aug, T3 = sep–dec).
+        De drie eerstvolgende trialen vanaf vandaag krijgen elk een eigen kleur; alle latere trialen krijgen éénzelfde kleur.
+      </p>
+      <ul class="mt-3 text-sm text-slate-700 list-disc list-inside">
+        <li>Ondersteunt datumwaarden, “maand jaar” (bijv. <em>maart 2026</em>) en “T2 2025”.</li>
+        <li>Na verwerking start direct een download van het nieuwe bestand.</li>
+      </ul>
+    </div>
+
+    <!-- Meldingen -->
+    {% with messages = get_flashed_messages(with_categories=true) %}
+      {% if messages %}
+        <div class="mb-6 space-y-2">
+          {% for category, message in messages %}
+            <div class="p-3 rounded-lg border
+                        {% if category=='error' %}border-red-200 bg-red-50 text-red-700
+                        {% else %}border-emerald-200 bg-emerald-50 text-emerald-700{% endif %}">
+              {{ message }}
+            </div>
+          {% endfor %}
+        </div>
+      {% endif %}
+    {% endwith %}
+
+    <!-- Upload kaart -->
+    <div class="bg-white rounded-2xl border border-slate-200 shadow-sm p-6">
+      <form class="space-y-5" action="{{ url_for('griffie.jaarplanning') }}" method="post" enctype="multipart/form-data">
+        <div>
+          <label for="file" class="block mb-2 text-sm font-medium text-slate-700">Excel-bestand (.xlsx)</label>
+          <input id="file" name="file" type="file" accept=".xlsx"
+                 class="pl-4 block w-full text-sm text-slate-900 border border-slate-300 rounded-lg cursor-pointer bg-slate-50 focus:outline-none focus:ring-2 focus:ring-blue-500 file:mr-4 file:py-3 file:px-6 file:rounded-lg file:border-0 file:text-sm file:font-medium file:bg-blue-600 file:text-white hover:file:bg-blue-700" required>
+          <p class="mt-2 text-xs text-slate-500">Tip: controleer kolomnamen exact zoals hierboven.</p>
+        </div>
+
+        <div class="flex items-center gap-3">
+          <button type="submit"
+                  class="inline-flex items-center px-4 py-2 text-sm font-medium text-white bg-blue-600 rounded-lg hover:bg-blue-700 focus:ring-4 focus:ring-blue-200">
+            Verwerken & Downloaden
+          </button>
+
+          <!-- Flowbite helper popover -->
+          <button data-popover-target="help-info" type="button"
+                  class="inline-flex items-center px-3 py-2 text-sm font-medium text-blue-700 bg-blue-50 border border-blue-200 rounded-lg hover:bg-blue-100">
+            Wat gebeurt er precies?
+          </button>
+        </div>
+
+        <div data-popover id="help-info" role="tooltip"
+             class="absolute z-10 invisible inline-block w-80 text-sm text-slate-700 transition-opacity duration-300 bg-white border border-slate-200 rounded-lg shadow-lg opacity-0">
+          <div class="px-3 py-2">
+            <div class="font-semibold">Na het uploaden</div>
+            <ol class="list-decimal list-inside mt-1">
+              <li>We lezen je Excel en controleren de kolommen.</li>
+              <li>We zetten <em>Huidige planning</em> om naar een <em>Triaalcode</em>.</li>
+              <li>We kleuren de drie eerstvolgende trialen vanaf vandaag.</li>
+              <li>Je download start direct met het nieuwe bestand (+ blad <em>Legenda</em>).</li>
+            </ol>
+          </div>
+          <div data-popper-arrow></div>
+        </div>
+      </form>
+    </div>
+  </main>
+
+{% endblock %}

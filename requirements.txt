@@ -10,6 +10,8 @@ resend==2.4.0
 itsdangerous          # no-op op *nix, handig op Windows
 python-dotenv
 psycopg[binary]>=3.2.2,<3.3
+python-dateutil
+pytz
 
 # --- Forms / Validation ---
 WTForms==3.2.1
@@ -40,6 +42,9 @@ lxml==6.0.1
 python-docx==1.2.0
 docxtpl>=0.16
 python-slugify>=8.0
+pandas
+openpyxl
+
 
 # --- Netwerk/Domain utils (indirect via email-validator) ---
 idna==3.10
