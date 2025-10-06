@@ -8,6 +8,8 @@ import pandas as pd
 from flask import Blueprint, render_template, request, send_file, flash, redirect, url_for
 from werkzeug.utils import secure_filename
 from dateutil.parser import parse as dt_parse
+from openpyxl.utils import get_column_letter
+from openpyxl.styles import PatternFill, Alignment
 
 REQUIRED_COLS = [
     "onderwerp",
@@ -195,6 +197,24 @@ def jaarplanning():
             df.to_excel(writer, index=False, sheet_name="Jaarplanning")
             ws = writer.book["Jaarplanning"]
 
+            # Stel kolombreedtes en tekstterugloop in
+            for idx in range(1, ws.max_column + 1):
+                col_letter = get_column_letter(idx)
+                is_primary_col = idx in (1, 2)
+                ws.column_dimensions[col_letter].width = 60 if is_primary_col else 25
+
+                if is_primary_col:
+                    for cell in ws[col_letter]:
+                        existing = cell.alignment or Alignment()
+                        cell.alignment = Alignment(
+                            horizontal=existing.horizontal,
+                            vertical=existing.vertical,
+                            text_rotation=existing.text_rotation,
+                            wrap_text=True,
+                            shrink_to_fit=existing.shrink_to_fit,
+                            indent=existing.indent,
+                        )
+
             # Zoek kolomindex van Triaalcode
             header_row = 1
             triaal_col_idx = None
@@ -202,8 +222,6 @@ def jaarplanning():
                 if str(cell.value).strip().lower() == "triaalcode":
                     triaal_col_idx = idx
                     break
-
-            from openpyxl.styles import PatternFill
 
             if triaal_col_idx:
                 for r in range(2, ws.max_row + 1):

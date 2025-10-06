@@ -1,0 +1,156 @@
+{% extends "base.html" %}
+{% block content %}
+{% set stats = namespace(total=0, actief=0) %}
+{% for p in users %}
+  {% set stats.total = stats.total + 1 %}
+  {% if p.actief %}{% set stats.actief = stats.actief + 1 %}{% endif %}
+{% endfor %}
+
+<div class="sticky top-[var(--nav-h)] page-chrome z-20 m-auto bg-white/90 backdrop-blur">
+  <div class="mx-auto max-w-7xl px-4 py-4 flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+    <div>
+      <p class="text-sm uppercase tracking-wide text-gray-500">Collega's</p>
+      <h1 class="text-2xl font-semibold text-gray-900">{{ title|capitalize }}</h1>
+      <div class="mt-3 flex flex-wrap gap-2 text-sm text-gray-500">
+        <span class="inline-flex items-center gap-1 rounded-full bg-gray-100 px-3 py-1">{{ stats.total }} totaal</span>
+        <span class="inline-flex items-center gap-1 rounded-full bg-green-100 text-green-700 px-3 py-1">{{ stats.actief }} actief</span>
+      </div>
+    </div>
+    <div class="flex flex-col sm:flex-row gap-2">
+      <a href="{{ url_for('dashboard.home') }}" class="inline-flex items-center justify-center gap-2 rounded-md border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 transition">
+        <i class="fa fa-arrow-left"></i> Terug
+      </a>
+    </div>
+  </div>
+</div>
+
+<section class="mx-auto max-w-7xl px-4 py-6 space-y-6">
+  <div class="rounded-2xl border border-gray-200 bg-white shadow-sm">
+    <div class="flex flex-col gap-4 p-6 lg:flex-row lg:items-center lg:justify-between">
+      <div class="relative w-full lg:max-w-md">
+        <span class="pointer-events-none absolute inset-y-0 left-3 flex items-center text-gray-400"><i class="fa fa-search"></i></span>
+        <input id="user-search"
+               type="search"
+               placeholder="Zoek op naam of partij..."
+               class="w-full rounded-lg border border-gray-300 bg-white pl-10 pr-4 py-2 text-sm text-gray-700 shadow-sm focus:border-gray-900 focus:outline-none focus:ring-2 focus:ring-gray-900/20 transition" />
+      </div>
+      <div class="flex items-center gap-2">
+        <span class="text-xs font-semibold uppercase tracking-wide text-gray-400">Status</span>
+        <button type="button" id="party-status-toggle" data-status="all" class="filter-chip">
+          Alleen actieve
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <div id="user-grid" class="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+    {% for user in users %}
+      <article class="group relative overflow-hidden rounded-2xl border border-gray-200 bg-white p-5 shadow-sm transition hover:-translate-y-1 hover:shadow-lg"
+               data-user-card
+               data-status="{{ 'actief' if user.actief else 'inactief' }}"
+               data-search="{{ (user.naam ~ ' ' ~ user.partij.naam)|lower }}">
+        <div class="flex items-start gap-4">
+          <div class="relative inline-flex h-16 w-16 items-center justify-center rounded-full border border-gray-200 bg-gray-50">
+            {% if user.profile_src %}
+              <img src="{{ user.profile_src }}" alt="Profielfoto {{ user.naam }}" class="h-14 w-14 rounded-full object-cover">
+            {% else %}
+              <span class="text-lg font-semibold text-gray-500">{{ user.naam.upper() }}</span>
+            {% endif %}
+          </div>
+          <div class="min-w-0 flex-1">
+            <div class="flex flex-wrap items-center gap-2">
+              <h2 class="truncate text-lg font-semibold text-gray-900">{{ user.naam }}</h2>
+              {% if user.actief %}
+                <span class="inline-flex items-center gap-1 rounded-full bg-green-100 px-2.5 py-0.5 text-xs font-medium text-green-700">
+                  <i class="fa fa-check text-green-600"></i> Actief
+                </span>
+              {% else %}
+                <span class="inline-flex items-center gap-1 rounded-full bg-gray-200 px-2.5 py-0.5 text-xs font-medium text-gray-600">
+                  <i class="fa fa-moon"></i> Inactief
+                </span>
+              {% endif %}
+            </div>
+            <p class="mt-1 text-sm text-gray-500">{{ user.partij.naam or 'Geen afkorting' }}</p>
+            <div class="mt-3 flex flex-wrap items-center gap-2 text-xs text-gray-500">
+              <span class="inline-flex items-center gap-1 rounded-full bg-gray-100 px-2.5 py-1 font-medium">
+                <i class="fa fa-calendar"></i>
+                {{ user.created_at.strftime('%d-%m-%Y') if user.created_at else 'Onbekend' }}
+              </span>
+            </div>
+          </div>
+        </div>
+        <div class="mt-5 flex items-center justify-between">
+          <a href="{{ url_for('gebruikers.bekijken', user_id=user.id) }}" class="inline-flex items-center gap-1 rounded-md border border-gray-300 px-3 py-1.5 text-sm text-gray-700 transition hover:bg-gray-50">
+            <i class="fa fa-eye"></i> Bekijken
+          </a>
+          {% if user_has_role('griffie') %}
+          <div class="inline-flex gap-2">
+            <a href="{{ url_for('gebruikers.bewerken', user_id=user.id) }}" class="inline-flex items-center gap-1 rounded-md bg-gray-900 px-3 py-1.5 text-sm text-white transition hover:bg-black">
+              <i class="fa fa-edit"></i> Bewerken
+            </a>
+          </div>
+          {% endif %}
+        </div>
+        <span class="pointer-events-none absolute inset-x-0 -bottom-0.5 h-1 bg-gradient-to-r from-transparent via-gray-900/10 to-transparent opacity-0 transition group-hover:opacity-100"></span>
+      </article>
+    {% endfor %}
+  </div>
+
+  {% if not users %}
+    <div class="rounded-2xl border border-dashed border-gray-300 bg-gray-50 px-6 py-12 text-center text-gray-500">
+      <i class="fa fa-people-group text-3xl mb-4"></i>
+      <p>Er zijn nog geen partijen geregistreerd. Voeg er een toe om te beginnen.</p>
+    </div>
+  {% endif %}
+</section>
+
+<script>
+  document.addEventListener('DOMContentLoaded', () => {
+    const cards = Array.from(document.querySelectorAll('[data-user-card]'));
+    const searchInput = document.getElementById('user-search');
+    const statusToggle = document.getElementById('user-status-toggle');
+    let statusFilter = 'all';
+
+    const addBaseChipClasses = (button) => {
+      button.classList.add('border', 'border-gray-300', 'rounded-full', 'px-3', 'py-1.5', 'text-xs', 'font-semibold', 'text-gray-600', 'bg-white', 'hover:bg-gray-100', 'transition');
+    };
+
+    const setFilterChipState = (button, active) => {
+      button.classList.toggle('bg-gray-900', active);
+      button.classList.toggle('text-white', active);
+      button.classList.toggle('border-gray-900', active);
+      button.classList.toggle('shadow', active);
+      button.classList.toggle('bg-white', !active);
+      button.classList.toggle('text-gray-600', !active);
+      button.classList.toggle('border-gray-300', !active);
+    };
+
+    addBaseChipClasses(statusToggle);
+    setFilterChipState(statusToggle, false);
+    statusToggle.addEventListener('click', () => {
+      statusFilter = statusFilter === 'all' ? 'actief' : 'all';
+      const isActiveOnly = statusFilter === 'actief';
+      setFilterChipState(statusToggle, isActiveOnly);
+      statusToggle.textContent = isActiveOnly ? 'Toon alle' : 'Alleen actieve';
+      applyFilters();
+    });
+
+    const applyFilters = () => {
+      const query = (searchInput.value || '').trim().toLowerCase();
+      cards.forEach(card => {
+        const matchesSearch = !query || card.dataset.search.includes(query);
+        const matchesStatus = statusFilter === 'all' || card.dataset.status === statusFilter;
+        const visible = matchesSearch && matchesStatus;
+        card.classList.toggle('hidden', !visible);
+      });
+    };
+
+    searchInput.addEventListener('input', () => {
+      window.requestAnimationFrame(applyFilters);
+    });
+
+    applyFilters();
+  });
+</script>
+{% endblock %}
+

@@ -35,13 +35,14 @@ class ProfileUpdateForm(FlaskForm):
 
         if allow_admin_fields:
             self.role.choices = ROLE_CHOICES
-            if user and user.role:
-                self.role.data = user.role
-            elif not self.role.data:
-                self.role.data = ROLE_CHOICES[0][0]
+            if not self.is_submitted():
+                if user and user.role:
+                    self.role.data = user.role
+                elif not self.role.data:
+                    self.role.data = ROLE_CHOICES[0][0]
 
-            if user:
-                self.partij.data = user.partij
+                if user:
+                    self.partij.data = user.partij
         else:
             self._fields.pop('partij', None)
             self._fields.pop('role', None)

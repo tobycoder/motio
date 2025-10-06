@@ -45,8 +45,14 @@ def _update_user_profile_from_form(user: User, form: ProfileUpdateForm, render_a
     user.profile_filename = new_profile_filename
     return None
 
-
 @bp.route('/')
+@login_and_active_required
+@roles_required('gebruiker')
+def index_user():
+    users = User.query.all()
+    return render_template('gebruikers/collegas.html', users=users)
+
+@bp.route('/beheer-overzicht')
 @login_and_active_required
 @roles_required('griffie')
 def index():
