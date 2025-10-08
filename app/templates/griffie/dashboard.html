@@ -1,0 +1,111 @@
+{% extends 'base.html' %}
+{% block content %}
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/gridstack@10.3.1/dist/gridstack.min.css" />
+  <script src="https://cdn.jsdelivr.net/npm/gridstack@10.3.1/dist/gridstack-all.min.js"></script>
+
+  <div class="sticky top-[var(--nav-h)] page-chrome-low bg-white/90 pt-4 backdrop-blur border-b print:hidden">
+    <div class="mx-auto max-w-7xl px-4 py-2 flex items-center justify-between">
+      <div>
+        <div class="text-sm text-gray-500">Griffie</div>
+        <h1 class="text-base sm:text-lg font-semibold">Dashboard</h1>
+      </div>
+      <div class="flex items-center gap-2">
+        <a href="{{ url_for('griffie.dashboard_builder') }}" class="inline-flex items-center gap-2 rounded-lg border px-3 py-1.5 text-sm hover:bg-gray-50">
+          <i class="fa fa-edit"></i><span>Indeling wijzigen</span>
+        </a>
+      </div>
+    </div>
+  </div>
+
+  <main class="mx-auto max-w-7xl px-2 sm:px-4 md:px-6 py-6">
+    <div class="grid-stack">
+      {% for w in layout.widgets %}
+        <div class="grid-stack-item" gs-id="{{ w.id }}" gs-x="{{ w.x or 0 }}" gs-y="{{ w.y or 0 }}" gs-w="{{ w.w or 4 }}" gs-h="{{ w.h or 3 }}">
+          <div class="grid-stack-item-content">
+            <div class="rounded-lg border bg-white shadow-sm h-full flex flex-col">
+              <div class="px-3 py-2 border-b text-sm font-semibold flex items-center justify-between">
+                <span>{{ w.title or w.id }}</span>
+              </div>
+              <div class="p-3 text-sm text-gray-700 flex-1 overflow-auto">
+                {% if w.id == 'to_advise' %}
+                  {% set items = widget_data['to_advise'] %}
+                  {% if items %}
+                    <ul class="space-y-2">
+                      {% for m in items %}
+                        <li class="flex items-center justify-between">
+                          <a href="{{ url_for('griffie.advies_bewerken', motie_id=m.id) }}" class="text-blue-600 hover:underline truncate">{{ m.titel }}</a>
+                          <span class="ml-2 text-xs text-gray-500 whitespace-nowrap">{{ m.updated_at.strftime('%d-%m %H:%M') if m.updated_at else '' }}</span>
+                        </li>
+                      {% endfor %}
+                    </ul>
+                  {% else %}
+                    <div class="text-gray-500">Geen moties om te adviseren.</div>
+                  {% endif %}
+                {% elif w.id == 'ready_submit' %}
+                  {% set items = widget_data['ready_submit'] %}
+                  {% if items %}
+                    <ul class="space-y-2">
+                      {% for m in items %}
+                        <li class="flex items-center justify-between">
+                          <a href="{{ url_for('moties.bekijken', motie_id=m.id) }}" class="text-blue-600 hover:underline truncate">{{ m.titel }}</a>
+                          <span class="ml-2 text-xs text-gray-500 whitespace-nowrap">{{ m.updated_at.strftime('%d-%m %H:%M') if m.updated_at else '' }}</span>
+                        </li>
+                      {% endfor %}
+                    </ul>
+                  {% else %}
+                    <div class="text-gray-500">Geen moties klaar om in te dienen.</div>
+                  {% endif %}
+                {% elif w.id == 'my_claims' %}
+                  {% set rows = widget_data['my_claims'] %}
+                  {% if rows %}
+                    <ul class="space-y-2">
+                      {% for ses, m in rows %}
+                        <li class="flex items-center justify-between">
+                          <a href="{{ url_for('griffie.advies_bewerken', motie_id=m.id) }}" class="text-blue-600 hover:underline truncate">{{ m.titel }}</a>
+                          <span class="ml-2 text-xs text-gray-500 whitespace-nowrap">{{ ses.updated_at.strftime('%d-%m %H:%M') if ses.updated_at else '' }}</span>
+                        </li>
+                      {% endfor %}
+                    </ul>
+                  {% else %}
+                    <div class="text-gray-500">Geen eigen claims.</div>
+                  {% endif %}
+                {% elif w.id == 'stats' %}
+                  {% set s = widget_data['stats'] %}
+                  <div class="grid grid-cols-3 gap-3">
+                    <div class="rounded-md border p-3 text-center">
+                      <div class="text-2xl font-bold">{{ s.to_advise }}</div>
+                      <div class="text-xs text-gray-500">Te adviseren</div>
+                    </div>
+                    <div class="rounded-md border p-3 text-center">
+                      <div class="text-2xl font-bold">{{ s.ready_submit }}</div>
+                      <div class="text-xs text-gray-500">Klaar om in te dienen</div>
+                    </div>
+                    <div class="rounded-md border p-3 text-center">
+                      <div class="text-2xl font-bold">{{ s.my_claims }}</div>
+                      <div class="text-xs text-gray-500">Mijn claims</div>
+                    </div>
+                  </div>
+                {% else %}
+                  <div class="text-gray-500">Onbekende widget: {{ w.id }}</div>
+                {% endif %}
+              </div>
+            </div>
+          </div>
+        </div>
+      {% endfor %}
+    </div>
+  </main>
+
+  <script>
+    document.addEventListener('DOMContentLoaded', () => {
+      GridStack.init({
+        staticGrid: true,
+        cellHeight: 80,
+        float: true,
+        column: 12,
+        disableOneColumnMode: false,
+      });
+    });
+  </script>
+{% endblock %}
+

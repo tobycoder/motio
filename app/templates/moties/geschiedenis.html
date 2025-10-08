@@ -1,0 +1,90 @@
+{% extends 'base.html' %}
+{% block content %}
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/flowbite/2.5.2/flowbite.min.js" defer></script>
+
+  <div class="sticky top-[var(--nav-h)] page-chrome-low bg-white/90 pt-4 backdrop-blur border-b print:hidden">
+    <div class="mx-auto max-w-7xl px-4 py-2 flex items-center gap-2">
+      <a href="{{ back_url or url_for('moties.bekijken', motie_id=motie.id) }}"
+         class="inline-flex items-center gap-2 rounded-lg border px-3 py-1.5 text-sm hover:bg-gray-50">
+        <i class="fa fa-arrow-left text-gray-600"></i>
+        <span class="hidden sm:inline">Terug</span>
+      </a>
+      <div class="flex-1 min-w-0">
+        <div class="truncate text-sm text-gray-500">Versiegeschiedenis</div>
+        <h1 class="truncate text-base sm:text-lg font-semibold">{{ motie.titel }}</h1>
+      </div>
+    </div>
+  </div>
+
+  <main class="mx-auto max-w-7xl px-2 sm:px-4 md:px-6 py-6">
+    {% if not timeline_items or timeline_items|length == 0 %}
+      <div class="bg-blue-50 border border-blue-200 text-blue-800 rounded-xl p-4">Er zijn nog geen versies vastgelegd.</div>
+    {% else %}
+      <div class="space-y-4">
+        {% for item in timeline_items %}
+          {% set v = item.ver %}
+          <section class="rounded-xl border shadow-sm bg-white">
+            <header class="px-4 py-3 flex items-center justify-between">
+              <div class="min-w-0">
+                <div class="text-xs text-gray-500">{{ v.created_at.strftime('%Y-%m-%d %H:%M') if v.created_at else '' }}</div>
+                <div class="text-sm text-gray-700">Auteur: {{ v.author.naam if v.author else 'Onbekend' }}</div>
+              </div>
+              <div class="flex items-center gap-2 flex-wrap justify-end">
+                {% if item.changed_labels and item.changed_labels|length > 0 %}
+                  {% for lbl in item.changed_labels %}
+                    <span class="inline-flex items-center rounded-full bg-indigo-50 text-indigo-700 border border-indigo-200 px-2 py-0.5 text-xs">{{ lbl }}</span>
+                  {% endfor %}
+                {% else %}
+                  <span class="inline-flex items-center rounded-full bg-gray-100 text-gray-700 border px-2 py-0.5 text-xs">Initieel</span>
+                {% endif %}
+              </div>
+            </header>
+
+            <div class="border-t">
+              <div class="px-2">
+                <div id="acc-{{ v.id }}" data-accordion="collapse" class="">
+                  <h2 id="acc-h-{{ v.id }}">
+                    <button type="button" class="flex w-full items-center justify-between gap-3 px-2 py-3 text-left hover:bg-gray-50"
+                            data-accordion-target="#acc-b-{{ v.id }}" aria-expanded="false" aria-controls="acc-b-{{ v.id }}">
+                      <span class="text-sm font-medium">Toon details</span>
+                      <svg class="w-4 h-4 shrink-0" aria-hidden="true" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 10 6">
+                        <path stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5 5 1 1 5"/>
+                      </svg>
+                    </button>
+                  </h2>
+                  <div id="acc-b-{{ v.id }}" class="hidden" aria-labelledby="acc-h-{{ v.id }}">
+                    <div class="px-4 pb-4 pt-2">
+                      <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        {% for f in item.fields %}
+                          <div class="rounded-lg border p-3 {{ 'bg-amber-50 border-amber-200' if f.changed else 'bg-gray-50 border-gray-200' }}">
+                            <div class="text-xs font-semibold text-gray-600 mb-2">{{ f.label }}</div>
+                            {% if f.old or f.new %}
+                              {% if f.changed %}
+                                <div class="text-sm leading-relaxed">
+                                  {{ f.old|trackdiff(f.new) }}
+                                </div>
+                              {% else %}
+                                <div class="text-sm text-gray-600 whitespace-pre-wrap">{{ f.new }}</div>
+                              {% endif %}
+                            {% else %}
+                              <div class="text-sm text-gray-400">(geen inhoud)</div>
+                            {% endif %}
+                          </div>
+                        {% endfor %}
+                      </div>
+
+                      <details class="mt-4">
+                        <summary class="cursor-pointer text-sm text-gray-600 hover:text-gray-800">Toon ruwe snapshot</summary>
+                        <pre class="mt-2 bg-gray-900 text-gray-100 p-3 rounded-lg overflow-auto text-xs">{{ v.snapshot | tojson(indent=2) }}</pre>
+                      </details>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </section>
+        {% endfor %}
+      </div>
+    {% endif %}
+  </main>
+{% endblock %}

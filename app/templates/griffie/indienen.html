@@ -1,0 +1,35 @@
+{% extends 'base.html' %}
+{% block content %}
+  <div class="sticky top-[var(--nav-h)] page-chrome-low bg-white/90 pt-4 backdrop-blur border-b print:hidden">
+    <div class="mx-auto max-w-7xl px-4 py-2 flex items-center gap-2">
+      <div class="flex-1 min-w-0">
+        <div class="truncate text-sm text-gray-500">Griffie</div>
+        <h1 class="truncate text-base sm:text-lg font-semibold">Indienen</h1>
+      </div>
+    </div>
+  </div>
+  <main class="mx-auto max-w-7xl px-2 sm:px-4 md:px-6 py-6">
+    {% if not moties %}
+      <div class="bg-green-50 border border-green-200 text-green-800 rounded-xl p-4">Er staan geen moties klaar om in te dienen.</div>
+    {% else %}
+      <div class="space-y-3">
+        {% for m in moties %}
+          <div class="rounded-xl border bg-white p-4 shadow-sm">
+            <div class="flex items-center justify-between">
+              <div class="min-w-0">
+                <div class="text-sm font-semibold truncate">{{ m.titel }}</div>
+                <div class="text-xs text-gray-500">Indiener: {{ m.indiener.naam if m.indiener else 'Onbekend' }}</div>
+              </div>
+              <div class="flex items-center gap-2">
+                <a class="inline-flex items-center gap-2 rounded-lg border px-3 py-1.5 text-sm hover:bg-gray-50" href="{{ url_for('moties.bekijken', motie_id=m.id) }}">
+                  <i class="fa fa-eye"></i><span>Bekijk</span>
+                </a>
+              </div>
+            </div>
+          </div>
+        {% endfor %}
+      </div>
+    {% endif %}
+  </main>
+{% endblock %}
+

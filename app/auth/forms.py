@@ -76,6 +76,16 @@ class UserCreateForm(FlaskForm):
         allow_blank=True,
         blank_text='Geen partij',
     )
+    role = SelectField(
+        'Rol',
+        choices=[
+            ('gebruiker', 'Gebruiker'),
+            ('griffie', 'Griffie'),
+            ('superadmin', 'Superadmin'),
+        ],
+        default='gebruiker',
+        validators=[DataRequired()],
+    )
     submit = SubmitField('Gebruiker aanmaken')
 
     def validate_email(self, field):

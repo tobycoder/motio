@@ -155,6 +155,18 @@ def create_app(config_class=Config):
             return {"notifications": notifs, "notif_unread": unread}
         return {"notifications": [], "notif_unread": 0}
 
+    @app.context_processor
+    def inject_griffie_counts():
+        from app.models import Motie
+        try:
+            if hasattr(current_user, 'role') and (current_user.has_role('griffie') or current_user.has_role('superadmin')):
+                advice_count = Motie.query.filter(Motie.status.ilike('Advies griffie')).count()
+                submit_count = Motie.query.filter(Motie.status.ilike('Klaar om in te dienen')).count()
+                return { 'griffie_advice_count': advice_count, 'griffie_submit_count': submit_count }
+        except Exception:
+            pass
+        return { 'griffie_advice_count': 0, 'griffie_submit_count': 0 }
+
     with app.app_context():
         url = db.engine.url
         try:

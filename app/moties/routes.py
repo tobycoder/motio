@@ -3,7 +3,7 @@ from app.moties.forms import MotieForm
 from sqlalchemy import or_, asc, desc, and_, case, literal, func, union_all, select
 from sqlalchemy.orm import Session, selectinload
 from sqlalchemy.sql import label
-from app.models import Motie, User, motie_medeindieners, MotieShare, Party, Notification
+from app.models import Motie, User, motie_medeindieners, MotieShare, Party, Notification, MotieVersion, AdviceSession
 from app import db, send_email
 import json
 from app.moties import bp
@@ -90,6 +90,68 @@ def user_can_view_motie(user, motie: Motie) -> bool:
     perm = _highest_share_permission_for(user, motie)
     return perm in ("view", "comment", "suggest", "edit")
 
+def user_can_view_history(user, motie: Motie) -> bool:
+    """Zelfde als user_can_view_motie, maar de griffie mag versiegeschiedenis niet zien.
+    Superadmin mag altijd."""
+    if user and user.has_role('superadmin'):
+        return True
+    # Griffie uitgesloten van versiegeschiedenis
+    if (getattr(user, 'role', '') or '').lower() == 'griffie':
+        return False
+    # Indiener of mede-indiener
+    if motie.indiener_id == user.id or any(u.id == user.id for u in motie.mede_indieners):
+        return True
+    perm = _highest_share_permission_for(user, motie)
+    return perm in ("view", "comment", "suggest", "edit")
+
+def _motie_snapshot(m: Motie) -> dict:
+    """Maak een compacte snapshot van velden die we willen versie-tracken."""
+    try:
+        mede_ids = [u.id for u in m.mede_indieners]
+    except Exception:
+        mede_ids = []
+    return {
+        "titel": m.titel or "",
+        "constaterende_dat": as_list(m.constaterende_dat),
+        "overwegende_dat": as_list(m.overwegende_dat),
+        "draagt_college_op": as_list(m.draagt_college_op),
+        "opdracht_formulering": m.opdracht_formulering or "",
+        "status": m.status or "",
+        "gemeenteraad_datum": m.gemeenteraad_datum or None,
+        "agendapunt": m.agendapunt or None,
+        "mede_indieners_ids": mede_ids,
+    }
+
+def _diff_changed_fields(prev: dict | None, curr: dict) -> list[str]:
+    if not prev:
+        return list(curr.keys())
+    changed: list[str] = []
+    for k in curr.keys():
+        if prev.get(k) != curr.get(k):
+            changed.append(k)
+    return changed
+
+def create_motie_version(motie: Motie, author: User | None):
+    """Sla een MotieVersion op met snapshot en wijzigingenlijst."""
+    snap = _motie_snapshot(motie)
+    last = (
+        MotieVersion.query
+        .filter(MotieVersion.motie_id == motie.id)
+        .order_by(MotieVersion.created_at.desc(), MotieVersion.id.desc())
+        .first()
+    )
+    prev_snap = last.snapshot if last else None
+    changed = _diff_changed_fields(prev_snap, snap)
+    # Sla alleen op als het de eerste versie is of als er wijzigingen zijn
+    if (last is None) or changed:
+        ver = MotieVersion(
+            motie_id=motie.id,
+            author_id=(author.id if author else None),
+            snapshot=snap,
+            changed_fields=changed,
+        )
+        db.session.add(ver)
+
 def user_can_edit_motie(user, motie: Motie) -> bool:
     # indiener of mede-indiener mag altijd bewerken (pas aan naar wens)
     if motie.indiener_id == user.id or any(u.id == user.id for u in motie.mede_indieners):
@@ -129,8 +191,6 @@ def _notify(user_id: int, motie: Motie, ntype: str, payload: dict, share: MotieS
     db.session.add(n)
     _send_notification_email(user_id, motie, ntype, payload or {})
 
-
-
 def _send_notification_email(user_id: int, motie: Motie | None, ntype: str, payload: dict) -> None:
     user = User.query.get(user_id)
     if not user or not getattr(user, "email", None):
@@ -139,7 +199,6 @@ def _send_notification_email(user_id: int, motie: Motie | None, ntype: str, payl
     if not subject or not body:
         return
     send_email(subject=subject, recipients=user.email, text_body=body)
-
 
 def _build_notification_email(user: User, motie: Motie | None, ntype: str, payload: dict) -> tuple[str | None, str | None]:
     motie_id = motie.id if motie else payload.get("motie_id")
@@ -207,6 +266,69 @@ def _build_notification_email(user: User, motie: Motie | None, ntype: str, paylo
         lines.extend(["", f"Gerelateerde motie: {view_url}"])
     lines.extend(["", "Groeten,", "Motio"])
     return subject, "\n".join(lines)
+
+# --- Griffie advies helpers ---
+def _ensure_advice_session_for(motie: Motie, requested_by: User) -> AdviceSession:
+    ses = (
+        AdviceSession.query
+        .filter(AdviceSession.motie_id == motie.id)
+        .order_by(AdviceSession.created_at.desc())
+        .first()
+    )
+    if ses and ses.status in ("requested", "in_progress"):
+        return ses
+    # nieuwe sessie met draft = huidige motie-snapshot
+    ses = AdviceSession(
+        motie_id=motie.id,
+        requested_by_id=requested_by.id,
+        reviewer_id=None,
+        status='requested',
+        draft=_motie_snapshot(motie),
+    )
+    db.session.add(ses)
+    return ses
+
+def _notify_advice_requested(motie: Motie, requested_by: User | None):
+    # Notificeer alle griffie- en superadmin-gebruikers
+    q = User.query.filter(User.actief.is_(True))
+    recipients = [u for u in q.all() if u.has_role('griffie', 'superadmin')]
+    payload = {
+        "motie_id": motie.id,
+        "motie_titel": motie.titel,
+        "requested_by_id": requested_by.id if requested_by else None,
+        "requested_by_naam": requested_by.naam if requested_by else None,
+    }
+    for u in recipients:
+        _notify(u.id, motie, "advice_requested", payload, None)
+
+def _notify_advice_returned(motie: Motie, reviewer: User | None):
+    indiener_id = motie.indiener_id
+    if not indiener_id:
+        return
+    payload = {
+        "motie_id": motie.id,
+        "motie_titel": motie.titel,
+        "reviewer_id": reviewer.id if reviewer else None,
+        "reviewer_naam": reviewer.naam if reviewer else None,
+    }
+    _notify(indiener_id, motie, "advice_returned", payload, None)
+
+def _notify_advice_accepted(motie: Motie, accepted_by: User | None, session: AdviceSession | None):
+    # Stuur vooral de reviewer een notificatie; zo niet, dan alle griffie/superadmin
+    reviewer_id = getattr(session, 'reviewer_id', None) if session else None
+    payload = {
+        "motie_id": motie.id,
+        "motie_titel": motie.titel,
+        "accepted_by_id": accepted_by.id if accepted_by else None,
+        "accepted_by_naam": accepted_by.naam if accepted_by else None,
+    }
+    if reviewer_id:
+        _notify(reviewer_id, motie, "advice_accepted", payload, None)
+    else:
+        q = User.query.filter(User.actief.is_(True))
+        for u in q.all():
+            if u.has_role('griffie', 'superadmin'):
+                _notify(u.id, motie, "advice_accepted", payload, None)
 
 def _notify_share_created(share: MotieShare):
     """Notificaties naar target user of alle actieve leden van de target party."""
@@ -754,6 +876,9 @@ def toevoegen():
         db.session.add(motie)
         db.session.flush()  # zorg dat motie.id bestaat voor notificaties
 
+        # Versiegeschiedenis: initiële versie
+        create_motie_version(motie, current_user)
+
         _notify_coauthors_added(motie, added_user_ids)
 
         db.session.commit()
@@ -811,6 +936,10 @@ def bewerken(motie_id):
         .get_or_404(motie_id)
     )
 
+    # Lock voor raadsleden wanneer advies gevraagd is (behalve griffie/superadmin)
+    if (motie.status or '').lower() == 'advies griffie' and not current_user.has_role('griffie', 'superadmin'):
+        flash('Deze motie is in advies bij de griffie en tijdelijk vergrendeld voor bewerken.', 'warning')
+        return redirect(url_for('moties.bekijken', motie_id=motie.id))
     if not user_can_edit_motie(current_user, motie):
         flash('Je mag deze motie niet bewerken. Vraag de eigenaar naar toegang', 'danger')
         return redirect(url_for('moties.index_personal'))
@@ -848,6 +977,7 @@ def bewerken(motie_id):
         )
 
     if request.method == 'POST':
+        old_status = motie.status
         titel = (request.form.get('titel') or '').strip()
         if not titel:
             flash('Titel is verplicht.', 'danger')
@@ -894,11 +1024,251 @@ def bewerken(motie_id):
 
         _notify_coauthors_added(motie, added_user_ids)
 
+        # Indien status naar 'Advies griffie' gaat -> advies-sessie + notificaties
+        new_status = (request.form.get('status') or motie.status or '').strip()
+        if new_status:
+            motie.status = new_status
+        if (old_status or '').lower() != (motie.status or '').lower() and (motie.status or '').lower() == 'advies griffie':
+            ses = _ensure_advice_session_for(motie, current_user)
+            # notify griffie
+            _notify_advice_requested(motie, current_user)
+
+        # Versiegeschiedenis: nieuwe versie na bewerken
+        create_motie_version(motie, current_user)
+
         db.session.commit()
         flash("Motie bijgewerkt.", "success")
         return redirect(url_for('moties.bekijken', motie_id=motie.id))
 
     return render_form()
+
+@bp.route('/<int:motie_id>/advies_aanvragen', methods=['POST'])
+@login_and_active_required
+def advies_aanvragen(motie_id: int):
+    m = db.session.get(Motie, motie_id)
+    if not m:
+        abort(404)
+    if current_user.id != m.indiener_id and not current_user.has_role('superadmin'):
+        abort(403)
+    old = (m.status or '').lower()
+    m.status = 'Advies griffie'
+    if old != 'advies griffie':
+        ses = _ensure_advice_session_for(m, current_user)
+        _notify_advice_requested(m, current_user)
+    db.session.commit()
+    flash('Advies bij de griffie aangevraagd.', 'success')
+    return redirect(url_for('moties.bekijken', motie_id=m.id))
+
+# --- Indiener: advies review & accepteren ---
+@bp.route('/<int:motie_id>/advies', methods=['GET', 'POST'])
+@login_and_active_required
+def advies_review(motie_id: int):
+    m = db.session.get(Motie, motie_id)
+    if not m:
+        abort(404)
+    # Alleen primaire indiener mag reviewen
+    if current_user.id != m.indiener_id and not current_user.has_role('superadmin'):
+        flash('Alleen de indiener kan het advies reviewen.', 'danger')
+        return redirect(url_for('moties.bekijken', motie_id=m.id))
+
+    # Pak laatste advies-sessie
+    # Pak meest recente teruggestuurde advies-sessie expliciet
+    ses = (
+        AdviceSession.query
+        .filter(
+            AdviceSession.motie_id == m.id,
+            AdviceSession.status == 'returned'
+        )
+        .order_by(AdviceSession.returned_at.desc().nullslast(), AdviceSession.created_at.desc())
+        .first()
+    )
+    if not ses or not ses.draft:
+        flash('Er is nog geen advies beschikbaar.', 'warning')
+        return redirect(url_for('moties.bekijken', motie_id=m.id))
+
+    # Voor UI: vergelijk originele velden met draft
+    curr = _motie_snapshot(m)
+    draft = ses.draft or {}
+    fields_order = [
+        "titel",
+        "status",
+        "gemeenteraad_datum",
+        "agendapunt",
+        "constaterende_dat",
+        "overwegende_dat",
+        "opdracht_formulering",
+        "draagt_college_op",
+    ]
+    def _fmt(key, snap):
+        if key in ("constaterende_dat", "overwegende_dat", "draagt_college_op"):
+            vals = snap.get(key) or []
+            return "\n".join([f"• {v}" for v in vals])
+        if key == 'mede_indieners_ids':
+            # optioneel: namen ophalen, voor nu IDs
+            return ", ".join([str(x) for x in (snap.get(key) or [])])
+        return str(snap.get(key) or "")
+    items = []
+    for k in fields_order:
+        items.append({
+            'key': k,
+            'label': {
+                'titel': 'Titel',
+                'status': 'Status',
+                'gemeenteraad_datum': 'Vergaderdatum',
+                'agendapunt': 'Agendapunt',
+                'opdracht_formulering': 'Opdracht',
+                'constaterende_dat': 'Constaterende dat',
+                'overwegende_dat': 'Overwegende dat',
+                'draagt_college_op': 'Draagt het college op',
+                'mede_indieners_ids': 'Mede‑indieners',
+            }.get(k, k),
+            'old': _fmt(k, curr),
+            'new': _fmt(k, draft),
+            'changed': curr.get(k) != draft.get(k),
+        })
+
+    adv_comment = draft.get('advies_commentaar') if isinstance(draft, dict) else None
+    if request.method == 'POST':
+        action = request.form.get('action')
+        if action == 'accept':
+            # Schrijf draft naar motie velden
+            snap = draft
+            m.titel = snap.get('titel') or m.titel
+            m.constaterende_dat = snap.get('constaterende_dat') or []
+            m.overwegende_dat = snap.get('overwegende_dat') or []
+            m.draagt_college_op = snap.get('draagt_college_op') or []
+            m.opdracht_formulering = snap.get('opdracht_formulering') or m.opdracht_formulering
+            m.status = 'Klaar om in te dienen'
+            # mede‑indieners ids niet automatisch aanpassen in deze flow
+            create_motie_version(m, current_user)
+            # markeer sessie geaccepteerd
+            ses.status = 'accepted'
+            ses.accepted_at = dt.datetime.utcnow()
+            # Notify griffie (reviewer)
+            _notify_advice_accepted(m, current_user, ses)
+            db.session.commit()
+            flash('Advieswijzigingen geaccepteerd. Status gezet op "Klaar om in te dienen".', 'success')
+            return redirect(url_for('moties.bekijken', motie_id=m.id))
+        elif action == 'needs_changes':
+            m.status = 'Nog niet gereed'
+            db.session.commit()
+            flash('Status gezet op "Nog niet gereed". Je kunt verder bewerken of opnieuw advies vragen.', 'info')
+            return redirect(url_for('moties.bekijken', motie_id=m.id))
+
+    return render_template('moties/advies_review.html', motie=m, items=items, advies_commentaar=adv_comment)
+
+@bp.route('/<int:motie_id>/geschiedenis')
+@login_and_active_required
+def geschiedenis(motie_id: int):
+    motie = (
+        Motie.query
+        .options(selectinload(Motie.mede_indieners), selectinload(Motie.indiener))
+        .get_or_404(motie_id)
+    )
+    if not user_can_view_history(current_user, motie):
+        flash('Je mag de versiegeschiedenis van deze motie niet bekijken.', 'danger')
+        return redirect(url_for('moties.bekijken', motie_id=motie.id))
+
+    # Haal versies op en bereid timeline-items voor UI diffs
+    versies_all = (
+        MotieVersion.query
+        .filter(MotieVersion.motie_id == motie.id)
+        .order_by(MotieVersion.created_at.asc(), MotieVersion.id.asc())
+        .all()
+    )
+
+    # Map user-id -> naam voor weergave van mede-indieners
+    def _format_value(key: str, snap: dict, user_name_by_id: dict[int, str]) -> str:
+        v = snap.get(key) if snap else None
+        if key in ("constaterende_dat", "overwegende_dat", "draagt_college_op"):
+            items = v or []
+            if not isinstance(items, list):
+                return str(items) if items is not None else ""
+            lines = []
+            for it in items:
+                lines.append(f"• {it}")
+            return "\n".join(lines)
+        if key == "mede_indieners_ids":
+            ids = v or []
+            if not isinstance(ids, list):
+                return ""
+            names = [user_name_by_id.get(uid, f"User #{uid}") for uid in ids]
+            return ", ".join(names)
+        # strings / simpele waarden
+        return "" if v is None else str(v)
+
+    # Verzamel alle user-ids voor mede-indieners over alle versies
+    user_ids: set[int] = set()
+    for ver in versies_all:
+        try:
+            for uid in (ver.snapshot or {}).get("mede_indieners_ids", []) or []:
+                if isinstance(uid, int):
+                    user_ids.add(uid)
+        except Exception:
+            pass
+    users = User.query.filter(User.id.in_(user_ids)).all() if user_ids else []
+    user_name_by_id = {u.id: (u.naam or u.email or f"User #{u.id}") for u in users}
+
+    fields_order = [
+        "titel",
+        "status",
+        "gemeenteraad_datum",
+        "agendapunt",
+        "opdracht_formulering",
+        "constaterende_dat",
+        "overwegende_dat",
+        "draagt_college_op",
+        "mede_indieners_ids",
+    ]
+
+    timeline_items = []
+    prev_snap = None
+    for ver in versies_all:
+        curr = ver.snapshot or {}
+        changed = ver.changed_fields or []
+        # fallback berekening als changed_fields leeg is
+        if not changed:
+            changed = _diff_changed_fields(prev_snap, curr)
+        fields = []
+        for key in fields_order:
+            old_val = _format_value(key, prev_snap, user_name_by_id)
+            new_val = _format_value(key, curr, user_name_by_id)
+            fields.append({
+                "key": key,
+                "label": {
+                    "titel": "Titel",
+                    "status": "Status",
+                    "gemeenteraad_datum": "Vergaderdatum",
+                    "agendapunt": "Agendapunt",
+                    "opdracht_formulering": "Opdracht",
+                    "constaterende_dat": "Constaterende dat",
+                    "overwegende_dat": "Overwegende dat",
+                    "draagt_college_op": "Draagt het college op",
+                    "mede_indieners_ids": "Mede‑indieners",
+                }.get(key, key),
+                "old": old_val,
+                "new": new_val,
+                "changed": key in changed,
+            })
+        changed_labels = [f["label"] for f in fields if f["changed"]]
+        timeline_items.append({
+            "ver": ver,
+            "fields": fields,
+            "changed_keys": [k for k in fields_order if k in changed],
+            "changed_labels": changed_labels,
+        })
+        prev_snap = curr
+
+    # Nieuwste eerst in UI
+    timeline_items = list(reversed(timeline_items))
+
+    return render_template(
+        'moties/geschiedenis.html',
+        motie=motie,
+        timeline_items=timeline_items,
+        title=f"Versiegeschiedenis: {motie.titel}",
+        back_url=_safe_back_url('moties.bekijken')
+    )
 
 @bp.route('/<int:motie_id>/verwijderen', methods=['POST', 'GET'])
 @login_and_active_required

@@ -1,0 +1,97 @@
+{% extends 'base.html' %}
+{% block content %}
+  <div class="sticky top-[var(--nav-h)] page-chrome-low bg-white/90 pt-4 backdrop-blur border-b print:hidden">
+    <div class="mx-auto max-w-7xl px-4 py-2 flex items-center gap-2">
+      <a href="{{ url_for('moties.bekijken', motie_id=motie.id) }}"
+         class="inline-flex items-center gap-2 rounded-lg border px-3 py-1.5 text-sm hover:bg-gray-50">
+        <i class="fa fa-arrow-left text-gray-600"></i>
+        <span class="hidden sm:inline">Terug</span>
+      </a>
+      <div class="flex-1 min-w-0">
+        <div class="truncate text-sm text-gray-500">Adviesvoorstel</div>
+        <h1 class="truncate text-base sm:text-lg font-semibold">{{ motie.titel }}</h1>
+      </div>
+    </div>
+  </div>
+
+  <main class="mx-auto max-w-7xl px-2 sm:px-4 md:px-6 py-6">
+    <div class="grid grid-cols-1 lg:grid-cols-12 gap-6 lg:gap-8">
+      <section class="lg:col-span-8">
+        {% if advies_commentaar %}
+          <div class="mb-6 rounded-xl border-l-4 border-amber-500 bg-amber-50 p-4 lg:hidden">
+            <div class="flex items-start gap-3">
+              <div class="text-amber-600 pt-0.5"><i class="fa-solid fa-comment-dots"></i></div>
+              <div class="min-w-0">
+                <div class="text-sm font-semibold text-amber-800">Algemeen commentaar van de griffie</div>
+                <div class="mt-1 text-xs text-amber-700">Dit is toelichting/advies, geen tekstuele wijziging van de motie.</div>
+                <div class="mt-3 text-sm text-amber-900 whitespace-pre-wrap break-words">{{ advies_commentaar }}</div>
+              </div>
+            </div>
+          </div>
+        {% else %}
+          <div class="mb-6 rounded-xl border-l-4 border-gray-300 bg-gray-50 p-4 lg:hidden">
+            <div class="flex items-start gap-3">
+              <div class="text-gray-500 pt-0.5"><i class="fa-regular fa-comment"></i></div>
+              <div class="min-w-0">
+                <div class="text-sm font-semibold text-gray-700">Geen algemeen commentaar</div>
+                <div class="mt-1 text-xs text-gray-600">De griffie heeft geen extra toelichting toegevoegd.</div>
+              </div>
+            </div>
+          </div>
+        {% endif %}
+        <div class="space-y-4">
+          {% for f in items %}
+            <div class="rounded-xl border bg-white shadow-sm">
+              <div class="px-4 py-2 border-b flex items-center justify-between">
+                <div class="text-sm font-semibold">{{ f.label }}</div>
+                {% if f.changed %}<span class="text-xs text-amber-700 bg-amber-50 border border-amber-200 px-2 py-0.5 rounded-full">Gewijzigd</span>{% endif %}
+              </div>
+              <div class="grid grid-cols-1 md:grid-cols-2">
+                <div class="p-3 border-r">
+                  <div class="text-xs text-gray-500 mb-1">Huidig</div>
+                  <div class="text-sm whitespace-pre-wrap break-words">{{ f.old }}</div>
+                </div>
+                <div class="p-3">
+                  <div class="text-xs text-gray-500 mb-1">Voorstel</div>
+                  <div class="text-sm whitespace-pre-wrap break-words">{{ f.old|trackdiff(f.new) }}</div>
+                </div>
+              </div>
+            </div>
+          {% endfor %}
+        </div>
+        <form method="post" class="mt-6 flex items-center gap-3">
+          <button name="action" value="accept" class="inline-flex items-center gap-2 rounded-lg bg-green-600 text-white px-3 py-1.5 text-sm hover:bg-green-700">
+            <i class="fa fa-check"></i><span>Accepteer wijzigingen</span>
+          </button>
+          <button name="action" value="needs_changes" class="inline-flex items-center gap-2 rounded-lg border px-3 py-1.5 text-sm hover:bg-gray-50">
+            <i class="fa fa-pencil"></i><span>Meer wijzigingen nodig</span>
+          </button>
+        </form>
+      </section>
+      <aside class="lg:col-span-4 hidden lg:block">
+        {% if advies_commentaar %}
+          <div class="rounded-xl border-l-4 border-amber-500 bg-amber-50 p-4 sticky top-20">
+            <div class="flex items-start gap-3">
+              <div class="text-amber-600 pt-0.5"><i class="fa-solid fa-comment-dots"></i></div>
+              <div class="min-w-0">
+                <div class="text-sm font-semibold text-amber-800">Algemeen commentaar van de griffie</div>
+                <div class="mt-1 text-xs text-amber-700">Dit is toelichting/advies, geen tekstuele wijziging van de motie.</div>
+                <div class="mt-3 text-sm text-amber-900 whitespace-pre-wrap break-words">{{ advies_commentaar }}</div>
+              </div>
+            </div>
+          </div>
+        {% else %}
+          <div class="rounded-xl border-l-4 border-gray-300 bg-gray-50 p-4 sticky top-20">
+            <div class="flex items-start gap-3">
+              <div class="text-gray-500 pt-0.5"><i class="fa-regular fa-comment"></i></div>
+              <div class="min-w-0">
+                <div class="text-sm font-semibold text-gray-700">Geen algemeen commentaar</div>
+                <div class="mt-1 text-xs text-gray-600">De griffie heeft geen extra toelichting toegevoegd.</div>
+              </div>
+            </div>
+          </div>
+        {% endif %}
+      </aside>
+    </div>
+  </main>
+{% endblock %}

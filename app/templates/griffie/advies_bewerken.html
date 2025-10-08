@@ -1,0 +1,235 @@
+{% extends 'base.html' %}
+{% block content %}
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/flowbite/2.5.2/flowbite.min.js" defer></script>
+  <div class="sticky top-[var(--nav-h)] page-chrome-low bg-white/90 pt-4 backdrop-blur border-b print:hidden">
+    <div class="mx-auto max-w-7xl px-4 py-2 flex items-center gap-2">
+      <a href="{{ url_for('griffie.advies_inbox') }}"
+         class="inline-flex items-center gap-2 rounded-lg border px-3 py-1.5 text-sm hover:bg-gray-50">
+        <i class="fa fa-arrow-left text-gray-600"></i>
+        <span class="hidden sm:inline">Terug</span>
+      </a>
+      <div class="flex-1 min-w-0">
+        <div class="truncate text-sm text-gray-500">Advies op motie</div>
+        <h1 class="truncate text-base sm:text-lg font-semibold">{{ motie.titel }}</h1>
+      </div>
+      <div class="hidden md:flex items-center gap-2"></div>
+    </div>
+  </div>
+
+  <main class="mx-auto max-w-7xl px-2 sm:px-4 md:px-6 py-6">
+    <div class="grid grid-cols-1 lg:grid-cols-12 gap-6 lg:gap-8">
+      <section class="lg:col-span-7">
+        <div class="space-y-4">
+          {% for f in items %}
+            <div class="rounded-xl border bg-white shadow-sm">
+              <div class="px-4 py-2 border-b flex items-center justify-between">
+                <div class="text-sm font-semibold">{{ f.label }}</div>
+                <div class="text-xs text-gray-500">Wijzigingen worden visueel gevolgd</div>
+              </div>
+              <div class="grid grid-cols-1 md:grid-cols-2">
+                <div class="p-3 border-r">
+                  <div class="text-xs text-gray-500 mb-1">Huidig</div>
+                  <div class="text-sm whitespace-pre-wrap break-words">{{ f.old }}</div>
+                </div>
+                <div class="p-3">
+                  <div class="text-xs text-gray-500 mb-1">Voorstel</div>
+                  <div class="text-sm whitespace-pre-wrap break-words" id="preview-{{ f.key }}">{{ f.old|trackdiff(f.new) }}</div>
+                </div>
+              </div>
+            </div>
+          {% endfor %}
+        </div>
+      </section>
+      <aside class="lg:col-span-5">
+        <form method="post" class="space-y-4 bg-white p-4 rounded-xl border shadow-sm" id="advies-form">
+          <div>
+            <label class="text-sm font-medium text-gray-700">Datum raadsvergadering</label>
+            <input type="text" name="gemeenteraad_datum" id="fld-datum" value="{{ sessie.draft.gemeenteraad_datum or motie.gemeenteraad_datum }}" class="mt-1 block w-full rounded-lg border px-3 py-2">
+          </div>
+          <div>
+            <label class="text-sm font-medium text-gray-700">Agendapunt</label>
+            <input type="text" name="agendapunt" id="fld-agendapunt" value="{{ sessie.draft.agendapunt or motie.agendapunt }}" class="mt-1 block w-full rounded-lg border px-3 py-2">
+          </div>
+          <div>
+            <label class="text-sm font-medium text-gray-700">Titel</label>
+            <input type="text" name="titel" id="fld-titel" value="{{ sessie.draft.titel or motie.titel }}" class="mt-1 block w-full rounded-lg border px-3 py-2">
+          </div>
+          <section>
+            <label class="text-sm font-medium text-gray-700">Constaterende dat</label>
+            <div id="list-constaterende" class="space-y-2 mt-1"></div>
+            <input type="hidden" name="constaterende_dat_json" id="json-constaterende">
+          </section>
+          <section>
+            <label class="text-sm font-medium text-gray-700">Overwegende dat</label>
+            <div id="list-overwegende" class="space-y-2 mt-1"></div>
+            <input type="hidden" name="overwegende_dat_json" id="json-overwegende">
+          </section>
+          <section>
+            <label class="text-sm font-medium text-gray-700">Draagt het college op</label>
+            <div id="list-draagt" class="space-y-2 mt-1"></div>
+            <input type="hidden" name="draagt_json" id="json-draagt">
+          </section>
+          <div>
+            <label class="text-sm font-medium text-gray-700">Opdracht</label>
+            <textarea name="opdracht_formulering" id="fld-opdracht" rows="4" class="mt-1 block w-full rounded-lg border px-3 py-2">{{ sessie.draft.opdracht_formulering or motie.opdracht_formulering }}</textarea>
+          </div>
+          <div>
+            <label class="text-sm font-medium text-gray-700">Algemeen commentaar</label>
+            <textarea name="advies_commentaar" id="fld-comment" rows="3" class="mt-1 block w-full rounded-lg border px-3 py-2">{{ sessie.draft.advies_commentaar or '' }}</textarea>
+          </div>
+          <div class="flex items-center justify-between pt-2">
+            <div class="text-xs text-gray-500">Reviewer: {{ reviewer.naam if reviewer else 'geen' }}</div>
+            <div class="flex items-center gap-2">
+              <a href="{{ url_for('griffie.advies_bewerken', motie_id=motie.id, claim=1) }}" class="inline-flex items-center gap-2 rounded-lg border px-3 py-1.5 text-sm hover:bg-gray-50">
+                <i class="fa fa-hand"></i><span>Claim</span>
+              </a>
+              <button class="inline-flex items-center gap-2 rounded-lg bg-blue-600 text-white px-3 py-1.5 text-sm hover:bg-blue-700">
+                <i class="fa fa-save"></i><span>Opslaan</span>
+              </button>
+              <button name="action" value="send" class="inline-flex items-center gap-2 rounded-lg bg-gray-900 text-white px-3 py-1.5 text-sm hover:bg-black">
+                <i class="fa fa-paper-plane"></i><span>Advies terugsturen</span>
+              </button>
+            </div>
+          </div>
+        </form>
+        <form method="post" action="{{ url_for('griffie.advies_toewijzen', motie_id=motie.id) }}" class="mt-4 bg-white p-4 rounded-xl border shadow-sm">
+          <div class="text-sm font-semibold mb-2">Toewijzen aan collega</div>
+          <select name="reviewer_id" class="w-full rounded-lg border px-3 py-2">
+            {% for u in users if false %}{% endfor %}
+            {% for u in ( [] + (users_griffie if users_griffie is defined else []) ) %}
+              <option value="{{ u.id }}">{{ u.naam }}</option>
+            {% endfor %}
+          </select>
+          <div class="text-right mt-3">
+            <button class="inline-flex items-center gap-2 rounded-lg border px-3 py-1.5 text-sm hover:bg-gray-50">
+              <i class="fa fa-user-plus"></i><span>Toewijzen</span>
+            </button>
+          </div>
+        </form>
+      </aside>
+    </div>
+  </main>
+  <script>
+    // Dynamische lijsten (zoals in moties-editor)
+    function setupDynamicList({containerId, hiddenId, initial = []}) {
+      const container = document.getElementById(containerId);
+      const hidden = document.getElementById(hiddenId);
+      function rowTemplate(val="") {
+        const div = document.createElement("div");
+        div.className = "flex gap-2";
+        div.innerHTML = `
+          <input type="text" class="flex-1 rounded-md border border-gray-300 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-gray-900" value="${(val ?? "").replace(/"/g, "&quot;")}">
+          <button type="button" class="px-3 py-2 rounded-md border border-gray-300 hover:bg-gray-50 remove" aria-label="Verwijderen">−</button>
+        `;
+        const input = div.querySelector("input");
+        const removeBtn = div.querySelector(".remove");
+        input.addEventListener("input", () => { maybeAddBlank(); syncHidden(); updatePreview(); });
+        input.addEventListener("blur", () => { pruneExtraBlanks(); ensureTrailingBlank(); syncHidden(); updatePreview(); });
+        removeBtn.addEventListener("click", () => { div.remove(); ensureTrailingBlank(); syncHidden(); updatePreview(); });
+        return div;
+      }
+      function ensureTrailingBlank() {
+        const inputs = container.querySelectorAll("input");
+        if (inputs.length === 0 || inputs[inputs.length - 1].value.trim() !== "") {
+          container.appendChild(rowTemplate(""));
+        }
+      }
+      function maybeAddBlank() {
+        const inputs = container.querySelectorAll("input");
+        if (inputs.length && inputs[inputs.length - 1].value.trim() !== "") {
+          container.appendChild(rowTemplate(""));
+        }
+      }
+      function pruneExtraBlanks() {
+        const inputs = Array.from(container.querySelectorAll("input"));
+        inputs.slice(0, -1).forEach(inp => { if (inp.value.trim() === "") inp.parentElement.remove(); });
+      }
+      function syncHidden() {
+        const values = Array.from(container.querySelectorAll("input")).map(i => i.value.trim()).filter(v => v !== "");
+        hidden.value = JSON.stringify(values);
+      }
+      // init
+      container.innerHTML = "";
+      const seed = (initial && initial.length) ? [...initial, ""] : [""];
+      seed.forEach(v => container.appendChild(rowTemplate(v)));
+      ensureTrailingBlank();
+      syncHidden();
+      return { syncHidden };
+    }
+
+    function renderList(list){
+      if (!list || !list.length) return '';
+      return list.map(x => `• ${x}`).join('\n');
+    }
+
+    function updatePreview(){
+      const title = document.getElementById('fld-titel')?.value || '';
+      const opdracht = document.getElementById('fld-opdracht')?.value || '';
+      const datum = document.getElementById('fld-datum')?.value || '';
+      const agp = document.getElementById('fld-agendapunt')?.value || '';
+      const c = JSON.parse(document.getElementById('json-constaterende')?.value || '[]');
+      const o = JSON.parse(document.getElementById('json-overwegende')?.value || '[]');
+      const d = JSON.parse(document.getElementById('json-draagt')?.value || '[]');
+      const map = {
+        'titel': title,
+        'opdracht_formulering': opdracht,
+        'gemeenteraad_datum': datum,
+        'agendapunt': agp,
+        'constaterende_dat': renderList(c),
+        'overwegende_dat': renderList(o),
+        'draagt_college_op': renderList(d),
+      };
+      // Baseline = originele motie inhoud
+      const base = {
+        'titel': {{ (motie.titel or '') | tojson }},
+        'opdracht_formulering': {{ (motie.opdracht_formulering or '') | tojson }},
+        'gemeenteraad_datum': {{ (motie.gemeenteraad_datum or '') | tojson }},
+        'agendapunt': {{ (motie.agendapunt or '') | tojson }},
+        'constaterende_dat': ({{ (motie.constaterende_dat or []) | tojson | safe }}).map(x => `• ${x}`).join('\n'),
+        'overwegende_dat': ({{ (motie.overwegende_dat or []) | tojson | safe }}).map(x => `• ${x}`).join('\n'),
+        'draagt_college_op': ({{ (motie.draagt_college_op or []) | tojson | safe }}).map(x => `• ${x}`).join('\n'),
+      };
+      function tokenize(s){ return (s||'').match(/\w+|\s+|[^\w\s]/gu) || []; }
+      function lcsDiff(A,B){
+        const n=A.length, m=B.length; const dp=Array.from({length:n+1},()=>Array(m+1).fill(0));
+        for(let i=n-1;i>=0;i--){ for(let j=m-1;j>=0;j--){ dp[i][j]=A[i]===B[j]?dp[i+1][j+1]+1:Math.max(dp[i+1][j],dp[i][j+1]); }}
+        const ops=[]; let i=0,j=0; while(i<n && j<m){ if(A[i]===B[j]){ ops.push(['eq',A[i++] ]); j++; } else if(dp[i+1][j]>=dp[i][j+1]){ ops.push(['del',A[i++]]);} else { ops.push(['ins',B[j++]]);} }
+        while(i<n) ops.push(['del',A[i++]]); while(j<m) ops.push(['ins',B[j++]]); return ops;
+      }
+      function diffHtml(oldText, newText){
+        const A=tokenize(oldText), B=tokenize(newText); const ops=lcsDiff(A,B);
+        let out='', delBuf='', insBuf='';
+        const flush=()=>{ if(delBuf){ out+=`<del class=\"tc-del\">${delBuf}</del>`; delBuf=''; } if(insBuf){ out+=`<ins class=\"tc-ins\">${insBuf}</ins>`; insBuf=''; } };
+        for(const [op,tok] of ops){ if(op==='eq'){ flush(); out+=tok; } else if(op==='del'){ delBuf+=tok; } else { insBuf+=tok; } }
+        flush(); return out;
+      }
+      Object.entries(map).forEach(([k,val]) => {
+        const el = document.getElementById('preview-'+k);
+        if (el){ el.innerHTML = diffHtml(base[k] || '', val || ''); }
+      });
+    }
+
+    document.addEventListener('DOMContentLoaded', () => {
+      // init dynamic lists from server values
+      const initC = {{ (sessie.draft.constaterende_dat or motie.constaterende_dat or []) | tojson | safe }};
+      const initO = {{ (sessie.draft.overwegende_dat or motie.overwegende_dat or []) | tojson | safe }};
+      const initD = {{ (sessie.draft.draagt_college_op or motie.draagt_college_op or []) | tojson | safe }};
+      const L1 = setupDynamicList({ containerId: 'list-constaterende', hiddenId: 'json-constaterende', initial: initC });
+      const L2 = setupDynamicList({ containerId: 'list-overwegende', hiddenId: 'json-overwegende', initial: initO });
+      const L3 = setupDynamicList({ containerId: 'list-draagt', hiddenId: 'json-draagt', initial: initD });
+
+      // text inputs live update
+      ['fld-titel','fld-opdracht','fld-datum','fld-agendapunt'].forEach(id => {
+        const el = document.getElementById(id);
+        if (el) el.addEventListener('input', updatePreview);
+      });
+
+      // ensure hidden sync on submit
+      document.getElementById('advies-form')?.addEventListener('submit', () => {
+        L1?.syncHidden(); L2?.syncHidden(); L3?.syncHidden();
+      });
+
+      updatePreview();
+    });
+  </script>
+{% endblock %}

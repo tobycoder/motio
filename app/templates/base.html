@@ -182,13 +182,19 @@
                 {% set _notifs = (notifications if notifications is defined else []) %}
                 {% for n in _notifs[:10] %}
                     <li>
-                    <a href="{% if n.motie_id %}
-            {{ url_for('gebruikers.open',
-                       notification_id=n.id,
-                       next=url_for('moties.bekijken', motie_id=n.motie_id)) }}
-         {% else %}
-            {{ url_for('gebruikers.open', notification_id=n.id) }}
-         {% endif %}"
+                    {% set _target = None %}
+                    {% if n.motie_id %}
+                        {% if n.type == 'advice_requested' %}
+                            {% set _target = url_for('griffie.advies_bewerken', motie_id=n.motie_id) %}
+                        {% elif n.type == 'advice_returned' %}
+                            {% set _target = url_for('moties.advies_review', motie_id=n.motie_id) %}
+                        {% elif n.type == 'advice_accepted' %}
+                            {% set _target = url_for('griffie.advies_inbox') %}
+                        {% else %}
+                            {% set _target = url_for('moties.bekijken', motie_id=n.motie_id) %}
+                        {% endif %}
+                    {% endif %}
+                    <a href="{% if _target %}{{ url_for('gebruikers.open', notification_id=n.id, next=_target) }}{% else %}{{ url_for('gebruikers.open', notification_id=n.id) }}{% endif %}"
                         class="flex gap-3 px-4 py-3 hover:bg-gray-50 dark:hover:bg-gray-700 {% if not n.read_at %}bg-blue-50/50 dark:bg-blue-900/20{% endif %}">
                         <div class="pt-0.5">
                         {% if n.type == 'share_received' %}
@@ -197,6 +203,12 @@
                             <i class="fa-solid fa-user-xmark"></i>
                         {% elif n.type == 'coauthor_added' %}
                             <i class="fa-solid fa-pen-to-square"></i>
+                        {% elif n.type == 'advice_requested' %}
+                            <i class="fa-solid fa-clipboard-list"></i>
+                        {% elif n.type == 'advice_returned' %}
+                            <i class="fa-solid fa-comments"></i>
+                        {% elif n.type == 'advice_accepted' %}
+                            <i class="fa-solid fa-check"></i>
                         {% else %}
                             <i class="fa-regular fa-bell"></i>
                         {% endif %}
@@ -206,6 +218,9 @@
                             {% if n.type == 'share_received' %}Motie met jou gedeeld door {{ n.payload.afzender_naam }}
                             {% elif n.type == 'share_revoked' %}Toegang ingetrokken {{ n.payload.revoked_by_naam }}
                             {% elif n.type == 'coauthor_added' %}Toegevoegd als mede-indiener
+                            {% elif n.type == 'advice_requested' %}Advies aangevraagd door {{ n.payload.requested_by_naam }}
+                            {% elif n.type == 'advice_returned' %}Advies teruggestuurd door {{ n.payload.reviewer_naam }}
+                            {% elif n.type == 'advice_accepted' %}Advies geaccepteerd door {{ n.payload.accepted_by_naam }}
                             {% else %}Notificatie{% endif %}
                         </p>
                         <p class="text-gray-600 dark:text-gray-300 truncate">
@@ -335,8 +350,34 @@
                             <ul class="py-2 text-sm text-gray-700 dark:text-gray-400"
                                 aria-labelledby="dropdownLargeButton">
                                 <li>
+                                    <a href="{{ url_for('griffie.dashboard_view') }}"
+                                       class="block px-4 py-2 hover:bg-gray-100 dark:hover:bg-gray-600 dark:hover:text-white">Dashboard</a>
+                                </li>
+                                <li>
                                     <a href="{{ url_for('griffie.jaarplanning') }}"
                                         class="block px-4 py-2 hover:bg-gray-100 dark:hover:bg-gray-600 dark:hover:text-white">Jaarplanning</a>
+                                </li>
+                                <li>
+                                    <a href="{{ url_for('griffie.dashboard_builder') }}"
+                                       class="block px-4 py-2 hover:bg-gray-100 dark:hover:bg-gray-600 dark:hover:text-white">Dashboard indelen</a>
+                                </li>
+                                <li>
+                                    <a href="{{ url_for('griffie.advies_inbox') }}"
+                                       class="block px-4 py-2 hover:bg-gray-100 dark:hover:bg-gray-600 dark:hover:text-white flex items-center gap-2">
+                                        <span>Advies</span>
+                                        {% if griffie_advice_count|default(0) > 0 %}
+                                          <span class="ml-auto inline-flex items-center justify-center min-w-[1.1rem] h-4 px-1 text-[10px] font-semibold text-white bg-blue-600 rounded-full">{{ griffie_advice_count }}</span>
+                                        {% endif %}
+                                    </a>
+                                </li>
+                                <li>
+                                    <a href="{{ url_for('griffie.indienen_index') }}"
+                                       class="block px-4 py-2 hover:bg-gray-100 dark:hover:bg-gray-600 dark:hover:text-white flex items-center gap-2">
+                                        <span>Indienen</span>
+                                        {% if griffie_submit_count|default(0) > 0 %}
+                                          <span class="ml-auto inline-flex items-center justify-center w-2 h-2 bg-red-600 rounded-full"></span>
+                                        {% endif %}
+                                    </a>
                                 </li>
                             </ul>
                         </div>

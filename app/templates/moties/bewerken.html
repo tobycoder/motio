@@ -43,6 +43,12 @@
                 </a>
               </li>
               <li>
+                <a href="{{ url_for('moties.geschiedenis', motie_id=motie.id) }}"
+                   class="block px-4 py-2 hover:bg-gray-50">
+                  <i class="fa fa-clock-o mr-2"></i>Versiegeschiedenis
+                </a>
+              </li>
+              <li>
                 <a href="{{ url_for('moties.export_motie_docx', motie_id=motie.id) }}"
                    class="block px-4 py-2 hover:bg-gray-50">
                   <i class="fa fa-download mr-2"></i>Exporteer
@@ -128,10 +134,12 @@
               <label class="block text-sm font-medium text-gray-700">Status</label>
               <select name="status"
                       class="w-full bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 p-2.5">
-                {% set s = (motie.status or 'Privé') %}
-                <option value="Privé" {{ 'selected' if s=='Privé' else '' }}>Privé</option>
-                <option value="Delen met griffie" {{ 'selected' if s=='Delen met griffie' else '' }}>Delen met griffie</option>
-                <option value="Publiek" {{ 'selected' if s=='Publiek' else '' }}>Publiek</option>
+                {% set s = (motie.status or 'concept') %}
+                {% set s_lower = s|lower %}
+                <option value="Concept" {{ 'selected' if s_lower=='concept' else '' }}>Concept</option>
+                <option value="Advies griffie" {{ 'selected' if s_lower=='advies griffie' else '' }}>Advies griffie</option>
+                <option value="Geadviseerd" {{ 'selected' if s_lower=='geadviseerd' else '' }}>Geadviseerd</option>
+                <option value="Klaar om in te dienen" {{ 'selected' if s_lower=='klaar om in te dienen' else '' }}>Klaar om in te dienen</option>
               </select>
             </div>
 

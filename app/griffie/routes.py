@@ -1,9 +1,17 @@
 # jaarplanning.py
 import io
+import json
 import re
 from datetime import datetime
 from zoneinfo import ZoneInfo
 from app.griffie import bp
+from flask_login import current_user
+from app.auth.utils import login_and_active_required, roles_required
+from app.models import Motie, AdviceSession, User, Notification, DashboardLayout
+from app import db, send_email
+import datetime as dt
+from sqlalchemy.orm import selectinload
+from flask import abort
 import pandas as pd
 from flask import Blueprint, render_template, request, send_file, flash, redirect, url_for
 from werkzeug.utils import secure_filename
@@ -257,3 +265,267 @@ def jaarplanning():
         # Voor de gebruiker: duidelijke foutmelding
         flash(f"Er ging iets mis bij het verwerken van het bestand: {e}", "error")
         return redirect(url_for("griffie.jaarplanning"))
+
+
+# ===== Griffie advies: inbox & editor =====
+
+@bp.route('/advies')
+@login_and_active_required
+@roles_required('griffie')
+def advies_inbox():
+    moties = (
+        Motie.query
+        .options(selectinload(Motie.indiener))
+        .filter(Motie.status.ilike('Advies griffie'))
+        .order_by(Motie.updated_at.desc())
+        .all()
+    )
+    sessions = {s.motie_id: s for s in AdviceSession.query.filter(AdviceSession.motie_id.in_([m.id for m in moties])).order_by(AdviceSession.created_at.desc()).all()} if moties else {}
+    reviewer_ids = [s.reviewer_id for s in sessions.values() if getattr(s, 'reviewer_id', None)] if sessions else []
+    reviewers = {u.id: u for u in (User.query.filter(User.id.in_(reviewer_ids)).all() if reviewer_ids else [])}
+    return render_template('griffie/advies_inbox.html', moties=moties, sessions=sessions, reviewers=reviewers)
+
+
+@bp.route('/advies/<int:motie_id>', methods=['GET', 'POST'])
+@login_and_active_required
+@roles_required('griffie')
+def advies_bewerken(motie_id: int):
+    m = Motie.query.get_or_404(motie_id)
+    if (m.status or '').lower() != 'advies griffie':
+        flash('Deze motie staat niet in adviesmodus.', 'warning')
+        return redirect(url_for('griffie.advies_inbox'))
+    ses = (
+        AdviceSession.query
+        .filter(AdviceSession.motie_id == m.id)
+        .order_by(AdviceSession.created_at.desc())
+        .first()
+    )
+    if not ses:
+        ses = AdviceSession(motie_id=m.id, requested_by_id=m.indiener_id, status='requested', draft={})
+        db.session.add(ses)
+        db.session.commit()
+
+    # Claim? (via query param ?claim=1)
+    if request.args.get('claim') == '1' and (ses.reviewer_id is None or ses.reviewer_id == current_user.id):
+        ses.reviewer_id = current_user.id
+        ses.status = 'in_progress'
+        db.session.commit()
+
+    # Opslaan wijzigingen in draft
+    if request.method == 'POST':
+        # Bouw een nieuw dict-object zodat JSON change tracking werkt
+        # Neem bestaand commentaar mee als het niet uit het formulier komt
+        _incoming_comment = request.form.get('advies_commentaar')
+        _prev_comment = (ses.draft or {}).get('advies_commentaar') if isinstance(ses.draft, dict) else None
+        new_draft = {
+            'titel': (request.form.get('titel') or '').strip() or m.titel,
+            'constaterende_dat': json.loads(request.form.get('constaterende_dat_json') or '[]'),
+            'overwegende_dat': json.loads(request.form.get('overwegende_dat_json') or '[]'),
+            'draagt_college_op': json.loads(request.form.get('draagt_json') or '[]'),
+            'opdracht_formulering': request.form.get('opdracht_formulering') or m.opdracht_formulering,
+            'status': m.status,
+            'gemeenteraad_datum': request.form.get('gemeenteraad_datum') or m.gemeenteraad_datum,
+            'agendapunt': request.form.get('agendapunt') or m.agendapunt,
+            'advies_commentaar': (_incoming_comment if _incoming_comment is not None else (_prev_comment or '')),
+        }
+        ses.draft = new_draft
+        if ses.reviewer_id is None:
+            ses.reviewer_id = current_user.id
+        action = request.form.get('action')
+        if action == 'send':
+            m.status = 'Geadviseerd'
+            ses.status = 'returned'
+            ses.returned_at = dt.datetime.utcnow()
+            from app.moties.routes import _notify_advice_returned
+            _notify_advice_returned(m, current_user)
+            db.session.commit()
+            flash('Advies teruggestuurd naar indiener.', 'success')
+            return redirect(url_for('griffie.advies_inbox'))
+        else:
+            ses.status = 'in_progress'
+            db.session.commit()
+            flash('Adviesconcept opgeslagen.', 'success')
+            return redirect(url_for('griffie.advies_bewerken', motie_id=m.id))
+
+    # UI diffs
+    from app.moties.routes import _motie_snapshot  # reuse function
+    curr = _motie_snapshot(m)
+    draft = ses.draft or curr
+    def fmt_list(lst):
+        return "\n".join([f"• {x}" for x in (lst or [])])
+    items = [
+        { 'label': 'Titel', 'old': curr.get('titel') or '', 'new': draft.get('titel') or '', 'key': 'titel' },
+        { 'label': 'Vergaderdatum', 'old': curr.get('gemeenteraad_datum') or '', 'new': draft.get('gemeenteraad_datum') or '', 'key': 'gemeenteraad_datum' },
+        { 'label': 'Agendapunt', 'old': curr.get('agendapunt') or '', 'new': draft.get('agendapunt') or '', 'key': 'agendapunt' },
+        { 'label': 'Constaterende dat', 'old': fmt_list(curr.get('constaterende_dat')), 'new': fmt_list(draft.get('constaterende_dat')), 'key': 'constaterende_dat' },
+        { 'label': 'Overwegende dat', 'old': fmt_list(curr.get('overwegende_dat')), 'new': fmt_list(draft.get('overwegende_dat')), 'key': 'overwegende_dat' },
+        { 'label': 'Draagt het college op', 'old': fmt_list(curr.get('draagt_college_op')), 'new': fmt_list(draft.get('draagt_college_op')), 'key': 'draagt_college_op' },
+        { 'label': 'Opdracht', 'old': curr.get('opdracht_formulering') or '', 'new': draft.get('opdracht_formulering') or '', 'key': 'opdracht_formulering' },
+    ]
+    reviewer = User.query.get(ses.reviewer_id) if ses.reviewer_id else None
+    users_griffie = User.query.filter(User.actief.is_(True)).all()
+    users_griffie = [u for u in users_griffie if u.has_role('griffie') or u.has_role('superadmin')]
+    return render_template('griffie/advies_bewerken.html', motie=m, sessie=ses, reviewer=reviewer, items=items, users_griffie=users_griffie)
+
+
+@bp.route('/advies/<int:motie_id>/assign', methods=['POST'])
+@login_and_active_required
+@roles_required('griffie')
+def advies_toewijzen(motie_id: int):
+    m = Motie.query.get_or_404(motie_id)
+    ses = AdviceSession.query.filter(AdviceSession.motie_id == m.id).order_by(AdviceSession.created_at.desc()).first()
+    if not ses:
+        abort(404)
+    uid = request.form.get('reviewer_id')
+    try:
+        uid = int(uid)
+    except Exception:
+        flash('Ongeldige toewijzing.', 'danger')
+        return redirect(url_for('griffie.advies_bewerken', motie_id=m.id))
+    user = User.query.get(uid)
+    if not user or not user.has_role('griffie', 'superadmin'):
+        flash('Alleen griffie/superadmin kan worden toegewezen.', 'danger')
+        return redirect(url_for('griffie.advies_bewerken', motie_id=m.id))
+    ses.reviewer_id = user.id
+    if ses.status == 'requested':
+        ses.status = 'in_progress'
+    db.session.commit()
+    flash('Toegewezen.', 'success')
+    return redirect(url_for('griffie.advies_bewerken', motie_id=m.id))
+
+
+@bp.route('/advies/<int:motie_id>/klaar', methods=['POST'])
+@login_and_active_required
+@roles_required('griffie')
+def advies_klaar(motie_id: int):
+    m = Motie.query.get_or_404(motie_id)
+    ses = AdviceSession.query.filter(AdviceSession.motie_id == m.id).order_by(AdviceSession.created_at.desc()).first()
+    if not ses:
+        abort(404)
+    m.status = 'Geadviseerd'
+    ses.status = 'returned'
+    ses.returned_at = dt.datetime.utcnow()
+    # notify indiener (maak eerst notification aan, commit daarna)
+    from app.moties.routes import _notify_advice_returned
+    _notify_advice_returned(m, current_user)
+    db.session.commit()
+    flash('Advies teruggestuurd naar indiener.', 'success')
+    return redirect(url_for('griffie.advies_inbox'))
+
+
+# ===== Griffie indienen-pagina =====
+@bp.route('/indienen')
+@login_and_active_required
+@roles_required('griffie')
+def indienen_index():
+    moties = (
+        Motie.query
+        .filter(Motie.status.ilike('Klaar om in te dienen'))
+        .order_by(Motie.updated_at.desc())
+        .all()
+    )
+    return render_template('griffie/indienen.html', moties=moties)
+
+
+# ===== Griffie dashboard (drag & drop) =====
+@bp.route('/dashboard', methods=['GET'])
+@login_and_active_required
+@roles_required('griffie')
+def dashboard_builder():
+    cfg = (
+        DashboardLayout.query
+        .filter(DashboardLayout.user_id == current_user.id, DashboardLayout.context == 'griffie')
+        .first()
+    )
+    # Standaard widgets lay-out
+    default_layout = {
+        "widgets": [
+            {"id": "to_advise", "title": "Te adviseren", "x": 0, "y": 0, "w": 6, "h": 4},
+            {"id": "ready_submit", "title": "Klaar om in te dienen", "x": 6, "y": 0, "w": 6, "h": 4},
+            {"id": "my_claims", "title": "Mijn claims", "x": 0, "y": 4, "w": 6, "h": 3},
+            {"id": "stats", "title": "Statistiek", "x": 6, "y": 4, "w": 6, "h": 3},
+        ]
+    }
+    layout = cfg.layout if cfg and cfg.layout else default_layout
+    return render_template('griffie/dashboard_builder.html', layout=layout)
+
+
+@bp.route('/dashboard/save', methods=['POST'])
+@login_and_active_required
+@roles_required('griffie')
+def dashboard_save():
+    data = request.get_json(silent=True) or {}
+    if not isinstance(data, dict) or 'widgets' not in data:
+        return {"ok": False, "error": "Ongeldig formaat"}, 400
+    cfg = (
+        DashboardLayout.query
+        .filter(DashboardLayout.user_id == current_user.id, DashboardLayout.context == 'griffie')
+        .first()
+    )
+    if not cfg:
+        cfg = DashboardLayout(user_id=current_user.id, context='griffie', layout={})
+        db.session.add(cfg)
+    cfg.layout = data
+    db.session.commit()
+    return {"ok": True}
+
+
+@bp.route('/dashboard/view', methods=['GET'])
+@login_and_active_required
+@roles_required('griffie')
+def dashboard_view():
+    cfg = (
+        DashboardLayout.query
+        .filter(DashboardLayout.user_id == current_user.id, DashboardLayout.context == 'griffie')
+        .first()
+    )
+    default_layout = {
+        "widgets": [
+            {"id": "to_advise", "title": "Te adviseren", "x": 0, "y": 0, "w": 6, "h": 4},
+            {"id": "ready_submit", "title": "Klaar om in te dienen", "x": 6, "y": 0, "w": 6, "h": 4},
+            {"id": "my_claims", "title": "Mijn claims", "x": 0, "y": 4, "w": 6, "h": 3},
+            {"id": "stats", "title": "Statistiek", "x": 6, "y": 4, "w": 6, "h": 3},
+        ]
+    }
+    layout = cfg.layout if cfg and cfg.layout else default_layout
+
+    # Data per widget
+    to_advise = (
+        Motie.query
+        .options(selectinload(Motie.indiener))
+        .filter(Motie.status.ilike('Advies griffie'))
+        .order_by(Motie.updated_at.desc())
+        .limit(10)
+        .all()
+    )
+    ready_submit = (
+        Motie.query
+        .options(selectinload(Motie.indiener))
+        .filter(Motie.status.ilike('Klaar om in te dienen'))
+        .order_by(Motie.updated_at.desc())
+        .limit(10)
+        .all()
+    )
+    my_claims = (
+        db.session.query(AdviceSession, Motie)
+        .join(Motie, Motie.id == AdviceSession.motie_id)
+        .options(selectinload(Motie.indiener))
+        .filter(AdviceSession.reviewer_id == current_user.id)
+        .order_by(AdviceSession.updated_at.desc())
+        .limit(10)
+        .all()
+    )
+    counts = {
+        'to_advise': len(to_advise),
+        'ready_submit': len(ready_submit),
+        'my_claims': len(my_claims),
+    }
+
+    widget_data = {
+        'to_advise': to_advise,
+        'ready_submit': ready_submit,
+        'my_claims': my_claims,
+        'stats': counts,
+    }
+
+    return render_template('griffie/dashboard.html', layout=layout, widget_data=widget_data)

@@ -142,7 +142,7 @@ class Motie(db.Model):
     overwegende_dat = db.Column(JSONEncodedList)
     opdracht_formulering = db.Column(db.Text, nullable=False)
     draagt_college_op = db.Column(JSONEncodedList)
-    status = db.Column(db.String(20), default='concept')
+    status = db.Column(db.String(64), default='concept')
     gemeenteraad_datum = db.Column(db.String(40))
     agendapunt = db.Column(db.String(40))
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
@@ -175,6 +175,14 @@ class Motie(db.Model):
     def __repr__(self):
         return f'<Motie {getattr(self, "titel", self.id)}>'
     
+    # Versiegeschiedenis relatie (nieuw)
+    versions = db.relationship(
+        'MotieVersion',
+        back_populates='motie',
+        cascade='all, delete-orphan',
+        order_by=lambda: MotieVersion.created_at.desc()
+    )
+
     def motie_to_editable_dict(m: 'Motie') -> dict:
         """Neem exact de velden mee die de griffie inhoudelijk mag aanpassen."""
         return {
@@ -184,6 +192,45 @@ class Motie(db.Model):
             "overwegende_dat": [o.tekst for o in m.overwegende_dat] if hasattr(m, "overwegende_dat") else [],
             "draagt_college_op":    [d.tekst for d in m.draagt_college_op] if hasattr(m, "draagt_college_op") else [],
         }
+
+
+class MotieVersion(db.Model):
+    __tablename__ = 'motie_version'
+
+    id = db.Column(db.Integer, primary_key=True)
+    motie_id = db.Column(db.Integer, db.ForeignKey('motie.id', ondelete='CASCADE'), nullable=False, index=True)
+    author_id = db.Column(db.Integer, db.ForeignKey('user.id', ondelete='SET NULL'), nullable=True, index=True)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
+
+    # Volledige snapshot van relevante velden (JSON als tekst)
+    snapshot = db.Column(JSONEncodedDict, nullable=False, default=dict)
+    # Optioneel: lijst met veldnamen die gewijzigd zijn t.o.v. vorige snapshot
+    changed_fields = db.Column(JSONEncodedList, nullable=False, default=list)
+
+    motie = db.relationship('Motie', back_populates='versions')
+    author = db.relationship('User')
+
+    def __repr__(self):
+        return f"<MotieVersion motie={self.motie_id} id={self.id} at={self.created_at}>"
+
+# === Dashboard layout (per user/rol) ===
+class DashboardLayout(db.Model):
+    __tablename__ = 'dashboard_layout'
+
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id', ondelete='CASCADE'), nullable=False, index=True)
+    context = db.Column(db.String(50), nullable=False, index=True)  # bv. 'griffie'
+    layout = db.Column(JSONEncodedDict, nullable=False, default=dict)  # {widgets: [...]} volgens front-end schema
+    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+    __table_args__ = (
+        db.UniqueConstraint('user_id', 'context', name='uq_dashboard_user_context'),
+    )
+
+    user = db.relationship('User')
+
+    def __repr__(self):
+        return f"<DashboardLayout user={self.user_id} ctx={self.context}>"
 
 # === Delen van moties met partijen of personen (geen mede-indieners) ===
 class MotieShare(db.Model):

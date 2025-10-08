@@ -1,0 +1,101 @@
+{% extends 'base.html' %}
+{% block content %}
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/gridstack@10.3.1/dist/gridstack.min.css" />
+  <script src="https://cdn.jsdelivr.net/npm/gridstack@10.3.1/dist/gridstack-all.min.js"></script>
+  <style>
+    .grid-stack { min-height: 600px; }
+  </style>
+  <div class="sticky top-[var(--nav-h)] page-chrome-low bg-white/90 pt-4 backdrop-blur border-b print:hidden">
+    <div class="mx-auto max-w-7xl px-4 py-2 flex items-center justify-between">
+      <div>
+        <div class="text-sm text-gray-500">Griffie</div>
+        <h1 class="text-base sm:text-lg font-semibold">Dashboard indelen</h1>
+      </div>
+      <div class="flex items-center gap-2">
+        <button id="saveBtn" class="inline-flex items-center gap-2 rounded-lg bg-blue-600 text-white px-3 py-1.5 text-sm hover:bg-blue-700">
+          <i class="fa fa-save"></i><span>Opslaan</span>
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <main class="mx-auto max-w-7xl px-2 sm:px-4 md:px-6 py-6">
+    <div class="grid grid-cols-1 lg:grid-cols-12 gap-6 lg:gap-8">
+      <section class="lg:col-span-9">
+        <div class="grid-stack"></div>
+      </section>
+      <aside class="lg:col-span-3">
+        <div class="rounded-xl border bg-white p-4 shadow-sm">
+          <div class="text-sm font-semibold mb-3">Beschikbare blokken</div>
+          <ul class="text-sm text-gray-700 space-y-2">
+            <li>Te adviseren</li>
+            <li>Klaar om in te dienen</li>
+            <li>Mijn claims</li>
+            <li>Statistiek</li>
+          </ul>
+          <p class="mt-3 text-xs text-gray-500">Sleep blokken op het raster en pas grootte aan. Klik Opslaan om je indeling te bewaren.</p>
+        </div>
+      </aside>
+    </div>
+  </main>
+
+  <script>
+    const initial = {{ layout|tojson }};
+    function buildWidgetContent(w){
+      const title = w.title || w.id;
+      return `
+        <div class="rounded-lg border bg-white shadow-sm h-full flex flex-col">
+          <div class="px-3 py-2 border-b text-sm font-semibold flex items-center justify-between">
+            <span>${title}</span>
+            <span class="text-xs text-gray-400">${w.id}</span>
+          </div>
+          <div class="p-3 text-sm text-gray-600 flex-1">
+            <em>Voorbeeldinhoud</em>
+          </div>
+        </div>`;
+    }
+    document.addEventListener('DOMContentLoaded', () => {
+      const grid = GridStack.init({
+        cellHeight: 80,
+        float: true,
+        column: 12,
+        disableOneColumnMode: false,
+        disableDrag: false,
+        disableResize: false,
+      });
+      (initial.widgets || []).forEach(w => {
+        const el = document.createElement('div');
+        el.className='grid-stack-item';
+        el.setAttribute('gs-id', w.id);
+        const content = document.createElement('div');
+        content.className='grid-stack-item-content';
+        content.innerHTML = buildWidgetContent(w);
+        el.appendChild(content);
+        grid.addWidget(el, {x:w.x||0, y:w.y||0, w:w.w||4, h:w.h||3});
+      });
+
+      document.getElementById('saveBtn').addEventListener('click', async () => {
+        const widgets = [];
+        grid.engine.nodes.forEach(n => {
+          widgets.push({
+            id: n.el.getAttribute('gs-id'),
+            x: n.x, y: n.y, w: n.w, h: n.h,
+            title: n.el.querySelector('.grid-stack-item-content .font-semibold span')?.textContent || ''
+          });
+        });
+        try{
+          const resp = await fetch('{{ url_for('griffie.dashboard_save') }}', {
+            method:'POST', headers:{'Content-Type':'application/json'},
+            body: JSON.stringify({widgets})
+          });
+          const data = await resp.json();
+          if(data && data.ok){
+            alert('Dashboard opgeslagen');
+          }else{
+            alert('Opslaan mislukt');
+          }
+        }catch(e){ alert('Netwerkfout bij opslaan'); }
+      });
+    });
+  </script>
+{% endblock %}

@@ -53,6 +53,15 @@
           <div id="meerMenu"
                class="content-dropdown hidden w-56 bg-white border rounded-lg shadow-md">
             <ul class="py-2 text-sm">
+              {% if current_user.id == motie.indiener_id and (motie.status or '').lower() not in ['advies griffie'] %}
+              <li>
+                <form method="post" action="{{ url_for('moties.advies_aanvragen', motie_id=motie.id) }}">
+                  <button class="w-full text-left px-4 py-2 hover:bg-gray-50">
+                    <i class="fa fa-clipboard-list mr-2"></i>Advies vragen griffie
+                  </button>
+                </form>
+              </li>
+              {% endif %}
               <li>
                 <button type="button" data-modal-target="verwijderModal" data-modal-toggle="verwijderModal"
                         class="w-full text-left px-4 py-2 hover:bg-red-50 text-red-600">
@@ -60,7 +69,7 @@
                 </button>
               </li>
               <li>
-                <a href="#"
+                <a href="{{ url_for('moties.geschiedenis', motie_id=motie.id) }}"
                    class="block px-4 py-2 hover:bg-gray-50">
                   <i class="fa fa-clock-o mr-2"></i>Versiegeschiedenis
                 </a>
@@ -92,6 +101,16 @@
   </div>
 
   {# ---------------- Layout: canvas gecentreerd, A4 ongewijzigd ---------------- #}
+  {% if (motie.status or '').lower() == 'geadviseerd' and current_user.id == motie.indiener_id %}
+    <div class="mx-auto max-w-7xl px-2 sm:px-4 md:px-6 mt-6">
+      <div class="mb-4 bg-amber-50 border border-amber-200 text-amber-800 rounded-xl p-4 flex items-center justify-between">
+        <div>Er staat een advies voor je klaar.</div>
+        <a href="{{ url_for('moties.advies_review', motie_id=motie.id) }}" class="inline-flex items-center gap-2 rounded-lg bg-amber-600 text-white px-3 py-1.5 text-sm hover:bg-amber-700">
+          <i class="fa fa-comments"></i><span>Bekijk advies</span>
+        </a>
+      </div>
+    </div>
+  {% endif %}
   <div class="mx-auto max-w-7xl px-2 sm:px-4 md:px-6">
     <div class="grid grid-cols-1 lg:grid-cols-12 gap-6 lg:gap-8 mt-6">
 
