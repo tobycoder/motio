@@ -153,6 +153,9 @@ def create_motie_version(motie: Motie, author: User | None):
         db.session.add(ver)
 
 def user_can_edit_motie(user, motie: Motie) -> bool:
+    # superadmin mag alles bewerken
+    if user and user.has_role('superadmin'):
+        return True
     # indiener of mede-indiener mag altijd bewerken (pas aan naar wens)
     if motie.indiener_id == user.id or any(u.id == user.id for u in motie.mede_indieners):
         return True
@@ -1130,7 +1133,7 @@ def advies_review(motie_id: int):
     adv_comment = draft.get('advies_commentaar') if isinstance(draft, dict) else None
     if request.method == 'POST':
         action = request.form.get('action')
-        if action == 'accept':
+        if action in ('accept', 'accept_edit', 'accept_submit'):
             # Schrijf draft naar motie velden
             snap = draft
             m.titel = snap.get('titel') or m.titel
@@ -1138,7 +1141,8 @@ def advies_review(motie_id: int):
             m.overwegende_dat = snap.get('overwegende_dat') or []
             m.draagt_college_op = snap.get('draagt_college_op') or []
             m.opdracht_formulering = snap.get('opdracht_formulering') or m.opdracht_formulering
-            m.status = 'Klaar om in te dienen'
+            if action == 'accept_submit':
+                m.status = 'Klaar om in te dienen'
             # mede‑indieners ids niet automatisch aanpassen in deze flow
             create_motie_version(m, current_user)
             # markeer sessie geaccepteerd
@@ -1147,8 +1151,15 @@ def advies_review(motie_id: int):
             # Notify griffie (reviewer)
             _notify_advice_accepted(m, current_user, ses)
             db.session.commit()
-            flash('Advieswijzigingen geaccepteerd. Status gezet op "Klaar om in te dienen".', 'success')
-            return redirect(url_for('moties.bekijken', motie_id=m.id))
+            if action == 'accept_edit':
+                flash('Advieswijzigingen geaccepteerd. Je kunt nu bewerken.', 'success')
+                return redirect(url_for('moties.bewerken', motie_id=m.id))
+            elif action == 'accept_submit':
+                flash('Advieswijzigingen geaccepteerd. Status gezet op "Klaar om in te dienen".', 'success')
+                return redirect(url_for('moties.bekijken', motie_id=m.id))
+            else:
+                flash('Advieswijzigingen geaccepteerd.', 'success')
+                return redirect(url_for('moties.bekijken', motie_id=m.id))
         elif action == 'needs_changes':
             m.status = 'Nog niet gereed'
             db.session.commit()

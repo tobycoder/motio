@@ -169,6 +169,35 @@
         <p class="text-sm text-gray-500">Geen recente notificaties.</p>
       {% endif %}
     </div>
+
+    <div class="lg:col-span-7 rounded-2xl border border-gray-200 bg-white p-6 shadow-sm">
+      <div class="flex items-center justify-between mb-4">
+        <h2 class="text-lg font-semibold text-gray-900 flex items-center gap-2"><i class="fa fa-building text-gray-400"></i><span>Gemeenteraad Haarlem</span></h2>
+        <span class="text-xs text-gray-400">Externe agenda</span>
+      </div>
+      {% if haarlem_meetings %}
+        <ul class="space-y-3">
+          {% for ev in haarlem_meetings %}
+            <li class="rounded-xl border border-gray-200 p-3 hover:bg-gray-50 transition">
+              <div class="flex items-start justify-between">
+                <div>
+                  <p class="text-sm font-semibold text-gray-900">{{ ev.summary or 'Raadsvergadering' }}</p>
+                  <p class="text-xs text-gray-500 mt-1">
+                    {{ (ev.start.strftime('%A %d %B %Y %H:%M') if ev.start else '') }}
+                    {% if ev.location %}&middot; {{ ev.location }}{% endif %}
+                  </p>
+                </div>
+                {% if ev.url %}
+                  <a href="{{ ev.url }}" target="_blank" rel="noopener" class="text-xs text-blue-600 hover:underline">Details</a>
+                {% endif %}
+              </div>
+            </li>
+          {% endfor %}
+        </ul>
+      {% else %}
+        <p class="text-sm text-gray-500">Geen externe vergaderingen gevonden of feed niet geconfigureerd.</p>
+      {% endif %}
+    </div>
   </section>
 </main>
 

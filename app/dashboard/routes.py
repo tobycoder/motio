@@ -1,12 +1,16 @@
 from flask import render_template, request, jsonify, url_for, current_app
 from flask_login import login_required, current_user
 from app.auth.utils import login_and_active_required
+from flask import g
 from app.dashboard import bp
 from app.models import Motie, User, motie_medeindieners, MotieShare, Notification
 from app import db
 from sqlalchemy import func, or_, case, and_, cast, Float
 from sqlalchemy.orm import selectinload
 from datetime import datetime, date
+from urllib.request import urlopen
+from urllib.error import URLError
+import ssl
 
 
 def _moties_for_user_query(user):
@@ -14,6 +18,10 @@ def _moties_for_user_query(user):
         selectinload(Motie.mede_indieners),
         selectinload(Motie.indiener),
     )
+    # Tenant scoping (voorbeeld): filter op actieve tenant indien beschikbaar
+    t = getattr(g, 'tenant', None)
+    if t:
+        base = base.filter(Motie.tenant_id == t.id)
     if getattr(user, 'has_role', None) and user.has_role('superadmin'):
         return base
     return base.filter(
@@ -27,6 +35,70 @@ def _moties_for_user_query(user):
 def _normalize_date(value):
     if value is None:
         return None
+
+
+def _parse_ics_events(ics_text: str):
+    events = []
+    current = None
+    for raw in ics_text.splitlines():
+        line = raw.strip()
+        if line == 'BEGIN:VEVENT':
+            current = {}
+        elif line == 'END:VEVENT':
+            if current:
+                events.append(current)
+            current = None
+        elif current is not None:
+            if line.startswith('DTSTART'):
+                # Handle formats: DTSTART:YYYYMMDD or DTSTART;TZID=...:YYYYMMDDTHHMMSS
+                try:
+                    _, val = line.split(':', 1)
+                    if len(val) == 8 and val.isdigit():
+                        dt = datetime.strptime(val, '%Y%m%d')
+                    else:
+                        # Trim timezone and parse basic timestamp
+                        if 'T' in val:
+                            dt = datetime.strptime(val[:15], '%Y%m%dT%H%M%S')
+                        else:
+                            dt = datetime.strptime(val[:8], '%Y%m%d')
+                    current['start'] = dt
+                except Exception:
+                    pass
+            elif line.startswith('SUMMARY:'):
+                current['summary'] = line[len('SUMMARY:'):].strip()
+            elif line.startswith('LOCATION:'):
+                current['location'] = line[len('LOCATION:'):].strip()
+            elif line.startswith('URL:'):
+                current['url'] = line[len('URL:'):].strip()
+    return events
+
+
+def _fetch_haarlem_meetings(max_items: int = 5):
+    url = current_app.config.get('HAARLEM_MEETINGS_ICS')
+    if not url:
+        return []
+    try:
+        # Some environments require an unverified context for simple fetches
+        ctx = ssl.create_default_context()
+        with urlopen(url, timeout=4, context=ctx) as resp:
+            data = resp.read().decode('utf-8', errors='ignore')
+        events = _parse_ics_events(data)
+        today = datetime.utcnow().date()
+        upcoming = []
+        for ev in events:
+            dt = ev.get('start')
+            if not dt:
+                continue
+            d = dt.date()
+            if d >= today:
+                upcoming.append(ev)
+        upcoming.sort(key=lambda e: e.get('start'))
+        return upcoming[:max_items]
+    except URLError:
+        return []
+    except Exception:
+        current_app.logger.exception('Fout bij ophalen Haarlem vergaderingen ICS')
+        return []
     if isinstance(value, date):
         return value
     if isinstance(value, datetime):
@@ -137,6 +209,9 @@ def home():
         else None
     )
 
+    # Haarlem vergaderingen (extern ICS, optioneel via config HAARLEM_MEETINGS_ICS)
+    haarlem_meetings = _fetch_haarlem_meetings(max_items=5)
+
     return render_template(
         'dashboard/index.html',
         title="Dashboard",
@@ -154,6 +229,7 @@ def home():
         upcoming_meetings=upcoming_meetings,
         recent_activity=recent_activity,
         moties_index_shared_url=moties_index_shared_url,
+        haarlem_meetings=haarlem_meetings,
     )
 
 

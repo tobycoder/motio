@@ -6,11 +6,17 @@
       <h1 class="text-2xl font-semibold">Profiel van {{ user.naam }}</h1>
       <p class="text-sm text-gray-500">{{ user.email }}</p>
     </div>
+    <div class="flex items-center gap-2">
+      <a href="{{ request.referrer or url_for('gebruikers.index') }}" class="inline-flex items-center gap-2 px-4 py-2 rounded-md border border-gray-300 hover:bg-gray-50">
+        <i class="fa fa-arrow-left"></i>
+        Terug
+      </a>
     {% set edit_url = url_for('gebruikers.edit_profiel') if user.id == current_user.id else url_for('gebruikers.bewerken', user_id=user.id) %}
     <a href="{{ edit_url }}" class="inline-flex items-center gap-2 px-4 py-2 rounded-md bg-gray-900 text-white hover:bg-black">
       <i class="fa fa-edit"></i>
       Bewerken
     </a>
+    </div>
   </div>
 
   <section class="bg-white p-6 rounded-xl shadow border border-gray-200">

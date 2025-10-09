@@ -1,7 +1,9 @@
 ﻿from dotenv import load_dotenv
 load_dotenv()
 
-from flask import Flask, current_app
+from flask import Flask, current_app, g, request
+import os
+from jinja2 import BaseLoader, FileSystemLoader, TemplateNotFound
 from flask_sqlalchemy import SQLAlchemy
 from flask_migrate import Migrate
 from flask_login import LoginManager
@@ -175,6 +177,61 @@ def create_app(config_class=Config):
             safe_url = url
         app.logger.info(f"DB connected: {safe_url}")
 
+    # ====== Multi-tenant resolver (eerste aanzet) ======
+    @app.before_request
+    def _resolve_tenant():
+        try:
+            from app.models import TenantDomain  # imported lazily
+            host = (request.host or '').split(':')[0].lower()
+            td = TenantDomain.query.filter(TenantDomain.hostname.ilike(host)).first()
+            g.tenant = td.tenant if td else None
+        except Exception:
+            g.tenant = None
+
+    @app.context_processor
+    def inject_tenant_context():
+        tenant_name = None
+        tenant_settings = {}
+        try:
+            if getattr(g, 'tenant', None):
+                tenant_name = g.tenant.naam
+                tenant_settings = g.tenant.settings or {}
+        except Exception:
+            pass
+        if not tenant_name:
+            # fallback naar configuratie
+            tenant_name = current_app.config.get('GEMEENTE_NAAM') or 'Motio'
+        return {
+            'tenant': getattr(g, 'tenant', None),
+            'tenant_name': tenant_name,
+            'tenant_settings': tenant_settings,
+        }
+
+    # ====== Tenant-aware Jinja loader (per-tenant template overrides) ======
+    class TenantAwareLoader(BaseLoader):
+        def __init__(self, fallback_loader):
+            self.fallback_loader = fallback_loader
+
+        def get_source(self, environment, template):
+            try:
+                slug = getattr(getattr(g, 'tenant', None), 'slug', None)
+                if slug:
+                    tenant_templates_dir = os.path.join(app.root_path, 'templates_tenants', slug)
+                    if os.path.isdir(tenant_templates_dir):
+                        tenant_loader = FileSystemLoader(tenant_templates_dir)
+                        try:
+                            return tenant_loader.get_source(environment, template)
+                        except TemplateNotFound:
+                            pass
+            except Exception:
+                # buiten request-context of bij fouten: val terug
+                pass
+            # Fallback naar standaard loader
+            return self.fallback_loader.get_source(environment, template)
+
+    # Wrap de bestaande loader zodat templates eerst in templates_tenants/<slug>/ gezocht worden
+    app.jinja_loader = TenantAwareLoader(app.jinja_loader)
+
     from .moties import bp as moties_bp
     app.register_blueprint(moties_bp, url_prefix="/moties")
 
@@ -206,3 +263,43 @@ def create_app(config_class=Config):
 
 
 app = create_app()
+
+# ====== Multi-tenant: zet tenant_id automatisch op nieuwe records (voorbeeld) ======
+from sqlalchemy import event
+from flask import g
+
+@event.listens_for(db.session, "before_flush")
+def _mt_set_tenant(session, flush_context, instances):
+    tenant = getattr(g, 'tenant', None)
+    if not tenant:
+        return
+    for obj in session.new:
+        if hasattr(obj, 'tenant_id') and getattr(obj, 'tenant_id', None) is None:
+            try:
+                obj.tenant_id = tenant.id
+            except Exception:
+                pass
+
+
+@event.listens_for(db.session, "do_orm_execute")
+def _mt_scope_queries(execute_state):
+    """Voeg tenant filters toe aan SELECTs v    Dit is een voorzichtige, niet-destructieve eerste versie.
+oor modellen met tenant_id.
+    """
+    from sqlalchemy.orm import with_loader_criteria
+    if not execute_state.is_select:
+        return
+    tenant = getattr(g, 'tenant', None)
+    if not tenant:
+        return
+    try:
+        from app.models import (
+            Motie, User, Party, MotieShare, Notification, AdviceSession, MotieVersion, DashboardLayout
+        )
+        for model in (Motie, User, Party, MotieShare, Notification, AdviceSession, MotieVersion, DashboardLayout):
+            execute_state.statement = execute_state.statement.options(
+                with_loader_criteria(model, lambda cls: cls.tenant_id == tenant.id, include_aliases=True)
+            )
+    except Exception:
+        # In geval van import issues in vroege app lifecycle, stilletjes overslaan
+        pass

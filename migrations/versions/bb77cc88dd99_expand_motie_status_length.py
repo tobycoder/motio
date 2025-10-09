@@ -29,4 +29,3 @@ def downgrade():
         op.alter_column('motie', 'status', existing_type=sa.String(length=64), type_=sa.String(length=20), existing_nullable=True)
     except Exception:
         op.alter_column('motie', 'status', type_=sa.String(length=20))
-

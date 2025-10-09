@@ -5,7 +5,7 @@ from typing import Iterable, Dict, Any, Optional
 from docx.shared import Pt, Cm
 from docxtpl import DocxTemplate, InlineImage
 from slugify import slugify
-from flask import current_app
+from flask import current_app, g
 from docx.enum.style import WD_STYLE_TYPE
 from collections import OrderedDict
 import os
@@ -113,10 +113,14 @@ def _filename_for_motie(title: str) -> str:
 def _template_path() -> Path:
     # Standaardlocatie voor je vaste template
     base = Path(current_app.root_path).parent  # project root /app/..
-    # Als je app structuur anders is, pas dit pad aan:
-    # hier gaan we uit van app/templates_word/motie_template.docx
-    p = base / "app" / "templates_word" / "motie.docx"
-    return p
+    # Tenant-specifieke template eerst proberen: app/templates_word/<tenant_slug>/motie.docx
+    tenant = getattr(g, 'tenant', None)
+    if tenant and getattr(tenant, 'slug', None):
+        tp = base / "app" / "templates_word" / tenant.slug / "motie.docx"
+        if tp.exists():
+            return tp
+    # Fallback naar algemene template
+    return base / "app" / "templates_word" / "motie.docx"
 
 # ---- public API ------------------------------------------------------------
 

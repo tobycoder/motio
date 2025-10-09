@@ -89,5 +89,6 @@ class UserCreateForm(FlaskForm):
     submit = SubmitField('Gebruiker aanmaken')
 
     def validate_email(self, field):
+        # Query is automatisch tenant-gescoped door de do_orm_execute hook
         if User.query.filter_by(email=field.data.strip().lower()).first():
-            raise ValidationError('Dit e-mailadres bestaat al.')
+            raise ValidationError('Dit e-mailadres bestaat al voor deze tenant.')

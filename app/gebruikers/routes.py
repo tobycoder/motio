@@ -218,6 +218,32 @@ def view_profiel():
     return render_template('gebruikers/profiel_bekijken.html', user=user, title='Mijn profiel')
 
 
+@bp.route('/instellingen')
+@login_and_active_required
+def settings():
+    links = []
+    # Dashboard
+    try:
+        links.append({
+            'label': 'Mijn profiel bewerken',
+            'href': url_for('gebruikers.edit_profiel')
+        })
+    except Exception:
+        pass
+    # Griffie dashboard
+    from app.auth.utils import has_role
+    if has_role(current_user, ['griffie', 'superadmin']):
+        try:
+            links.append({'label': 'Griffie dashboard', 'href': url_for('griffie.dashboard_view')})
+            links.append({'label': 'Dashboard indelen (griffie)', 'href': url_for('griffie.dashboard_builder')})
+        except Exception:
+            pass
+    try:
+        links.append({'label': 'Markeer alle notificaties als gelezen', 'href': url_for('gebruikers.mark_all_read')})
+    except Exception:
+        pass
+    return render_template('gebruikers/instellingen.html', links=links, title='Instellingen')
+
 @bp.route('/mijn-profiel/bewerken', methods=['GET', 'POST'])
 @login_and_active_required
 def edit_profiel():

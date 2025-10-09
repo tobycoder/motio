@@ -3,7 +3,9 @@
         <meta charset="UTF-8">
         <meta name="viewport" content="width=device-width, initial-scale=1.0">
         <meta name="color-scheme" content="light dark">
-        <title>{% block title %}Motio{% endblock %}</title>
+        <title>{% if title %}{{ title }} - Motio{% else %}{% block title %}Motio{% endblock %}{% endif %}</title>
+        <link rel="icon" type="image/png" href="{{ url_for('static', filename='img/favicon.png') }}">
+        <link rel="shortcut icon" href="{{ url_for('static', filename='img/favicon.png') }}">
         <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/7.0.1/css/all.min.css">
         <!-- Tailwind via CDN -->
         <script src="https://cdn.tailwindcss.com"></script>

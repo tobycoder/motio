@@ -59,14 +59,17 @@
             </div>
           {% endfor %}
         </div>
-        <form method="post" class="mt-6 flex items-center gap-3">
-          <button name="action" value="accept" class="inline-flex items-center gap-2 rounded-lg bg-green-600 text-white px-3 py-1.5 text-sm hover:bg-green-700">
-            <i class="fa fa-check"></i><span>Accepteer wijzigingen</span>
-          </button>
-          <button name="action" value="needs_changes" class="inline-flex items-center gap-2 rounded-lg border px-3 py-1.5 text-sm hover:bg-gray-50">
-            <i class="fa fa-pencil"></i><span>Meer wijzigingen nodig</span>
-          </button>
-        </form>
+    <form method="post" class="mt-6 flex items-center gap-3 flex-wrap">
+      <button name="action" value="accept_edit" class="inline-flex items-center gap-2 rounded-lg bg-green-600 text-white px-3 py-1.5 text-sm hover:bg-green-700">
+        <i class="fa fa-check"></i><span>Accepteer en bewerken</span>
+      </button>
+      <button name="action" value="accept_submit" class="inline-flex items-center gap-2 rounded-lg bg-blue-600 text-white px-3 py-1.5 text-sm hover:bg-blue-700">
+        <i class="fa fa-paper-plane"></i><span>Accepteer en dien in</span>
+      </button>
+      <button name="action" value="needs_changes" class="inline-flex items-center gap-2 rounded-lg border px-3 py-1.5 text-sm hover:bg-gray-50">
+        <i class="fa fa-pencil"></i><span>Meer wijzigingen nodig</span>
+      </button>
+    </form>
       </section>
       <aside class="lg:col-span-4 hidden lg:block">
         {% if advies_commentaar %}

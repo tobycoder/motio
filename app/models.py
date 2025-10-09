@@ -29,6 +29,38 @@ class JSONEncodedDict(TypeDecorator):
     def process_result_value(self, value, dialect):
         return json.loads(value) if value else {}
 
+# ===============
+# Multi‑tenant basis
+# ===============
+
+class Tenant(db.Model):
+    __tablename__ = "tenant"
+
+    id = db.Column(db.Integer, primary_key=True)
+    slug = db.Column(db.String(80), unique=True, nullable=False, index=True)
+    naam = db.Column(db.String(120), nullable=False)
+    actief = db.Column(db.Boolean, default=True, nullable=False)
+    settings = db.Column(JSONEncodedDict, nullable=False, default=dict)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
+
+    domains = db.relationship("TenantDomain", back_populates="tenant", cascade="all, delete-orphan")
+
+    def __repr__(self):
+        return f"<Tenant {self.slug}>"
+
+
+class TenantDomain(db.Model):
+    __tablename__ = "tenant_domain"
+
+    id = db.Column(db.Integer, primary_key=True)
+    tenant_id = db.Column(db.Integer, db.ForeignKey("tenant.id", ondelete="CASCADE"), nullable=False, index=True)
+    hostname = db.Column(db.String(255), unique=True, nullable=False, index=True)
+
+    tenant = db.relationship("Tenant", back_populates="domains")
+
+    def __repr__(self):
+        return f"<TenantDomain {self.hostname} -> {self.tenant_id}>"
+
 # --- M2M-tabel: Motie ↔ User (mede-indieners)
 motie_medeindieners = db.Table(
     "motie_medeindieners",
@@ -41,7 +73,8 @@ class User(UserMixin, db.Model):
     __tablename__ = "user"
     __table_args__ = {'quote': True} 
     id = db.Column(db.Integer, primary_key=True)
-    email = db.Column(db.String(120), unique=True, nullable=False)
+    tenant_id = db.Column(db.Integer, db.ForeignKey('tenant.id', ondelete='RESTRICT'), nullable=True, index=True)
+    email = db.Column(db.String(120), nullable=False)
     password_hash = db.Column(db.String(255), nullable=False)
     naam = db.Column(db.String(100), nullable=False)
     partij_id = db.Column(db.Integer, db.ForeignKey('party.id'), nullable=True)
@@ -50,6 +83,7 @@ class User(UserMixin, db.Model):
     actief = db.Column(db.Boolean, default=True)    
     profile_url = db.Column(db.String(512), nullable=True)
     profile_filename = db.Column(db.String(255), nullable=True, default='placeholder_profile.png')
+    tenant = db.relationship('Tenant')
 
     @property
     def profile_src(self):
@@ -115,12 +149,14 @@ class Party(db.Model):
     __tablename__ = "party"
 
     id = db.Column(db.Integer, primary_key=True)
-    naam = db.Column(db.String(100), nullable=False, unique=True)
-    afkorting = db.Column(db.String(10), nullable=False, unique=True)
+    tenant_id = db.Column(db.Integer, db.ForeignKey('tenant.id', ondelete='RESTRICT'), nullable=True, index=True)
+    naam = db.Column(db.String(100), nullable=False)
+    afkorting = db.Column(db.String(10), nullable=False)
     actief = db.Column(db.Boolean, default=True)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     logo_url = db.Column(db.String(512), nullable=True)
     logo_filename = db.Column(db.String(255), nullable=True)
+    tenant = db.relationship('Tenant')
 
     @property
     def logo_src(self):
@@ -137,6 +173,7 @@ class Party(db.Model):
 class Motie(db.Model):
     __tablename__ = "motie"
     id = db.Column(db.Integer, primary_key=True)
+    tenant_id = db.Column(db.Integer, db.ForeignKey('tenant.id', ondelete='RESTRICT'), nullable=True, index=True)
     titel = db.Column(db.String(200), nullable=False)
     constaterende_dat = db.Column(JSONEncodedList)
     overwegende_dat = db.Column(JSONEncodedList)
@@ -163,6 +200,8 @@ class Motie(db.Model):
         back_populates='mede_moties',
         order_by='User.naam'
     )
+
+    tenant = db.relationship('Tenant')
 
     def add_mede_indiener(self, user):
         if not self.mede_indieners.filter_by(id=user.id).first():
@@ -193,11 +232,11 @@ class Motie(db.Model):
             "draagt_college_op":    [d.tekst for d in m.draagt_college_op] if hasattr(m, "draagt_college_op") else [],
         }
 
-
 class MotieVersion(db.Model):
     __tablename__ = 'motie_version'
 
     id = db.Column(db.Integer, primary_key=True)
+    tenant_id = db.Column(db.Integer, db.ForeignKey('tenant.id', ondelete='RESTRICT'), nullable=True, index=True)
     motie_id = db.Column(db.Integer, db.ForeignKey('motie.id', ondelete='CASCADE'), nullable=False, index=True)
     author_id = db.Column(db.Integer, db.ForeignKey('user.id', ondelete='SET NULL'), nullable=True, index=True)
     created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
@@ -209,6 +248,7 @@ class MotieVersion(db.Model):
 
     motie = db.relationship('Motie', back_populates='versions')
     author = db.relationship('User')
+    tenant = db.relationship('Tenant')
 
     def __repr__(self):
         return f"<MotieVersion motie={self.motie_id} id={self.id} at={self.created_at}>"
@@ -218,6 +258,7 @@ class DashboardLayout(db.Model):
     __tablename__ = 'dashboard_layout'
 
     id = db.Column(db.Integer, primary_key=True)
+    tenant_id = db.Column(db.Integer, db.ForeignKey('tenant.id', ondelete='RESTRICT'), nullable=True, index=True)
     user_id = db.Column(db.Integer, db.ForeignKey('user.id', ondelete='CASCADE'), nullable=False, index=True)
     context = db.Column(db.String(50), nullable=False, index=True)  # bv. 'griffie'
     layout = db.Column(JSONEncodedDict, nullable=False, default=dict)  # {widgets: [...]} volgens front-end schema
@@ -228,6 +269,7 @@ class DashboardLayout(db.Model):
     )
 
     user = db.relationship('User')
+    tenant = db.relationship('Tenant')
 
     def __repr__(self):
         return f"<DashboardLayout user={self.user_id} ctx={self.context}>"
@@ -237,6 +279,7 @@ class MotieShare(db.Model):
     __tablename__ = "motie_share"
 
     id = db.Column(db.Integer, primary_key=True)
+    tenant_id = db.Column(db.Integer, db.ForeignKey('tenant.id', ondelete='RESTRICT'), nullable=True, index=True)
 
     # Doel-motie + afzender
     motie_id = db.Column(db.Integer, db.ForeignKey("motie.id", ondelete="CASCADE"), nullable=False, index=True)
@@ -275,6 +318,7 @@ class MotieShare(db.Model):
     created_by = db.relationship("User", foreign_keys=[created_by_id])
     target_user = db.relationship("User", foreign_keys=[target_user_id])
     target_party = db.relationship("Party", foreign_keys=[target_party_id])
+    tenant = db.relationship('Tenant')
 
     def revoke(self):
         """Maak share inactief (intrekken)."""
@@ -295,6 +339,7 @@ class Notification(db.Model):
     __tablename__ = "notification"
 
     id = db.Column(db.Integer, primary_key=True)
+    tenant_id = db.Column(db.Integer, db.ForeignKey('tenant.id', ondelete='RESTRICT'), nullable=True, index=True)
     user_id = db.Column(db.Integer, db.ForeignKey("user.id", ondelete="CASCADE"), nullable=False, index=True)
 
     # Handig voor joins/filters in de UI
@@ -310,6 +355,7 @@ class Notification(db.Model):
     user = db.relationship("User", backref=db.backref("notifications", cascade="all, delete-orphan"))
     motie = db.relationship("Motie")
     share = db.relationship("MotieShare")
+    tenant = db.relationship('Tenant')
 
     def mark_read(self):
         if self.read_at is None:
@@ -321,6 +367,7 @@ class Notification(db.Model):
 class AdviceSession(db.Model):
     __tablename__ = 'advice_session'
     id = db.Column(db.Integer, primary_key=True)
+    tenant_id = db.Column(db.Integer, db.ForeignKey('tenant.id', ondelete='RESTRICT'), nullable=True, index=True)
     motie_id = db.Column(db.Integer, db.ForeignKey('motie.id'), nullable=False)
     requested_by_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
     reviewer_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=True)
@@ -330,3 +377,4 @@ class AdviceSession(db.Model):
     updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
     returned_at = db.Column(db.DateTime, nullable=True)
     accepted_at = db.Column(db.DateTime, nullable=True)
+    tenant = db.relationship('Tenant')

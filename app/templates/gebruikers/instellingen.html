@@ -1,0 +1,25 @@
+{% extends 'base.html' %}
+{% block content %}
+<main class="max-w-3xl mx-auto px-4 py-8">
+  <div class="mb-6">
+    <h1 class="text-2xl font-semibold">Instellingen</h1>
+    <p class="text-sm text-gray-500">Beheer jouw persoonlijke en werkinstellingen.</p>
+  </div>
+
+  <section class="bg-white p-6 rounded-xl border shadow-sm">
+    <ul class="divide-y divide-gray-100">
+      {% for link in links %}
+        <li class="py-3">
+          <a href="{{ link.href }}" class="flex items-center justify-between hover:text-blue-600">
+            <span class="text-sm">{{ link.label }}</span>
+            <i class="fa fa-chevron-right text-xs text-gray-400"></i>
+          </a>
+        </li>
+      {% else %}
+        <li class="py-3 text-sm text-gray-500">Geen instellingen beschikbaar.</li>
+      {% endfor %}
+    </ul>
+  </section>
+</main>
+{% endblock %}
+
