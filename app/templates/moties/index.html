@@ -26,7 +26,7 @@
   {% endif %}
 {% endfor %}
 
-<div class="sticky top-0 page-chrome-low bg-white/90 backdrop-blur border-b shadow-sm">
+  <div class="sticky top-0 page-chrome-low bg-white/90 backdrop-blur border-b shadow-sm">
   <div class="mx-auto max-w-7xl px-4 py-4 flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
     <div>
       <p class="text-sm uppercase tracking-wide text-gray-500">Moties</p>
@@ -35,11 +35,18 @@
         <span class="inline-flex items-center gap-1 rounded-full bg-gray-100 px-3 py-1">{{ stats.total }} moties</span>
       </div>
     </div>
-    <a href="{{ url_for('moties.toevoegen') }}" class="inline-flex items-center justify-center gap-2 rounded-md bg-gray-900 px-4 py-2 text-sm font-semibold text-white shadow-sm hover:bg-black transition">
-      <i class="fa fa-plus"></i> Nieuwe motie
-    </a>
+    <div class="flex items-center gap-2">
+      Weergave:
+      <div class="inline-flex rounded-lg border overflow-hidden" role="group" aria-label="Weergave">
+        <button id="viewListBtn" class="px-3 py-1.5 text-sm bg-white hover:bg-gray-50 border-r">Lijst</button>
+        <button id="viewCardsBtn" class="px-3 py-1.5 text-sm bg-white hover:bg-gray-50">Kaarten</button>
+      </div>
+      <a href="{{ url_for('moties.toevoegen') }}" class="inline-flex items-center justify-center gap-2 rounded-md bg-gray-900 px-4 py-2 text-sm font-semibold text-white shadow-sm hover:bg-black transition">
+        <i class="fa fa-plus"></i> Nieuwe motie
+      </a>
+    </div>
   </div>
-</div>
+  </div>
 
 <section class="mx-auto max-w-7xl px-4 py-6 space-y-6">
   <div class="rounded-2xl border border-gray-200 bg-white shadow-sm">
@@ -69,7 +76,7 @@
     </div>
   </div>
 
-  <div class="overflow-x-auto rounded-2xl border border-gray-200 bg-white shadow-sm">
+  <div id="moties-table-mode" class="overflow-x-auto rounded-2xl border border-gray-200 bg-white shadow-sm">
     <table class="min-w-full text-sm text-left text-gray-700">
       <thead class="text-xs uppercase bg-gray-50 text-gray-500">
         <tr>
@@ -139,11 +146,67 @@
     <i class="fa fa-list text-3xl mb-4"></i>
     <p>Geen moties gevonden voor deze filters.</p>
   </div>
+
+  <!-- Kaartweergave: A4-verhouding previews -->
+  <div id="moties-cards-mode" class="hidden">
+    <div class="mx-auto max-w-7xl">
+      <div class="grid gap-4 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6">
+        {% for item in items %}
+          {% set m = item.motie if item is mapping and 'motie' in item else item %}
+          {% set meeting_date = iso_date(m.gemeenteraad_datum)|trim %}
+          {% set created_date = iso_date(m.created_at)|trim %}
+          {% set indiener_naam = m.indiener.naam if m.indiener and m.indiener.naam else '' %}
+          {% set partij_naam = m.indiener.partij.naam if m.indiener and m.indiener.partij and m.indiener.partij.naam else '' %}
+          {% set search_blob = (m.titel ~ ' ' ~ (m.status or '') ~ ' ' ~ (indiener_naam) ~ ' ' ~ (partij_naam) ~ ' ' ~ (meeting_date) ~ ' ' ~ (created_date))|lower %}
+          <a href="{{ url_for('moties.bekijken', motie_id=m.id) }}" class="group block"
+             data-card-item
+             data-search="{{ search_blob }}"
+             data-meeting="{{ meeting_date }}"
+             data-created="{{ created_date }}"
+             data-indiener="{{ (indiener_naam|lower) }}">
+            <div class="rounded-xl border border-gray-200 bg-white shadow-sm p-2 transition group-hover:shadow-md">
+              <div class="relative w-full bg-gray-50 rounded-md border border-gray-200 overflow-hidden" style="aspect-ratio: 210 / 297;">
+                {% set partij = m.indiener.partij if m.indiener and m.indiener.partij else None %}
+                {% if partij and partij.logo_src %}
+                  <img src="{{ partij.logo_src }}" alt="{{ partij.naam }}" class="absolute top-1 right-1 h-5 w-5 rounded bg-white border border-gray-200 object-cover" />
+                {% elif partij %}
+                  <div class="absolute top-1 right-1 h-5 w-5 rounded bg-white border border-gray-200 text-[9px] font-semibold text-gray-700 flex items-center justify-center">
+                    {{ (partij.afkorting or partij.naam[:2]).upper() }}
+                  </div>
+                {% endif %}
+                <div class="h-full w-full p-3 flex flex-col">
+                  <div class="text-xs text-gray-400 mb-1">Motie</div>
+                  <div class="text-sm font-semibold text-gray-900 line-clamp-3">{{ m.titel }}</div>
+                  <div class="mt-2 text-[11px] text-gray-700">
+                    {% if m.draagt_college_op and (m.draagt_college_op | length) > 0 %}
+                      <ul class="list-disc pl-4 space-y-0.5">
+                        {% for d in m.draagt_college_op %}
+                          <li>{{ d }}</li>
+                        {% endfor %}
+                      </ul>
+                    {% else %}
+                      <span class="text-gray-400">(Geen 'draagt op' ingevuld)</span>
+                    {% endif %}
+                  </div>
+                  <div class="mt-auto"></div>
+                </div>
+              </div>
+              <div class="mt-2 flex items-center justify-between text-[11px] text-gray-500">
+                <span class="truncate">{{ m.indiener.naam if m.indiener else '' }}</span>
+                <span class="truncate">{{ m.status or '-' }}</span>
+              </div>
+            </div>
+          </a>
+        {% endfor %}
+      </div>
+    </div>
+  </div>
 </section>
 
 <script>
   document.addEventListener('DOMContentLoaded', () => {
     const rows = Array.from(document.querySelectorAll('[data-motie-row]'));
+    const cards = Array.from(document.querySelectorAll('[data-card-item]'));
     const searchInput = document.getElementById('motie-search');
     const meetingInput = document.getElementById('filter-meeting');
     const createdInput = document.getElementById('filter-created');
@@ -156,20 +219,30 @@
       const createdValue = (createdInput.value || '').trim();
       const indienerValue = (indienerSelect.value || '').trim();
 
-      let visibleCount = 0;
-
-      rows.forEach(row => {
-        const matchesSearch = !searchValue || row.dataset.search.includes(searchValue);
-        const matchesMeeting = !meetingValue || row.dataset.meeting === meetingValue;
-        const matchesCreated = !createdValue || row.dataset.created === createdValue;
-        const matchesIndiener = !indienerValue || row.dataset.indiener === indienerValue;
-
-        const visible = matchesSearch && matchesMeeting && matchesCreated && matchesIndiener;
-        row.classList.toggle('hidden', !visible);
-        if (visible) visibleCount += 1;
+      let visibleList = 0;
+      rows.forEach(el => {
+        const v = (!searchValue || el.dataset.search.includes(searchValue)) &&
+                  (!meetingValue || el.dataset.meeting === meetingValue) &&
+                  (!createdValue || el.dataset.created === createdValue) &&
+                  (!indienerValue || el.dataset.indiener === indienerValue);
+        el.classList.toggle('hidden', !v);
+        if (v) visibleList++;
       });
 
-      emptyState.classList.toggle('hidden', visibleCount !== 0);
+      let visibleCards = 0;
+      cards.forEach(el => {
+        const v = (!searchValue || (el.dataset.search||'').includes(searchValue)) &&
+                  (!meetingValue || (el.dataset.meeting||'') === meetingValue) &&
+                  (!createdValue || (el.dataset.created||'') === createdValue) &&
+                  (!indienerValue || (el.dataset.indiener||'') === indienerValue);
+        el.classList.toggle('hidden', !v);
+        if (v) visibleCards++;
+      });
+
+      // Toon lege staat alleen voor de actieve view
+      const isCards = !document.getElementById('moties-cards-mode').classList.contains('hidden');
+      const count = isCards ? visibleCards : visibleList;
+      emptyState.classList.toggle('hidden', count !== 0);
     };
 
     [searchInput, meetingInput, createdInput, indienerSelect].forEach(el => {
@@ -179,6 +252,32 @@
     });
 
     applyFilters();
+
+    // View toggle (list/cards) with localStorage
+    const listMode = document.getElementById('moties-table-mode');
+    const cardsMode = document.getElementById('moties-cards-mode');
+    const btnList = document.getElementById('viewListBtn');
+    const btnCards = document.getElementById('viewCardsBtn');
+    function setMode(mode){
+      const isCards = mode === 'cards';
+      cardsMode.classList.toggle('hidden', !isCards);
+      listMode.classList.toggle('hidden', isCards);
+      localStorage.setItem('moties_view_mode', mode);
+      // style buttons
+      if (btnList && btnCards){
+        // reset
+        [btnList, btnCards].forEach(b => {
+          b.classList.remove('bg-gray-200','text-gray-900','font-semibold');
+        });
+        // make active button subtle with black text
+        const active = isCards ? btnCards : btnList;
+        active.classList.add('bg-gray-200','text-gray-900','font-semibold');
+      }
+    }
+    const saved = localStorage.getItem('moties_view_mode') || 'list';
+    setMode(saved);
+    btnList && btnList.addEventListener('click', () => setMode('list'));
+    btnCards && btnCards.addEventListener('click', () => setMode('cards'));
   });
 </script>
 {% endblock %}

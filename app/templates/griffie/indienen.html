@@ -1,35 +1,285 @@
 {% extends 'base.html' %}
+
+{% macro iso_date(value) -%}
+  {%- if value is string -%}
+    {{ value }}
+  {%- elif value -%}
+    {{ value.strftime('%Y-%m-%d') }}
+  {%- else -%}{%- endif -%}
+{%- endmacro %}
+{% macro display_date(value, default='') -%}
+  {%- if value is string -%}
+    {{ value }}
+  {%- elif value -%}
+    {{ value.strftime('%d-%m-%Y') }}
+  {%- else -%}
+    {{ default }}
+  {%- endif -%}
+{%- endmacro %}
+
 {% block content %}
-  <div class="sticky top-[var(--nav-h)] page-chrome-low bg-white/90 pt-4 backdrop-blur border-b print:hidden">
-    <div class="mx-auto max-w-7xl px-4 py-2 flex items-center gap-2">
-      <div class="flex-1 min-w-0">
-        <div class="truncate text-sm text-gray-500">Griffie</div>
-        <h1 class="truncate text-base sm:text-lg font-semibold">Indienen</h1>
+{% set stats = namespace(total=0) %}
+{% set indieners = namespace(values=[]) %}
+{% for m in moties %}
+  {% set stats.total = stats.total + 1 %}
+  {% if m.indiener and m.indiener.naam and (m.indiener.naam not in indieners.values) %}
+    {% set indieners.values = indieners.values + [m.indiener.naam] %}
+  {% endif %}
+{% endfor %}
+
+  <div class="sticky top-0 page-chrome-low bg-white/90 backdrop-blur border-b shadow-sm">
+    <div class="mx-auto max-w-7xl px-4 py-4 flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+      <div>
+        <p class="text-sm uppercase tracking-wide text-gray-500">Griffie</p>
+        <h1 class="text-2xl font-semibold text-gray-900">Indienen</h1>
+        <div class="mt-3 flex flex-wrap gap-2 text-sm text-gray-500">
+          <span class="inline-flex items-center gap-1 rounded-full bg-gray-100 px-3 py-1">{{ stats.total }} moties</span>
+        </div>
+      </div>
+      <div class="flex items-center gap-2">
+        Weergave:
+        <div class="inline-flex rounded-lg border overflow-hidden" role="group" aria-label="Weergave">
+          <button id="viewListBtn" class="px-3 py-1.5 text-sm bg-white hover:bg-gray-50 border-r">Lijst</button>
+          <button id="viewCardsBtn" class="px-3 py-1.5 text-sm bg-white hover:bg-gray-50">Kaarten</button>
+        </div>
+        {% if moties and moties|length > 0 %}
+        <form id="bulk-export-top" method="post" action="{{ url_for('moties.export_bulk_zip') }}">
+          <input type="hidden" name="__from" value="griffie_indienen" />
+          <button type="submit" class="inline-flex items-center gap-2 rounded-md bg-gray-900 px-4 py-2 text-sm font-semibold text-white shadow-sm hover:bg-black transition" onclick="return prepareBulkExport();">
+            <i class="fa fa-file-archive"></i> Export geselecteerd
+          </button>
+        </form>
+        {% endif %}
       </div>
     </div>
   </div>
-  <main class="mx-auto max-w-7xl px-2 sm:px-4 md:px-6 py-6">
-    {% if not moties %}
-      <div class="bg-green-50 border border-green-200 text-green-800 rounded-xl p-4">Er staan geen moties klaar om in te dienen.</div>
-    {% else %}
-      <div class="space-y-3">
-        {% for m in moties %}
-          <div class="rounded-xl border bg-white p-4 shadow-sm">
-            <div class="flex items-center justify-between">
-              <div class="min-w-0">
-                <div class="text-sm font-semibold truncate">{{ m.titel }}</div>
-                <div class="text-xs text-gray-500">Indiener: {{ m.indiener.naam if m.indiener else 'Onbekend' }}</div>
-              </div>
-              <div class="flex items-center gap-2">
-                <a class="inline-flex items-center gap-2 rounded-lg border px-3 py-1.5 text-sm hover:bg-gray-50" href="{{ url_for('moties.bekijken', motie_id=m.id) }}">
-                  <i class="fa fa-eye"></i><span>Bekijk</span>
-                </a>
+
+  <section class="mx-auto max-w-7xl px-4 py-6 space-y-6">
+    <div class="rounded-2xl border border-gray-200 bg-white shadow-sm">
+      <div class="grid gap-4 p-6 lg:grid-cols-4 lg:items-end">
+        <div class="lg:col-span-2 relative">
+          <span class="pointer-events-none absolute inset-y-0 left-3 flex items-center text-gray-400"><i class="fa fa-search"></i></span>
+          <input id="motie-search" type="search" placeholder="Zoek op titel, status, partij..."
+                 class="w-full rounded-lg border border-gray-300 bg-white pl-10 pr-4 py-2 text-sm text-gray-700 shadow-sm focus:border-gray-900 focus:outline-none focus:ring-2 focus:ring-gray-900/20 transition" />
+        </div>
+        <div>
+          <label for="filter-meeting" class="block text-xs font-semibold uppercase tracking-wide text-gray-500 mb-1">Datum vergadering</label>
+          <input id="filter-meeting" type="date" class="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-gray-900 focus:outline-none focus:ring-2 focus:ring-gray-900/20 transition" />
+        </div>
+        <div>
+          <label for="filter-created" class="block text-xs font-semibold uppercase tracking-wide text-gray-500 mb-1">Aangemaakt op</label>
+          <input id="filter-created" type="date" class="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-gray-900 focus:outline-none focus:ring-2 focus:ring-gray-900/20 transition" />
+        </div>
+        <div class="lg:col-span-4">
+          <label for="filter-indiener" class="block text-xs font-semibold uppercase tracking-wide text-gray-500 mb-1">Indiener</label>
+          <select id="filter-indiener" class="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm bg-white focus:border-gray-900 focus:outline-none focus:ring-2 focus:ring-gray-900/20 transition">
+            <option value="">Alle indieners</option>
+            {% for naam in indieners.values|sort %}
+              <option value="{{ naam|lower }}">{{ naam }}</option>
+            {% endfor %}
+          </select>
+        </div>
+      </div>
+    </div>
+
+    <div id="moties-table-mode" class="overflow-x-auto rounded-2xl border border-gray-200 bg-white shadow-sm">
+      <form id="bulk-export-form" method="post" action="{{ url_for('moties.export_bulk_zip') }}">
+        <table class="min-w-full text-sm text-left text-gray-700">
+          <thead class="text-xs uppercase bg-gray-50 text-gray-500">
+            <tr>
+              <th class="px-3 py-3 w-10"><input id="selectAll" type="checkbox" class="accent-gray-900"></th>
+              <th class="px-3 py-3">Titel</th>
+              <th class="px-6 py-3 hidden md:table-cell">Aanmaakdatum</th>
+              <th class="px-6 py-3 hidden md:table-cell">Dag vergadering</th>
+              <th class="px-6 py-3 hidden lg:table-cell">Indiener</th>
+              <th class="px-6 py-3 hidden lg:table-cell">Status</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for m in moties %}
+              {% set meeting_date = iso_date(m.gemeenteraad_datum)|trim %}
+              {% set created_date = iso_date(m.created_at)|trim %}
+              {% set indiener_naam = m.indiener.naam if m.indiener and m.indiener.naam else '' %}
+              {% set search_blob = (m.titel ~ ' ' ~ (m.status or '') ~ ' ' ~ (indiener_naam) ~ ' ' ~ (m.party.naam if m.party and m.party.naam else '') ~ ' ' ~ (meeting_date) ~ ' ' ~ (created_date))|lower %}
+              <tr data-motie-row
+                  data-search="{{ search_blob }}"
+                  data-meeting="{{ meeting_date }}"
+                  data-created="{{ created_date }}"
+                  data-indiener="{{ (indiener_naam|lower) }}"
+                  class="bg-white border-b border-gray-200 hover:bg-gray-50 transition">
+                <td class="px-3 py-4 align-top"><input type="checkbox" name="motie_ids" value="{{ m.id }}" class="row-check accent-gray-900"></td>
+                <td class="px-3 py-4 font-medium text-blue-600 whitespace-nowrap">
+                  <a href="{{ url_for('moties.bekijken', motie_id=m.id) }}" class="hover:underline">{{ m.titel }}</a>
+                  <div class="mt-1 text-xs text-gray-500 md:hidden">
+                    {{ created_date }} • {{ m.party.naam if m.party and m.party.naam else '-' }} • {{ m.status or '-' }}
+                  </div>
+                </td>
+                <td class="px-6 py-4 hidden md:table-cell">{{ display_date(m.created_at)|trim }}</td>
+                <td class="px-6 py-4 hidden md:table-cell">{{ display_date(m.gemeenteraad_datum, '-')|trim }}</td>
+                <td class="px-6 py-4 hidden lg:table-cell">{{ indiener_naam or '-' }}</td>
+                <td class="px-6 py-4 hidden lg:table-cell">{{ m.status or '-' }}</td>
+              </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </form>
+    </div>
+
+    <div id="motie-empty-state" class="hidden rounded-2xl border border-dashed border-gray-300 bg-gray-50 px-6 py-12 text-center text-gray-500">
+      <i class="fa fa-list text-3xl mb-4"></i>
+      <p>Geen moties gevonden voor deze filters.</p>
+    </div>
+
+    <div id="moties-cards-mode" class="hidden">
+      <div class="mx-auto max-w-7xl">
+        <div class="grid gap-4 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6">
+          {% for m in moties %}
+            {% set meeting_date = iso_date(m.gemeenteraad_datum)|trim %}
+            {% set created_date = iso_date(m.created_at)|trim %}
+            {% set indiener_naam = m.indiener.naam if m.indiener and m.indiener.naam else '' %}
+            {% set partij_naam = m.indiener.partij.naam if m.indiener and m.indiener.partij and m.indiener.partij.naam else '' %}
+            {% set search_blob = (m.titel ~ ' ' ~ (m.status or '') ~ ' ' ~ (indiener_naam) ~ ' ' ~ (partij_naam) ~ ' ' ~ (meeting_date) ~ ' ' ~ (created_date))|lower %}
+            <div class="group block"
+                 data-card-item
+                 data-search="{{ search_blob }}"
+                 data-meeting="{{ meeting_date }}"
+                 data-created="{{ created_date }}"
+                 data-indiener="{{ (indiener_naam|lower) }}">
+              <div class="rounded-xl border border-gray-200 bg-white shadow-sm p-2 transition group-hover:shadow-md">
+                <div class="relative w-full bg-gray-50 rounded-md border border-gray-200 overflow-hidden" style="aspect-ratio: 210 / 297;">
+                  {% set partij = m.indiener.partij if m.indiener and m.indiener.partij else None %}
+                  {% if partij and partij.logo_src %}
+                    <img src="{{ partij.logo_src }}" alt="{{ partij.naam }}" class="absolute top-1 right-1 h-5 w-5 rounded bg-white border border-gray-200 object-cover" />
+                  {% elif partij %}
+                    <div class="absolute top-1 right-1 h-5 w-5 rounded bg-white border border-gray-200 text-[9px] font-semibold text-gray-700 flex items-center justify-center">
+                      {{ (partij.afkorting or partij.naam[:2]).upper() }}
+                    </div>
+                  {% endif %}
+                  <div class="h-full w-full p-3 flex flex-col">
+                    <div class="text-xs text-gray-400 mb-1">Motie</div>
+                    <div class="text-sm font-semibold text-gray-900 line-clamp-3">{{ m.titel }}</div>
+                    <div class="mt-2 text-[11px] text-gray-700">
+                      {% if m.draagt_college_op and (m.draagt_college_op | length) > 0 %}
+                        <ul class="list-disc pl-4 space-y-0.5">
+                          {% for d in m.draagt_college_op %}
+                            <li>{{ d }}</li>
+                          {% endfor %}
+                        </ul>
+                      {% else %}
+                        <span class="text-gray-400">(Geen 'draagt op' ingevuld)</span>
+                      {% endif %}
+                    </div>
+                    <div class="mt-auto"></div>
+                  </div>
+                </div>
+                <div class="mt-2 flex items-center justify-between text-[11px] text-gray-500">
+                  <span class="truncate">{{ m.indiener.naam if m.indiener else '' }}</span>
+                  <span class="truncate">{{ m.status or '-' }}</span>
+                </div>
               </div>
             </div>
-          </div>
-        {% endfor %}
+          {% endfor %}
+        </div>
       </div>
-    {% endif %}
-  </main>
-{% endblock %}
+    </div>
+  </section>
 
+  <script>
+    document.addEventListener('DOMContentLoaded', () => {
+      const rows = Array.from(document.querySelectorAll('[data-motie-row]'));
+      const cards = Array.from(document.querySelectorAll('[data-card-item]'));
+      const searchInput = document.getElementById('motie-search');
+      const meetingInput = document.getElementById('filter-meeting');
+      const createdInput = document.getElementById('filter-created');
+      const indienerSelect = document.getElementById('filter-indiener');
+      const emptyState = document.getElementById('motie-empty-state');
+      const selectAll = document.getElementById('selectAll');
+      const rowChecks = Array.from(document.querySelectorAll('.row-check'));
+
+      const applyFilters = () => {
+        const searchValue = (searchInput?.value || '').trim().toLowerCase();
+        const meetingValue = (meetingInput?.value || '').trim();
+        const createdValue = (createdInput?.value || '').trim();
+        const indienerValue = (indienerSelect?.value || '').trim();
+
+        let visibleList = 0;
+        rows.forEach(el => {
+          const v = (!searchValue || el.dataset.search.includes(searchValue)) &&
+                    (!meetingValue || el.dataset.meeting === meetingValue) &&
+                    (!createdValue || el.dataset.created === createdValue) &&
+                    (!indienerValue || el.dataset.indiener === indienerValue);
+          el.classList.toggle('hidden', !v);
+          if (v) visibleList++;
+        });
+
+        let visibleCards = 0;
+        cards.forEach(el => {
+          const v = (!searchValue || (el.dataset.search||'').includes(searchValue)) &&
+                    (!meetingValue || (el.dataset.meeting||'') === meetingValue) &&
+                    (!createdValue || (el.dataset.created||'') === createdValue) &&
+                    (!indienerValue || (el.dataset.indiener||'') === indienerValue);
+          el.classList.toggle('hidden', !v);
+          if (v) visibleCards++;
+        });
+
+        const isCards = !document.getElementById('moties-cards-mode').classList.contains('hidden');
+        const count = isCards ? visibleCards : visibleList;
+        emptyState?.classList.toggle('hidden', count !== 0);
+      };
+
+      [searchInput, meetingInput, createdInput, indienerSelect].forEach(el => {
+        el && el.addEventListener(el?.tagName === 'SELECT' ? 'change' : 'input', () => {
+          window.requestAnimationFrame(applyFilters);
+        });
+      });
+
+      // Bulk-select
+      selectAll?.addEventListener('change', (e) => {
+        const checked = !!e.target.checked;
+        rowChecks.forEach(cb => { if (!cb.closest('tr').classList.contains('hidden')) cb.checked = checked; });
+      });
+
+      // View toggle
+      const listMode = document.getElementById('moties-table-mode');
+      const cardsMode = document.getElementById('moties-cards-mode');
+      const btnList = document.getElementById('viewListBtn');
+      const btnCards = document.getElementById('viewCardsBtn');
+      function setMode(mode){
+        const isCards = mode === 'cards';
+        cardsMode.classList.toggle('hidden', !isCards);
+        listMode.classList.toggle('hidden', isCards);
+        localStorage.setItem('griffie_indienen_view_mode', mode);
+        if (btnList && btnCards){
+          [btnList, btnCards].forEach(b => {
+            b.classList.remove('bg-gray-200','text-gray-900','font-semibold');
+          });
+          const active = isCards ? btnCards : btnList;
+          active.classList.add('bg-gray-200','text-gray-900','font-semibold');
+        }
+      }
+      const saved = localStorage.getItem('griffie_indienen_view_mode') || 'list';
+      setMode(saved);
+      btnList && btnList.addEventListener('click', () => setMode('list'));
+      btnCards && btnCards.addEventListener('click', () => setMode('cards'));
+
+      applyFilters();
+    });
+
+    // Prepare bulk export by moving selected checkboxes into the top form if needed
+    function prepareBulkExport(){
+      const form = document.getElementById('bulk-export-form');
+      const top = document.getElementById('bulk-export-top');
+      if (!form || !top) return true;
+      // clone checked inputs into top form so button submits selected
+      top.querySelectorAll('input[name="motie_ids"]').forEach(e => e.remove());
+      form.querySelectorAll('input.row-check:checked').forEach(cb => {
+        const clone = document.createElement('input');
+        clone.type = 'hidden';
+        clone.name = 'motie_ids';
+        clone.value = cb.value;
+        top.appendChild(clone);
+      });
+      return true;
+    }
+  </script>
+{% endblock %}
