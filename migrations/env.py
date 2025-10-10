@@ -1,4 +1,5 @@
 import os
+import sys
 import logging
 from pathlib import Path
 from logging.config import fileConfig
@@ -23,6 +24,11 @@ if config.config_file_name:
 
 logger = logging.getLogger("alembic.env")
 
+
+# Ensure repository root is on sys.path so 'app' can be imported in CI
+REPO_ROOT = Path(__file__).resolve().parent.parent
+if str(REPO_ROOT) not in sys.path:
+    sys.path.insert(0, str(REPO_ROOT))
 
 # Import Flask app and DB, push app context
 from app import create_app, db  # noqa: E402
@@ -74,4 +80,3 @@ if context.is_offline_mode():
     run_migrations_offline()
 else:
     run_migrations_online()
-
