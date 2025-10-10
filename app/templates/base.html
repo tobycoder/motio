@@ -8,7 +8,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta name="color-scheme" content="light dark">
-    <title>{% if title %}{{ title }} - Motio{% else %}{% block title %}Motio{% endblock %}{% endif %}</title>
+    <title>{% if title %}{{ title }} - {{ tenant_name or 'Motio' }}{% else %}{% block title %}{{ tenant_name or 'Motio' }}{% endblock %}{% endif %}</title>
     <link rel="icon" type="image/png" href="{{ url_for('static', filename='img/favicon.png') }}">
     <link rel="shortcut icon" href="{{ url_for('static', filename='img/favicon.png') }}">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/7.0.1/css/all.min.css">
@@ -75,6 +75,17 @@
 
         .content-dropdown { z-index: 750 !important; }
     </style>
+    {# Tenant branding optioneel via instellingen #}
+    {% if tenant_settings and tenant_settings.brand and (tenant_settings.brand.color1 or tenant_settings.brand.color) %}
+    <style>
+      .nav-root { background-color: {{ tenant_settings.brand.color1 or tenant_settings.brand.color }} !important; }
+      .nav-root a:hover { color: #fff !important; }
+      .nav-root .md\:hover\:text-blue-700:hover { color: #fff !important; }
+      .nav-root .text-blue-700 { color: #fff !important; }
+      .nav-root .hover\:bg-gray-100:hover { background-color: rgba(255,255,255,0.12) !important; }
+      .nav-root .border-gray-200 { border-color: rgba(255,255,255,0.2) !important; }
+    </style>
+    {% endif %}
     <script>
         // Optionele config (kleuren, container, fonts, safelist, dark mode, etc.)
         tailwind.config = {
@@ -107,7 +118,8 @@
     <nav class="bg-white/80 backdrop-blur sticky top-0 nav-root border-gray-200 border-b dark:bg-gray-900 dark:border-gray-700">
         <div class="max-w-screen-xl flex flex-wrap items-center justify-between mx-auto p-4">
             <a href="{{ url_for('dashboard.home') }}" class="flex items-center space-x-3 rtl:space-x-reverse">
-                <img src="/static/img/logo_banner.png" class="h-8" alt="Motio Logo" />
+                {% set _logo = tenant_settings.logo_src if tenant_settings and 'logo_src' in tenant_settings else (tenant_slug and url_for('static', filename='tenants/' ~ tenant_slug ~ '/logo.png')) %}
+                <img src="{{ _logo or url_for('static', filename='img/logo_banner.png') }}" class="h-8" alt="{{ tenant_name or 'Motio' }} Logo" />
             </a>
                         <!-- Notifications (bell) -->
 
@@ -288,11 +300,6 @@
                                         class="block px-4 py-2 hover:bg-gray-100 dark:hover:bg-gray-600 dark:hover:text-white">Moties
                                         gedeeld met mij</a>
                                 </li>
-                                <li>
-                                    <a href="{{ url_for('moties.index_personal') }}"
-                                        class="block px-4 py-2 hover:bg-gray-100 dark:hover:bg-gray-600 dark:hover:text-white">Geadviseerde
-                                        moties</a>
-                                </li>
                             </ul>
                             {% if user_has_role('superadmin') %}
                             <div class="py-1">
@@ -307,36 +314,6 @@
                         <a href="{{ url_for('partijen.index') }}"
                             class="block bg-transparent py-2 px-3 text-gray-900 rounded-sm hover:bg-gray-100 md:hover:bg-transparent md:border-0 md:hover:text-blue-700 md:px-3 md:py-2 dark:text-white md:dark:hover:text-blue-500 dark:hover:bg-gray-700 dark:hover:text-white md:dark:hover:bg-transparent">Partijen</a>
                     </li>
-                    {% if user_has_role('superadmin') %}
-                    <li>
-                        <button id="dropdownNavbarLink" data-dropdown-toggle="dropdownBeheer"
-                            class="flex items-center justify-between w-full py-2 px-3 text-blue-700 rounded-sm hover:bg-gray-100 md:hover:bg-transparent md:border-0 md:hover:text-gray-700 md:px-3 md:py-2 md:w-auto dark:text-white md:dark:hover:text-blue-500 dark:focus:text-white dark:border-gray-700 dark:hover:bg-gray-700 md:dark:hover:bg-transparent">Beheer
-                            <svg class="w-2.5 h-2.5 ms-2.5" aria-hidden="true" xmlns="http://www.w3.org/2000/svg"
-                                fill="none" viewBox="0 0 10 6">
-                                <path stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"
-                                    stroke-width="2" d="m1 1 4 4 4-4" />
-                            </svg></button>
-                        <!-- Dropdown menu -->
-                        <div id="dropdownBeheer"
-                            class="z-70 nav-dropdown z-[1200] hidden font-normal bg-white divide-y divide-gray-100 rounded-lg shadow-sm w-60 dark:bg-gray-700 dark:divide-gray-600">
-                            <ul class="py-2 text-sm text-gray-700 dark:text-gray-400"
-                                aria-labelledby="dropdownLargeButton">
-                                <li>
-                                    <a href="{{ url_for('gebruikers.index') }}"
-                                        class="block px-4 py-2 hover:bg-gray-100 dark:hover:bg-gray-600 dark:hover:text-white">Gebruikers</a>
-                                </li>
-                                <li>
-                                    <a href="{{ url_for('partijen.index') }}"
-                                        class="block px-4 py-2 hover:bg-gray-100 dark:hover:bg-gray-600 dark:hover:text-white">Partijen</a>
-                                </li>
-                                <li>
-                                    <a href="{{ url_for('moties.index_personal') }}"
-                                        class="block px-4 py-2 hover:bg-gray-100 dark:hover:bg-gray-600 dark:hover:text-white">FAQ</a>
-                                </li>
-                            </ul>
-                        </div>
-                    </li>
-                    {% endif %}
                     {% if user_has_role('griffie') %}
                     <li>
                         <button id="dropdownNavbarLink" data-dropdown-toggle="dropdownGriffie"
@@ -352,16 +329,8 @@
                             <ul class="py-2 text-sm text-gray-700 dark:text-gray-400"
                                 aria-labelledby="dropdownLargeButton">
                                 <li>
-                                    <a href="{{ url_for('griffie.dashboard_view') }}"
-                                       class="block px-4 py-2 hover:bg-gray-100 dark:hover:bg-gray-600 dark:hover:text-white">Dashboard</a>
-                                </li>
-                                <li>
                                     <a href="{{ url_for('griffie.jaarplanning') }}"
                                         class="block px-4 py-2 hover:bg-gray-100 dark:hover:bg-gray-600 dark:hover:text-white">Jaarplanning</a>
-                                </li>
-                                <li>
-                                    <a href="{{ url_for('griffie.dashboard_builder') }}"
-                                       class="block px-4 py-2 hover:bg-gray-100 dark:hover:bg-gray-600 dark:hover:text-white">Dashboard indelen</a>
                                 </li>
                                 <li>
                                     <a href="{{ url_for('griffie.advies_inbox') }}"

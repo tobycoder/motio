@@ -1,0 +1,18 @@
+{#
+  Voorbeeld tenant-base
+  ---------------------
+  Dit bestand laat zien hoe je een tenant-specifieke base kunt inrichten.
+
+  Aanpak A (aanbevolen):
+  - Gebruik de globale base (geen override nodig) en stel in admin de
+    instellingen in (tenant_settings.logo_src, tenant_name). Plaats
+    optioneel het logo op static/tenants/<slug>/logo.png.
+
+  Aanpak B (volledige controle):
+  - Kopieer app/templates/base.html naar app/templates_tenants/<jouw-slug>/base.html
+  - Pas daarin nav/logo/kleuren aan. Alle templates die 'extends "base.html"' gebruiken,
+    pakken dan jouw variant.
+
+  Let op: in Jinja kun je niet betrouwbaar "terug" extensen naar de globale base vanuit een override met dezelfde naam.
+  Kies daarom voor Aanpak A of kopieer de base volledig in Aanpak B.
+#}

@@ -1,0 +1,48 @@
+{% extends 'base.html' %}
+{% block content %}
+  <div class="sticky top-0 page-chrome-low bg-white/90 backdrop-blur border-b shadow-sm">
+    <div class="mx-auto max-w-7xl px-4 py-4 flex items-center justify-between">
+      <div>
+        <p class="text-sm uppercase tracking-wide text-gray-500">Beheer</p>
+        <h1 class="text-2xl font-semibold text-gray-900">Tenants</h1>
+      </div>
+      <a href="{{ url_for('admin.tenants_new') }}" class="inline-flex items-center gap-2 rounded-md bg-gray-900 px-4 py-2 text-sm font-semibold text-white shadow-sm hover:bg-black transition">
+        <i class="fa fa-plus"></i> Nieuwe tenant
+      </a>
+    </div>
+  </div>
+
+  <section class="mx-auto max-w-7xl px-4 py-6">
+    {% if not tenants %}
+      <div class="rounded-xl border bg-white p-6 text-gray-500">Geen tenants gevonden.</div>
+    {% else %}
+      <div class="overflow-x-auto rounded-2xl border border-gray-200 bg-white shadow-sm">
+        <table class="min-w-full text-sm text-left text-gray-700">
+          <thead class="text-xs uppercase bg-gray-50 text-gray-500">
+            <tr>
+              <th class="px-3 py-3">Slug</th>
+              <th class="px-6 py-3">Naam</th>
+              <th class="px-6 py-3">Actief</th>
+              <th class="px-6 py-3">Aangemaakt</th>
+              <th class="px-6 py-3">Acties</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for t in tenants %}
+            <tr class="bg-white border-b border-gray-200">
+              <td class="px-3 py-3 font-mono">{{ t.slug }}</td>
+              <td class="px-6 py-3">{{ t.naam }}</td>
+              <td class="px-6 py-3">{% if t.actief %}<span class="px-2 py-0.5 text-xs rounded bg-green-100 text-green-800">actief</span>{% else %}<span class="px-2 py-0.5 text-xs rounded bg-gray-100 text-gray-500">inactief</span>{% endif %}</td>
+              <td class="px-6 py-3">{{ t.created_at.strftime('%d-%m-%Y %H:%M') if t.created_at else '-' }}</td>
+              <td class="px-6 py-3">
+                <a href="{{ url_for('admin.tenants_edit', tenant_id=t.id) }}" class="inline-flex items-center gap-2 rounded-lg border px-3 py-1.5 text-sm hover:bg-gray-50"><i class="fa fa-pen"></i> Bewerken</a>
+              </td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    {% endif %}
+  </section>
+{% endblock %}
+

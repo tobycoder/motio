@@ -192,10 +192,12 @@ def create_app(config_class=Config):
     def inject_tenant_context():
         tenant_name = None
         tenant_settings = {}
+        tenant_slug = None
         try:
             if getattr(g, 'tenant', None):
                 tenant_name = g.tenant.naam
                 tenant_settings = g.tenant.settings or {}
+                tenant_slug = getattr(g.tenant, 'slug', None)
         except Exception:
             pass
         if not tenant_name:
@@ -204,6 +206,7 @@ def create_app(config_class=Config):
         return {
             'tenant': getattr(g, 'tenant', None),
             'tenant_name': tenant_name,
+            'tenant_slug': tenant_slug,
             'tenant_settings': tenant_settings,
         }
 
@@ -258,6 +261,10 @@ def create_app(config_class=Config):
 
     from .diag import bp as diag_bp
     app.register_blueprint(diag_bp, url_prefix="/diag")
+
+    # Admin (superadmin-only)
+    from .admin import bp as admin_bp
+    app.register_blueprint(admin_bp, url_prefix="/admin")
 
     return app
 

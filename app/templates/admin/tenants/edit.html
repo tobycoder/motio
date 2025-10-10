@@ -1,0 +1,120 @@
+{% extends 'base.html' %}
+{% block content %}
+  <div class="sticky top-0 page-chrome-low bg-white/90 backdrop-blur border-b shadow-sm">
+    <div class="mx-auto max-w-5xl px-4 py-4">
+      <h1 class="text-2xl font-semibold text-gray-900">Tenant bewerken: {{ tenant.slug }}</h1>
+    </div>
+  </div>
+
+  <section class="mx-auto max-w-5xl px-4 py-6 space-y-8">
+    <form method="post" enctype="multipart/form-data" class="space-y-6">
+      <div class="grid gap-4 md:grid-cols-2">
+        <div>
+          <label class="block text-sm font-medium text-gray-700">Slug</label>
+          <input type="text" value="{{ tenant.slug }}" disabled class="mt-1 w-full rounded-lg border border-gray-300 px-3 py-2 text-sm bg-gray-50">
+        </div>
+        <div>
+          <label class="block text-sm font-medium text-gray-700">Naam</label>
+          <input type="text" name="naam" value="{{ tenant.naam }}" required class="mt-1 w-full rounded-lg border border-gray-300 px-3 py-2 text-sm">
+        </div>
+        <div class="flex items-center gap-2">
+          <input type="checkbox" name="actief" id="actief" {% if tenant.actief %}checked{% endif %} class="accent-gray-900">
+          <label for="actief" class="text-sm text-gray-700">Actief</label>
+        </div>
+        <div>
+          <label class="block text-sm font-medium text-gray-700">Nieuw domein toevoegen</label>
+          <div class="flex gap-2">
+            <input type="text" name="add_domain" class="mt-1 w-full rounded-lg border border-gray-300 px-3 py-2 text-sm" placeholder="example.nl">
+          </div>
+        </div>
+      </div>
+
+      <div class="grid gap-4 md:grid-cols-2">
+        {% set install = (tenant.settings.get('install') if tenant.settings else {}) or {} %}
+        <div>
+          <label class="block text-sm font-medium text-gray-700">Install URL</label>
+          <input type="text" name="install_url" value="{{ install.get('url','') }}" class="mt-1 w-full rounded-lg border border-gray-300 px-3 py-2 text-sm" placeholder="https://...">
+        </div>
+        <div>
+          <label class="block text-sm font-medium text-gray-700">Install sleutel/id</label>
+          <input type="text" name="install_key" value="{{ install.get('key','') }}" class="mt-1 w-full rounded-lg border border-gray-300 px-3 py-2 text-sm" placeholder="bv. installatie-id">
+        </div>
+      </div>
+
+      {% set phr = (tenant.settings.get('phrasing') if tenant.settings else {}) or {} %}
+      {% set brand = (tenant.settings.get('brand') if tenant.settings else {}) or {} %}
+      <div class="grid gap-4 md:grid-cols-2">
+        <div>
+          <label class="block text-sm font-medium text-gray-700">Formulering — Overwegende dat</label>
+          <input type="text" name="phrasing_overwegende" value="{{ phr.get('overwegende','Overwegende dat') }}" class="mt-1 w-full rounded-lg border border-gray-300 px-3 py-2 text-sm">
+        </div>
+        <div>
+          <label class="block text-sm font-medium text-gray-700">Formulering — Constaterende dat</label>
+          <input type="text" name="phrasing_constaterende" value="{{ phr.get('constaterende','Constaterende dat') }}" class="mt-1 w-full rounded-lg border border-gray-300 px-3 py-2 text-sm">
+        </div>
+        <div>
+          <label class="block text-sm font-medium text-gray-700">Formulering — Draagt college op</label>
+          <input type="text" name="phrasing_draagt" value="{{ phr.get('draagt_op','Draagt college op') }}" class="mt-1 w-full rounded-lg border border-gray-300 px-3 py-2 text-sm">
+        </div>
+        <div>
+          <label class="block text-sm font-medium text-gray-700">Logo upload</label>
+          <input type="file" name="logo_file" accept=".png,.jpg,.jpeg,.svg,.webp" class="mt-1 w-full text-sm">
+          {% set current_logo = (tenant.settings.get('logo_src') if tenant.settings else None) %}
+          {% if current_logo %}
+            <div class="mt-2 flex items-center gap-3">
+              <img src="{{ current_logo }}" alt="Logo" class="h-8">
+              <span class="text-xs text-gray-500">Huidig logo</span>
+            </div>
+          {% endif %}
+        </div>
+      </div>
+
+      <div class="grid gap-4 md:grid-cols-3">
+        <div>
+          <label class="block text-sm font-medium text-gray-700">Kleur 1</label>
+          <input type="color" name="brand_color1" value="{{ brand.get('color1','#0ea5e9') }}" class="mt-1 h-10 w-16 p-0 border border-gray-300 rounded">
+        </div>
+        <div>
+          <label class="block text-sm font-medium text-gray-700">Kleur 2</label>
+          <input type="color" name="brand_color2" value="{{ brand.get('color2','#0369a1') }}" class="mt-1 h-10 w-16 p-0 border border-gray-300 rounded">
+        </div>
+        <div>
+          <label class="block text-sm font-medium text-gray-700">Kleur 3</label>
+          <input type="color" name="brand_color3" value="{{ brand.get('color3','#111827') }}" class="mt-1 h-10 w-16 p-0 border border-gray-300 rounded">
+        </div>
+      </div>
+
+      <div>
+        <label class="block text-sm font-medium text-gray-700">Extra instellingen (JSON, optioneel)</label>
+        <textarea name="settings" rows="10" class="mt-1 w-full rounded-lg border border-gray-300 px-3 py-2 text-sm">{{ (tenant.settings or {}) | tojson(indent=2) }}</textarea>
+      </div>
+
+      <div class="flex items-center gap-2">
+        <a href="{{ url_for('admin.tenants_index') }}" class="inline-flex items-center gap-2 rounded-lg border px-4 py-2 text-sm hover:bg-gray-50"><i class="fa fa-arrow-left"></i> Terug</a>
+        <button type="submit" class="inline-flex items-center gap-2 rounded-md bg-gray-900 px-4 py-2 text-sm font-semibold text-white shadow-sm hover:bg-black transition"><i class="fa fa-check"></i> Opslaan</button>
+      </div>
+    </form>
+
+    <div class="rounded-2xl border border-gray-200 bg-white shadow-sm">
+      <div class="p-4 border-b">
+        <h2 class="text-lg font-semibold">Gekoppelde domeinen</h2>
+      </div>
+      <div class="p-4">
+        {% if not domains %}
+          <div class="text-gray-500">Geen domeinen gekoppeld.</div>
+        {% else %}
+          <ul class="divide-y">
+            {% for d in domains %}
+              <li class="flex items-center justify-between py-2">
+                <div class="font-mono">{{ d.hostname }}</div>
+                <form method="post" action="{{ url_for('admin.tenants_domain_delete', tenant_id=tenant.id, domain_id=d.id) }}" onsubmit="return confirm('Domein verwijderen?');">
+                  <button type="submit" class="inline-flex items-center gap-2 rounded-lg border px-3 py-1.5 text-sm hover:bg-gray-50 text-red-700 border-red-200"><i class="fa fa-trash"></i> Verwijderen</button>
+                </form>
+              </li>
+            {% endfor %}
+          </ul>
+        {% endif %}
+      </div>
+    </div>
+  </section>
+{% endblock %}
