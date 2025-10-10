@@ -15,6 +15,7 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: read #This is required for actions/checkout
+      id-token: write # Required for azure/login OIDC (federated credentials)
 
     steps:
       - uses: actions/checkout@v4
