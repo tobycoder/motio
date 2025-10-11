@@ -194,9 +194,44 @@ def _notify(user_id: int, motie: Motie, ntype: str, payload: dict, share: MotieS
     db.session.add(n)
     _send_notification_email(user_id, motie, ntype, payload or {})
 
+def _pref_key_for_notification(user: User, ntype: str) -> str:
+    """Map notificatietype -> voorkeurssleutel. Gegroepeerd per doelgroep.
+    - Gebruikers: coauthor_added, advice_returned, share_received
+    - Griffie: advice_requested, advice_accepted, share_received (indien griffie)
+    share_revoked valt onder dezelfde groep als share_received.
+    """
+    ntype = (ntype or "").strip().lower()
+    is_griffie = bool(getattr(user, 'has_role', None) and user.has_role('griffie', 'superadmin'))
+    if ntype in ("advice_requested", "advice_accepted"):
+        return "griffie." + ntype
+    if ntype in ("share_received", "share_revoked"):
+        return ("griffie.share_received" if is_griffie else "users.share_received")
+    if ntype == "coauthor_added":
+        return "users.coauthor_added"
+    if ntype == "advice_returned":
+        # Nieuw advies staat klaar
+        return "users.advice_returned"
+    # Onbekend type: standaard aan
+    return "users.other"
+
+
+def _is_email_pref_enabled(user: User, ntype: str) -> bool:
+    prefs = getattr(user, 'email_prefs', None) or {}
+    # backwards-compatible: alles aan als ontbreekt
+    key = _pref_key_for_notification(user, ntype)
+    try:
+        val = prefs.get(key, True)
+        return bool(val) if val is not None else True
+    except Exception:
+        return True
+
+
 def _send_notification_email(user_id: int, motie: Motie | None, ntype: str, payload: dict) -> None:
     user = User.query.get(user_id)
     if not user or not getattr(user, "email", None):
+        return
+    # Respecteer per-gebruiker e-mailvoorkeuren (functionele mails elders blijven altijd aan)
+    if not _is_email_pref_enabled(user, ntype):
         return
     subject, body = _build_notification_email(user, motie, ntype, payload)
     if not subject or not body:
@@ -234,6 +269,44 @@ def _build_notification_email(user: User, motie: Motie | None, ntype: str, paylo
             lines.extend(["", "Bericht van de afzender:", message])
         if view_url:
             lines.extend(["", f"Bekijk de motie: {view_url}"])
+        lines.extend(["", "Groeten,", "Motio"])
+        return subject, "\n".join(lines)
+    if ntype == "advice_requested":
+        requested_by = payload.get("requested_by_naam") if payload else None
+        subject = f"Advies aangevraagd: {motie_title}"
+        lines = [
+            greeting,
+            "",
+            f"Er is advies aangevraagd voor '{motie_title}'{(' door ' + requested_by) if requested_by else ''}.",
+        ]
+        if view_url:
+            lines.extend(["", f"Open de motie: {view_url}"])
+        lines.extend(["", "Groeten,", "Motio"])
+        return subject, "\n".join(lines)
+    if ntype == "advice_returned":
+        reviewer = payload.get("reviewer_naam") if payload else None
+        subject = f"Nieuw advies staat klaar: {motie_title}"
+        lines = [
+            greeting,
+            "",
+            f"De griffie heeft advies teruggestuurd voor '{motie_title}'.",
+        ]
+        if reviewer:
+            lines.append(f"Reviewer: {reviewer}.")
+        if view_url:
+            lines.extend(["", f"Bekijk het advies en de motie: {view_url}"])
+        lines.extend(["", "Groeten,", "Motio"])
+        return subject, "\n".join(lines)
+    if ntype == "advice_accepted":
+        accepted_by = payload.get("accepted_by_naam") if payload else None
+        subject = f"Advies geaccepteerd: {motie_title}"
+        lines = [
+            greeting,
+            "",
+            f"De indiener heeft het advies voor '{motie_title}' geaccepteerd{(' (' + accepted_by + ')') if accepted_by else ''}.",
+        ]
+        if view_url:
+            lines.extend(["", f"Open de motie: {view_url}"])
         lines.extend(["", "Groeten,", "Motio"])
         return subject, "\n".join(lines)
     if ntype == "share_revoked":

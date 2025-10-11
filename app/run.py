@@ -1,7 +1,5 @@
-from app import create_app, db
+from app import db
 from app.models import User, Party, Motie
-
-app = create_app()
 
 def init_sample_data():
     """Initialize database with sample data"""
@@ -71,29 +69,29 @@ def init_sample_data():
     for user_data in users:
         print(f"  {user_data['username']} / {user_data['password']}")
 
-@app.cli.command()
-def init_db():
-    """Initialize the database."""
-    db.create_all()
-    init_sample_data()
+def register_cli(app):
+    """Register CLI commands on the given app instance.
+    Avoid creating a separate app here to prevent context duplication with Flask CLI.
+    """
+    @app.cli.command()
+    def init_db():
+        """Initialize the database."""
+        db.create_all()
+        init_sample_data()
 
-@app.cli.command()
-def reset_db():
-    """Reset the database."""
-    db.drop_all()
-    db.create_all()
-    init_sample_data()
+    @app.cli.command()
+    def reset_db():
+        """Reset the database."""
+        db.drop_all()
+        db.create_all()
+        init_sample_data()
 
 if __name__ == '__main__':
+    # Lazy import to avoid creating a second app when used through Flask CLI
+    from app import create_app
+    app = create_app()
+    register_cli(app)
     with app.app_context():
         db.create_all()
         init_sample_data()
-    
-    print("\n" + "="*50)
-    print("MOTIE TOOL DEVELOPMENT SERVER")
-    print("="*50)
-    print("Server starting at: http://127.0.0.1:5000")
-    print("Debug mode: ON")
-    print("="*50 + "\n")
-    
     app.run(debug=True, host='127.0.0.1', port=5000)

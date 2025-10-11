@@ -239,6 +239,10 @@ def settings():
         except Exception:
             pass
     try:
+        links.append({'label': 'E-mailmeldingen', 'href': url_for('gebruikers.email_settings')})
+    except Exception:
+        pass
+    try:
         links.append({'label': 'Markeer alle notificaties als gelezen', 'href': url_for('gebruikers.mark_all_read')})
     except Exception:
         pass
@@ -271,3 +275,50 @@ def edit_profiel():
         form.profile_url.data = user.profile_url
 
     return render_template('gebruikers/profiel_bewerken.html', **render_args)
+
+
+@bp.route('/instellingen/email', methods=['GET', 'POST'])
+@login_and_active_required
+def email_settings():
+    user = User.query.get_or_404(current_user.id)
+
+    # Default: alles aan
+    defaults = {
+        'users.share_received': True,
+        'users.coauthor_added': True,
+        'users.advice_returned': True,
+        'griffie.advice_requested': True,
+        'griffie.advice_accepted': True,
+        'griffie.share_received': True,
+    }
+
+    prefs = dict(defaults)
+    try:
+        stored = getattr(user, 'email_prefs', None) or {}
+        if isinstance(stored, dict):
+            prefs.update({k: bool(v) for k, v in stored.items()})
+    except Exception:
+        pass
+
+    if request.method == 'POST':
+        form_vals = request.form
+        updated = {}
+        for key in defaults.keys():
+            # Checkboxes only present when checked
+            form_key = f"pref__{key}"
+            updated[key] = True if form_vals.get(form_key) == 'on' else False
+        user.email_prefs = updated
+        db.session.commit()
+        flash('E-mailmeldingen opgeslagen.', 'success')
+        return redirect(url_for('gebruikers.email_settings'))
+
+    # Alleen griffieblok tonen voor griffie/superadmin
+    from app.auth.utils import has_role
+    show_griffie = has_role(current_user, ['griffie', 'superadmin'])
+
+    return render_template(
+        'gebruikers/instellingen_email.html',
+        prefs=prefs,
+        show_griffie=show_griffie,
+        title='E-mailmeldingen'
+    )

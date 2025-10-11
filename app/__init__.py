@@ -1,6 +1,13 @@
 ﻿from dotenv import load_dotenv
 load_dotenv()
 
+try:
+    from pathlib import Path
+    _app_env = Path(__file__).resolve().parent / ".env"
+    if _app_env.exists():
+        load_dotenv(_app_env, override=False)
+except Exception:
+    pass
 from flask import Flask, current_app, g, request
 import os
 from jinja2 import BaseLoader, FileSystemLoader, TemplateNotFound
@@ -169,23 +176,32 @@ def create_app(config_class=Config):
             pass
         return { 'griffie_advice_count': 0, 'griffie_submit_count': 0 }
 
-    with app.app_context():
-        url = db.engine.url
-        try:
-            safe_url = url.set(password="***")
-        except Exception:
-            safe_url = url
-        app.logger.info(f"DB connected: {safe_url}")
+    # Let op: geen app.app_context() hier om CLI-contextconflicten te voorkomen.
+    # Eventuele DB-verbinding logging kan gebeuren bij eerste request of via healthcheck.
 
     # ====== Multi-tenant resolver (eerste aanzet) ======
     @app.before_request
     def _resolve_tenant():
+        """Resolve tenant based on request host.
+        Avoid hitting the database for public/static or unknown endpoints to
+        prevent timeouts when the DB is slow/unavailable (e.g. random bot hits).
+        """
         try:
+            ep = request.endpoint or ""
+            # Skip for unknown endpoints (404s), public endpoints and cheap methods
+            if not ep or ep in PUBLIC_ENDPOINTS or request.method in ("HEAD", "OPTIONS"):
+                g.tenant = None
+                return
+
             from app.models import TenantDomain  # imported lazily
             host = (request.host or '').split(':')[0].lower()
+            if not host:
+                g.tenant = None
+                return
             td = TenantDomain.query.filter(TenantDomain.hostname.ilike(host)).first()
             g.tenant = td.tenant if td else None
         except Exception:
+            # Never let tenant resolution block the request path
             g.tenant = None
 
     @app.context_processor
@@ -266,47 +282,56 @@ def create_app(config_class=Config):
     from .admin import bp as admin_bp
     app.register_blueprint(admin_bp, url_prefix="/admin")
 
+    # Registreer tenant-scoping events na app-initialisatie
+    _register_tenant_scoping_events()
+
+    # CLI-commando's registreren op dezelfde app-instantie (voorkomt dubbele context)
+    try:
+        from .run import register_cli
+        register_cli(app)
+    except Exception:
+        # CLI helpers zijn optioneel; niet falen tijdens import
+        pass
+
     return app
 
 
-app = create_app()
-
-# ====== Multi-tenant: zet tenant_id automatisch op nieuwe records (voorbeeld) ======
-from sqlalchemy import event
-from flask import g
-
-@event.listens_for(db.session, "before_flush")
-def _mt_set_tenant(session, flush_context, instances):
-    tenant = getattr(g, 'tenant', None)
-    if not tenant:
-        return
-    for obj in session.new:
-        if hasattr(obj, 'tenant_id') and getattr(obj, 'tenant_id', None) is None:
-            try:
-                obj.tenant_id = tenant.id
-            except Exception:
-                pass
-
-
-@event.listens_for(db.session, "do_orm_execute")
-def _mt_scope_queries(execute_state):
-    """Voeg tenant filters toe aan SELECTs v    Dit is een voorzichtige, niet-destructieve eerste versie.
-oor modellen met tenant_id.
-    """
+# Let op: geen globale `app` hier aanmaken. Gebruik de factory in wsgi.py
+# (app = create_app()) of via de Flask CLI met FLASK_APP=app:create_app.
+def _register_tenant_scoping_events():
+    """Registreer SQLAlchemy events. Los van app context houden om CLI-issues te voorkomen."""
+    from sqlalchemy import event
+    from flask import g
     from sqlalchemy.orm import with_loader_criteria
-    if not execute_state.is_select:
-        return
-    tenant = getattr(g, 'tenant', None)
-    if not tenant:
-        return
-    try:
-        from app.models import (
-            Motie, User, Party, MotieShare, Notification, AdviceSession, MotieVersion, DashboardLayout
-        )
-        for model in (Motie, User, Party, MotieShare, Notification, AdviceSession, MotieVersion, DashboardLayout):
-            execute_state.statement = execute_state.statement.options(
-                with_loader_criteria(model, lambda cls: cls.tenant_id == tenant.id, include_aliases=True)
+    
+    @event.listens_for(db.session, "before_flush")
+    def _mt_set_tenant(session, flush_context, instances):
+        tenant = getattr(g, 'tenant', None)
+        if not tenant:
+            return
+        for obj in session.new:
+            if hasattr(obj, 'tenant_id') and getattr(obj, 'tenant_id', None) is None:
+                try:
+                    obj.tenant_id = tenant.id
+                except Exception:
+                    pass
+
+    @event.listens_for(db.session, "do_orm_execute")
+    def _mt_scope_queries(execute_state):
+        """Voeg tenant filters toe aan SELECTs voor modellen met tenant_id (voorzichtig)."""
+        if not execute_state.is_select:
+            return
+        tenant = getattr(g, 'tenant', None)
+        if not tenant:
+            return
+        try:
+            from app.models import (
+                Motie, User, Party, MotieShare, Notification, AdviceSession, MotieVersion, DashboardLayout
             )
-    except Exception:
-        # In geval van import issues in vroege app lifecycle, stilletjes overslaan
-        pass
+            for model in (Motie, User, Party, MotieShare, Notification, AdviceSession, MotieVersion, DashboardLayout):
+                execute_state.statement = execute_state.statement.options(
+                    with_loader_criteria(model, lambda cls: cls.tenant_id == tenant.id, include_aliases=True)
+                )
+        except Exception:
+            # In geval van import issues in vroege app lifecycle, stilletjes overslaan
+            pass

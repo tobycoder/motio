@@ -1,0 +1,77 @@
+{% extends 'base.html' %}
+{% block content %}
+<main class="max-w-3xl mx-auto px-4 py-8">
+  <div class="mb-6">
+    <h1 class="text-2xl font-semibold">E-mailmeldingen</h1>
+    <p class="text-sm text-gray-500">Kies welke meldingen je per e-mail wilt ontvangen. Noodzakelijke functionele e-mails (zoals wachtwoord resetten) kunnen niet worden uitgezet.</p>
+  </div>
+
+  <form method="post" class="space-y-8 bg-white p-6 rounded-xl border shadow-sm">
+    {{ csrf_token() if csrf_token is defined }}
+
+    <section>
+      <h2 class="text-lg font-medium mb-3">Gebruikers</h2>
+      <div class="space-y-3">
+        <label class="flex items-start gap-3">
+          <input type="checkbox" name="pref__users.share_received" {% if prefs['users.share_received'] %}checked{% endif %} class="checkbox checkbox-sm mt-1" />
+          <span>
+            <span class="font-medium">Motie gedeeld met mij</span>
+            <span class="block text-sm text-gray-500">Ontvang een e-mail wanneer iemand een motie met jou deelt.</span>
+          </span>
+        </label>
+        <label class="flex items-start gap-3">
+          <input type="checkbox" name="pref__users.coauthor_added" {% if prefs['users.coauthor_added'] %}checked{% endif %} class="checkbox checkbox-sm mt-1" />
+          <span>
+            <span class="font-medium">Toegevoegd als mede-indiener</span>
+            <span class="block text-sm text-gray-500">Ontvang een e-mail wanneer je als mede-indiener wordt toegevoegd.</span>
+          </span>
+        </label>
+        <label class="flex items-start gap-3">
+          <input type="checkbox" name="pref__users.advice_returned" {% if prefs['users.advice_returned'] %}checked{% endif %} class="checkbox checkbox-sm mt-1" />
+          <span>
+            <span class="font-medium">Nieuw advies staat klaar</span>
+            <span class="block text-sm text-gray-500">Ontvang een e-mail zodra de griffie advies heeft teruggestuurd.</span>
+          </span>
+        </label>
+      </div>
+    </section>
+
+    {% if show_griffie %}
+    <section>
+      <h2 class="text-lg font-medium mb-3">Griffie</h2>
+      <div class="space-y-3">
+        <label class="flex items-start gap-3">
+          <input type="checkbox" name="pref__griffie.advice_requested" {% if prefs['griffie.advice_requested'] %}checked{% endif %} class="checkbox checkbox-sm mt-1" />
+          <span>
+            <span class="font-medium">Nieuwe motie staat klaar om geadviseerd te worden</span>
+            <span class="block text-sm text-gray-500">Ontvang een e-mail wanneer advies wordt aangevraagd.</span>
+          </span>
+        </label>
+        <label class="flex items-start gap-3">
+          <input type="checkbox" name="pref__griffie.advice_accepted" {% if prefs['griffie.advice_accepted'] %}checked{% endif %} class="checkbox checkbox-sm mt-1" />
+          <span>
+            <span class="font-medium">Advies is geaccepteerd door indiener</span>
+            <span class="block text-sm text-gray-500">Ontvang een e-mail wanneer de indiener het advies accepteert.</span>
+          </span>
+        </label>
+        <label class="flex items-start gap-3">
+          <input type="checkbox" name="pref__griffie.share_received" {% if prefs['griffie.share_received'] %}checked{% endif %} class="checkbox checkbox-sm mt-1" />
+          <span>
+            <span class="font-medium">Motie gedeeld met griffiemedewerker</span>
+            <span class="block text-sm text-gray-500">Ontvang een e-mail wanneer een motie met jou (griffie) wordt gedeeld.</span>
+          </span>
+        </label>
+      </div>
+    </section>
+    {% endif %}
+
+    <div>
+      <button type="submit" class="btn btn-primary">Opslaan</button>
+      <a href="{{ url_for('gebruikers.settings') }}" class="btn btn-ghost">Annuleren</a>
+    </div>
+  </form>
+
+  <p class="text-xs text-gray-500 mt-4">Let op: Alle noodzakelijke functionele e-mails (zoals bevestigingen voor inloggen of wachtwoord herstellen) blijven altijd aan staan.</p>
+</main>
+{% endblock %}
+

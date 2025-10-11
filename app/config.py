@@ -28,6 +28,13 @@ class Config:
     SQLALCHEMY_DATABASE_URI = _normalize_db_url(os.environ.get("DATABASE_URL"))
     SQLALCHEMY_TRACK_MODIFICATIONS = False
     SQLALCHEMY_ECHO = False
+    # Be defensive against stale/broken connections and long connect waits
+    SQLALCHEMY_ENGINE_OPTIONS = {
+        "pool_pre_ping": True,
+        "pool_recycle": 300,
+        # Psycopg connect timeout in seconds (avoid worker timeouts on dead DB)
+        "connect_args": {"connect_timeout": 3},
+    }
 
     # Session
     PERMANENT_SESSION_LIFETIME = timedelta(hours=4)

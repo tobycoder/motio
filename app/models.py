@@ -83,6 +83,8 @@ class User(UserMixin, db.Model):
     actief = db.Column(db.Boolean, default=True)    
     profile_url = db.Column(db.String(512), nullable=True)
     profile_filename = db.Column(db.String(255), nullable=True, default='placeholder_profile.png')
+    # Per-gebruiker e-mailmeldingsvoorkeuren
+    email_prefs = db.Column(JSONEncodedDict, nullable=False, default=dict)
     tenant = db.relationship('Tenant')
 
     @property

@@ -34,46 +34,56 @@ if str(REPO_ROOT) not in sys.path:
 from app import create_app, db  # noqa: E402
 
 app = create_app()
-app.app_context().push()
 
 
-# Determine database URL: env var first, then Flask config, then alembic.ini
-db_url = os.getenv("DATABASE_URL") or app.config.get("SQLALCHEMY_DATABASE_URI") or config.get_main_option("sqlalchemy.url")
-if db_url:
-    # Escape % to avoid ConfigParser interpolation issues (e.g., %40 in passwords)
-    config.set_main_option("sqlalchemy.url", db_url.replace('%', '%%'))
+def _configure_sqlalchemy_url():
+    with app.app_context():
+        db_url = (
+            os.getenv("DATABASE_URL")
+            or app.config.get("SQLALCHEMY_DATABASE_URI")
+            or config.get_main_option("sqlalchemy.url")
+        )
+        if db_url:
+            config.set_main_option("sqlalchemy.url", db_url.replace('%', '%%'))
 
 
-# Target metadata for autogenerate
-target_metadata = db.metadata
+def _get_metadata():
+    with app.app_context():
+        return db.metadata
+
+
+_configure_sqlalchemy_url()
+target_metadata = _get_metadata()
 
 
 def run_migrations_offline():
     """Run migrations zonder DB-verbinding (URL)."""
-    url = config.get_main_option("sqlalchemy.url") or db.engine.url.render_as_string(hide_password=False)
-    context.configure(
-        url=url,
-        target_metadata=target_metadata,
-        literal_binds=True,
-        compare_type=True,
-        compare_server_default=True,
-    )
-    with context.begin_transaction():
-        context.run_migrations()
-
-
-def run_migrations_online():
-    """Run migrations met echte verbinding (engine)."""
-    connectable = db.engine
-    with connectable.connect() as connection:
+    with app.app_context():
+        url = config.get_main_option("sqlalchemy.url") or db.engine.url.render_as_string(hide_password=False)
         context.configure(
-            connection=connection,
+            url=url,
             target_metadata=target_metadata,
+            literal_binds=True,
             compare_type=True,
             compare_server_default=True,
         )
         with context.begin_transaction():
             context.run_migrations()
+
+
+def run_migrations_online():
+    """Run migrations met echte verbinding (engine)."""
+    with app.app_context():
+        connectable = db.engine
+        with connectable.connect() as connection:
+            context.configure(
+                connection=connection,
+                target_metadata=target_metadata,
+                compare_type=True,
+                compare_server_default=True,
+            )
+            with context.begin_transaction():
+                context.run_migrations()
 
 
 if context.is_offline_mode():
