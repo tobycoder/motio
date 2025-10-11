@@ -1,15 +1,23 @@
-﻿from dotenv import load_dotenv
+﻿import os
+from pathlib import Path
+
+from dotenv import load_dotenv
+
+_BASE_DIR = Path(__file__).resolve().parent
+
 load_dotenv()
 
-try:
-    from pathlib import Path
-    _app_env = Path(__file__).resolve().parent / ".env"
-    if _app_env.exists():
-        load_dotenv(_app_env, override=False)
-except Exception:
-    pass
-from flask import Flask, current_app, g, request
-import os
+_dotenv_path = _BASE_DIR / ".env"
+if _dotenv_path.exists():
+    current_db_url = (os.environ.get("DATABASE_URL") or "").strip()
+    sanitized_db_url = current_db_url.replace('"', "").replace("'", "")
+    placeholder = not sanitized_db_url
+    load_dotenv(dotenv_path=_dotenv_path, override=placeholder)
+
+from flask import Flask, current_app, g, request, render_template, got_request_exception
+import logging
+import traceback
+import uuid
 from jinja2 import BaseLoader, FileSystemLoader, TemplateNotFound
 from flask_sqlalchemy import SQLAlchemy
 from flask_migrate import Migrate
@@ -102,6 +110,7 @@ def send_email(*, subject: str, recipients, text_body: str, html_body: str | Non
 def create_app(config_class=Config):
     app = Flask(__name__)
     app.config.from_object(config_class)
+    _configure_logging(app)
     register_filters(app)
 
     db.init_app(app)
@@ -129,7 +138,16 @@ def create_app(config_class=Config):
         def current_user_has_role(*roles: str, allow_superadmin: bool = True) -> bool:
             return has_role(current_user, roles, allow_superadmin=allow_superadmin)
 
-        return {"user_has_role": current_user_has_role}
+        def _route_exists(endpoint: str) -> bool:
+            try:
+                return bool(endpoint and endpoint in current_app.view_functions)
+            except Exception:
+                return False
+
+        return {
+            "user_has_role": current_user_has_role,
+            "route_exists": _route_exists,
+        }
 
     @app.context_processor
     def inject_notif_unread():
@@ -284,6 +302,7 @@ def create_app(config_class=Config):
 
     # Registreer tenant-scoping events na app-initialisatie
     _register_tenant_scoping_events()
+    _register_error_handlers(app)
 
     # CLI-commando's registreren op dezelfde app-instantie (voorkomt dubbele context)
     try:
@@ -298,6 +317,62 @@ def create_app(config_class=Config):
 
 # Let op: geen globale `app` hier aanmaken. Gebruik de factory in wsgi.py
 # (app = create_app()) of via de Flask CLI met FLASK_APP=app:create_app.
+def _configure_logging(app: Flask) -> None:
+    """Zorg dat uitzonderingen zichtbaar in de terminal komen."""
+    desired_level = logging.DEBUG if app.config.get("DEBUG") else logging.INFO
+    app.logger.setLevel(desired_level)
+    stream_handler = None
+    for handler in app.logger.handlers:
+        if isinstance(handler, logging.StreamHandler):
+            stream_handler = handler
+            break
+    if stream_handler is None:
+        stream_handler = logging.StreamHandler()
+        app.logger.addHandler(stream_handler)
+    stream_handler.setLevel(desired_level)
+    stream_handler.setFormatter(logging.Formatter("[%(asctime)s] %(levelname)s in %(module)s: %(message)s"))
+    app.logger.propagate = False
+
+
+def _register_error_handlers(app: Flask) -> None:
+    """Log foutmeldingen en toon tracebacks in niet-production builds."""
+    @got_request_exception.connect_via(app)
+    def _store_exception(sender, exception, **extra):  # pragma: no cover - logging helper
+        try:
+            g._last_exception = exception
+        except Exception:
+            pass
+        try:
+            method = request.method
+            path = request.path
+        except Exception:
+            method = "<?>"
+            path = "<geen-request>"
+        sender.logger.exception("Unhandled exception on %s %s", method, path, exc_info=exception)
+
+    @app.errorhandler(500)
+    def _handle_internal_error(error):
+        original = getattr(g, "_last_exception", error)
+        error_id = uuid.uuid4().hex[:8]
+        flask_env = (app.config.get("ENV") or os.environ.get("FLASK_ENV") or "").lower()
+        show_debug = app.debug or app.config.get("TESTING") or flask_env in {"", "development", "dev"}
+        stacktrace = None
+        if show_debug and original is not None:
+            stacktrace = "".join(
+                traceback.format_exception(type(original), original, getattr(original, "__traceback__", None))
+            )
+        message = str(original) if show_debug and original else None
+        return (
+            render_template(
+                "errors/500.html",
+                error_id=error_id,
+                stacktrace=stacktrace,
+                error_message=message,
+            ),
+            500,
+        )
+
+
 def _register_tenant_scoping_events():
     """Registreer SQLAlchemy events. Los van app context houden om CLI-issues te voorkomen."""
     from sqlalchemy import event
@@ -335,3 +410,4 @@ def _register_tenant_scoping_events():
         except Exception:
             # In geval van import issues in vroege app lifecycle, stilletjes overslaan
             pass
+

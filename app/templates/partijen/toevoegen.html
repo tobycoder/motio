@@ -5,6 +5,8 @@
 <form action="{{ url_for('partijen.toevoegen') }}" method="post" enctype="multipart/form-data" class="space-y-8 bg-white p-6 rounded-xl shadow">
   <input type="text" name="naam" placeholder="Partijnaam" required class="w-full rounded-md border border-gray-300 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-gray-900">
   <input type="text" name="afkorting" placeholder="Afkorting" required class="w-full rounded-md border border-gray-300 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-gray-900">
+  <input type="number" name="zetelaantal" min="0" step="1" placeholder="Zetelaantal (optioneel)" class="w-full rounded-md border border-gray-300 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-gray-900">
+  <input type="number" name="lijstnummer_volgende" min="0" step="1" placeholder="Lijstnummer volgende verkiezingen (optioneel)" class="w-full rounded-md border border-gray-300 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-gray-900">
   <label class="inline-flex items-center gap-2">
     <input type="checkbox" name="actief" checked> Actief
   </label>

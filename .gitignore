@@ -1,6 +1,7 @@
 # Python / Flask
 venv/
 .env
+.flaskenv
 instance/
 __pycache__/
 *.pyc

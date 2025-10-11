@@ -56,6 +56,14 @@
             <dd class="text-gray-900">{{ partij.afkorting or 'n.v.t.' }}</dd>
           </div>
           <div class="flex justify-between">
+            <dt class="font-medium text-gray-500">Zetelaantal</dt>
+            <dd class="text-gray-900">{{ partij.zetelaantal if partij.zetelaantal is not none else 'Onbekend' }}</dd>
+          </div>
+          <div class="flex justify-between">
+            <dt class="font-medium text-gray-500">Lijstnummer volgende verkiezingen</dt>
+            <dd class="text-gray-900">{{ partij.lijstnummer_volgende if partij.lijstnummer_volgende is not none else 'Onbekend' }}</dd>
+          </div>
+          <div class="flex justify-between">
             <dt class="font-medium text-gray-500">Status</dt>
             <dd class="text-gray-900">{{ 'Actief' if partij.actief else 'Inactief' }}</dd>
           </div>

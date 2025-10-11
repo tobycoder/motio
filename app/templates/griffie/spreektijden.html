@@ -1,0 +1,250 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="max-w-6xl mx-auto px-4 py-6 space-y-8">
+  <header class="flex flex-col gap-2">
+    <p class="text-sm uppercase tracking-wide text-gray-500">Griffie</p>
+    <h1 class="text-2xl font-semibold text-gray-900">Spreektijdenplanner</h1>
+    <p class="text-sm text-gray-600">
+      Bepaal de spreektijden per fractie op basis van vergaderduur, voorzitterstijd en zetelverdeling.
+    </p>
+  </header>
+
+  <section class="rounded-2xl border border-gray-200 bg-white shadow-sm">
+    <form method="post" class="space-y-6 p-6" novalidate>
+      {{ form.hidden_tag() }}
+      <section>
+        <h2 class="text-lg font-semibold text-gray-900 mb-3">Instellingen</h2>
+        <div class="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+          <div class="flex flex-col gap-1">
+            <label for="{{ form.committee.id }}" class="text-sm font-medium text-gray-700">Commissie</label>
+            {{ form.committee(class="rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 focus:border-gray-900 focus:outline-none focus:ring-2 focus:ring-gray-900/20 transition") }}
+            <p class="text-xs text-gray-500">Kies een preset of selecteer &quot;Speciaal evenement&quot; voor maatwerk.</p>
+            {% for error in form.committee.errors %}
+              <p class="text-xs text-red-600">{{ error }}</p>
+            {% endfor %}
+          </div>
+          <div class="flex flex-col gap-1">
+            <label for="{{ form.meeting_date.id }}" class="text-sm font-medium text-gray-700">Vergaderdatum</label>
+            {{ form.meeting_date(class="rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 focus:border-gray-900 focus:outline-none focus:ring-2 focus:ring-gray-900/20 transition", type="date") }}
+            {% for error in form.meeting_date.errors %}
+              <p class="text-xs text-red-600">{{ error }}</p>
+            {% endfor %}
+          </div>
+        </div>
+      </section>
+
+      <section>
+        <h2 class="text-lg font-semibold text-gray-900 mb-3">Tijdverdeling</h2>
+        <div class="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+          <div class="flex flex-col gap-1">
+            <label for="{{ form.total_minutes.id }}" class="text-sm font-medium text-gray-700">Bruto spreektijd (minuten)</label>
+            {{ form.total_minutes(class="rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 focus:border-gray-900 focus:outline-none focus:ring-2 focus:ring-gray-900/20 transition", type="number", min="1") }}
+            {% for error in form.total_minutes.errors %}
+              <p class="text-xs text-red-600">{{ error }}</p>
+            {% endfor %}
+          </div>
+          <div class="flex flex-col gap-1">
+            <div class="flex items-center justify-between">
+              <label for="{{ form.chair_minutes.id }}" class="text-sm font-medium text-gray-700">Voorzitterstijd (minuten)</label>
+              <label class="inline-flex items-center gap-2 text-xs text-gray-500">
+                <input type="checkbox" id="auto-chair-toggle" class="rounded border-gray-300 text-gray-900" checked>
+                Automatisch 15%
+              </label>
+            </div>
+            {{ form.chair_minutes(class="rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 focus:border-gray-900 focus:outline-none focus:ring-2 focus:ring-gray-900/20 transition", type="number", min="0") }}
+            {% for error in form.chair_minutes.errors %}
+              <p class="text-xs text-red-600">{{ error }}</p>
+            {% endfor %}
+          </div>
+          <div class="flex flex-col gap-1">
+            <label for="{{ form.pause_minutes.id }}" class="text-sm font-medium text-gray-700">Pauze (minuten)</label>
+            {{ form.pause_minutes(class="rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 focus:border-gray-900 focus:outline-none focus:ring-2 focus:ring-gray-900/20 transition", type="number", min="0") }}
+            {% for error in form.pause_minutes.errors %}
+              <p class="text-xs text-red-600">{{ error }}</p>
+            {% endfor %}
+          </div>
+          <div class="flex flex-col gap-1">
+            <label for="{{ form.speakers_count.id }}" class="text-sm font-medium text-gray-700">Aantal insprekers</label>
+            {{ form.speakers_count(class="rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 focus:border-gray-900 focus:outline-none focus:ring-2 focus:ring-gray-900/20 transition", type="number", min="0") }}
+            {% for error in form.speakers_count.errors %}
+              <p class="text-xs text-red-600">{{ error }}</p>
+            {% endfor %}
+          </div>
+          <div class="flex flex-col gap-1">
+            <label for="{{ form.speaker_slot_minutes.id }}" class="text-sm font-medium text-gray-700">Per inspreker (minuten)</label>
+            {{ form.speaker_slot_minutes(class="rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 focus:border-gray-900 focus:outline-none focus:ring-2 focus:ring-gray-900/20 transition", type="number", min="1") }}
+            {% for error in form.speaker_slot_minutes.errors %}
+              <p class="text-xs text-red-600">{{ error }}</p>
+            {% endfor %}
+          </div>
+          <div class="flex flex-col gap-1">
+            <label for="{{ form.college_minutes.id }}" class="text-sm font-medium text-gray-700">Spreektijd college (minuten)</label>
+            {{ form.college_minutes(class="rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 focus:border-gray-900 focus:outline-none focus:ring-2 focus:ring-gray-900/20 transition", type="number", min="0") }}
+            {% for error in form.college_minutes.errors %}
+              <p class="text-xs text-red-600">{{ error }}</p>
+            {% endfor %}
+          </div>
+        </div>
+      </section>
+
+      <div class="flex flex-wrap gap-3">
+        {{ form.preview(class="inline-flex items-center justify-center gap-2 rounded-md bg-gray-900 px-4 py-2 text-sm font-semibold text-white shadow-sm hover:bg-black transition") }}
+        {{ form.export_pdf(class="inline-flex items-center justify-center gap-2 rounded-md border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 transition") }}
+      </div>
+    </form>
+  </section>
+
+  {% if result %}
+    <section class="rounded-2xl border border-gray-200 bg-white shadow-sm p-6 space-y-6">
+      <div class="flex flex-col gap-2">
+        <h2 class="text-lg font-semibold text-gray-900">Voorbeeld</h2>
+        <p class="text-sm text-gray-600">
+          Spreektijden voor <strong>{{ committee_label }}</strong> op
+          <strong>{{ form.meeting_date.data.strftime('%d-%m-%Y') if form.meeting_date.data else 'onbekende datum' }}</strong>.
+        </p>
+      </div>
+
+      <div class="grid gap-4 md:grid-cols-3">
+        <div class="rounded-xl border border-gray-100 bg-gray-50 px-4 py-3">
+          <p class="text-xs uppercase tracking-wide text-gray-500">Beschikbaar voor fracties</p>
+          <p class="text-2xl font-semibold {% if result.remaining_minutes < 0 %}text-red-600{% else %}text-gray-900{% endif %}">
+            {{ "%.1f"|format(result.remaining_minutes) }} min
+          </p>
+        </div>
+        <div class="rounded-xl border border-gray-100 bg-gray-50 px-4 py-3">
+          <p class="text-xs uppercase tracking-wide text-gray-500">Gelijk deel (5/6)</p>
+          <p class="text-2xl font-semibold text-gray-900">
+            {{ "%.1f"|format(result.equal_pool_minutes) }} min
+          </p>
+        </div>
+        <div class="rounded-xl border border-gray-100 bg-gray-50 px-4 py-3">
+          <p class="text-xs uppercase tracking-wide text-gray-500">Zetelafhankelijk (1/6)</p>
+          <p class="text-2xl font-semibold text-gray-900">
+            {{ "%.1f"|format(result.seat_pool_minutes) }} min
+          </p>
+        </div>
+      </div>
+
+      <div class="overflow-x-auto -mx-4 md:mx-0">
+        <table class="min-w-full divide-y divide-gray-200 text-sm text-left">
+          <thead class="bg-gray-900 text-white">
+            <tr>
+              <th scope="col" class="px-4 py-3 font-semibold">Fractie</th>
+              <th scope="col" class="px-4 py-3 font-semibold">Zetels</th>
+              <th scope="col" class="px-4 py-3 font-semibold">Basisdeel (min)</th>
+              <th scope="col" class="px-4 py-3 font-semibold">Zeteldeel (min)</th>
+              <th scope="col" class="px-4 py-3 font-semibold">Spreektijd (u:mm:ss)</th>
+            </tr>
+          </thead>
+          <tbody class="divide-y divide-gray-200 bg-white">
+            {% for row in result.distribution %}
+              <tr class="hover:bg-gray-50 transition">
+                <td class="px-4 py-3">
+                  <div class="font-medium text-gray-900">{{ row.name }}</div>
+                  <div class="text-xs text-gray-500">{{ row.abbreviation }}</div>
+                </td>
+                <td class="px-4 py-3 text-gray-700">{{ row.seats }}</td>
+                <td class="px-4 py-3 text-gray-700">{{ "%.1f"|format(row.base_minutes) }}</td>
+                <td class="px-4 py-3 text-gray-700">{{ "%.1f"|format(row.seat_minutes) }}</td>
+                <td class="px-4 py-3 font-semibold text-gray-900">{{ row.total_time }}</td>
+              </tr>
+            {% endfor %}
+            <tr class="bg-gray-50 hover:bg-gray-100 transition">
+              <td class="px-4 py-3">
+                <div class="font-medium text-gray-900">College</div>
+                <div class="text-xs text-gray-500">College van B&amp;W</div>
+              </td>
+              <td class="px-4 py-3 text-gray-700">—</td>
+              <td class="px-4 py-3 text-gray-700">—</td>
+              <td class="px-4 py-3 text-gray-700">—</td>
+              <td class="px-4 py-3 font-semibold text-gray-900">{{ result.college.time }}</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div class="rounded-xl border border-dashed border-gray-300 bg-gray-50 px-4 py-3 text-sm text-gray-600">
+        <p>
+          Totale vergadertijd: {{ result.total_minutes }} min.
+          Voorzitter: {{ result.chair_minutes }} min.
+          Pauze: {{ result.pause_minutes }} min.
+          Insprekers: {{ result.speakers_count }} × {{ result.speaker_slot_minutes }} min = {{ result.speaker_minutes }} min.
+          College: {{ result.college_minutes }} min.
+        </p>
+        <p>Beschikbaar voor fracties: {{ "%.1f"|format(result.remaining_minutes) }} min verdeeld over {{ result.distribution|length }} fracties ({{ result.total_seats }} zetels).</p>
+      </div>
+
+      {% if result.excluded_parties %}
+        <div class="rounded-xl border border-yellow-200 bg-yellow-50 px-4 py-3 text-sm text-yellow-900">
+          <p class="font-semibold">Niet meegenomen:</p>
+          <p>
+            {% for partij in result.excluded_parties %}
+              {{ partij.naam }}{% if not loop.last %}, {% endif %}
+            {% endfor %}
+            (geen zetels geregistreerd).
+          </p>
+        </div>
+      {% endif %}
+    </section>
+  {% endif %}
+</div>
+
+<script type="application/json" id="presets-json">{{ presets_json|safe }}</script>
+<script>
+  document.addEventListener('DOMContentLoaded', () => {
+    const presets = JSON.parse(document.getElementById('presets-json').textContent || '{}');
+    const committeeSelect = document.getElementById('{{ form.committee.id }}');
+    const totalField = document.getElementById('{{ form.total_minutes.id }}');
+    const chairField = document.getElementById('{{ form.chair_minutes.id }}');
+    const pauseField = document.getElementById('{{ form.pause_minutes.id }}');
+    const speakerCountField = document.getElementById('{{ form.speakers_count.id }}');
+    const speakerSlotField = document.getElementById('{{ form.speaker_slot_minutes.id }}');
+    const collegeField = document.getElementById('{{ form.college_minutes.id }}');
+    const autoChairToggle = document.getElementById('auto-chair-toggle');
+
+    const applyPreset = (key) => {
+      const preset = presets[key];
+      if (!preset) {
+        return;
+      }
+      totalField.value = preset.total_minutes;
+      chairField.value = preset.chair_minutes;
+      pauseField.value = preset.pause_minutes;
+      speakerSlotField.value = preset.speaker_slot_minutes;
+      collegeField.value = preset.college_minutes;
+      autoChairToggle.checked = true;
+      updateChairFromTotal();
+    };
+
+    const updateChairFromTotal = () => {
+      if (!autoChairToggle.checked) {
+        return;
+      }
+      const total = Number(totalField.value);
+      if (!Number.isFinite(total)) {
+        return;
+      }
+      chairField.value = Math.round(total * 0.15);
+    };
+
+    committeeSelect?.addEventListener('change', () => {
+      const value = committeeSelect.value;
+      if (value && presets[value]) {
+        applyPreset(value);
+      } else {
+        autoChairToggle.checked = false;
+      }
+    });
+
+    totalField?.addEventListener('input', updateChairFromTotal);
+    autoChairToggle?.addEventListener('change', () => {
+      if (autoChairToggle.checked) {
+        updateChairFromTotal();
+      }
+    });
+
+    // Focus first field for convenience
+    committeeSelect?.focus();
+  });
+</script>
+{% endblock %}

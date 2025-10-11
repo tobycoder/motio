@@ -44,6 +44,7 @@ docxtpl>=0.16
 python-slugify>=8.0
 pandas
 openpyxl
+reportlab
 
 
 # --- Netwerk/Domain utils (indirect via email-validator) ---

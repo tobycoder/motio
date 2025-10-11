@@ -69,6 +69,20 @@
 
         .nav-root { z-index: 1200; position: relative; }
         .nav-dropdown, .nav-dropdown * { z-index: 1200 !important; }
+        .nav-dropdown-panel { z-index: 1400 !important; }
+        .nav-dropdown-panel a { position: relative; z-index: 1; }
+        @media (max-width: 767px) {
+            .nav-dropdown-panel {
+                position: static !important;
+                width: 100% !important;
+                margin-top: 0rem;
+                box-shadow: none !important;
+                border-width: 0 !important;
+            }
+            .nav-dropdown-panel ul {
+                margin-top: 0rem;
+            }
+        }
 
         .page-chrome { z-index: 900; }
         .page-chrome-low { z-index: 100; }
@@ -276,8 +290,8 @@
                         <a href="{{ url_for('gebruikers.index') if user_has_role('griffie','superadmin') else url_for('gebruikers.index_user') }}"
                            class="block bg-transparent py-2 px-3 text-gray-900 rounded-sm hover:bg-gray-100 md:hover:bg-transparent md:border-0 md:hover:text-blue-700 md:px-3 md:py-2 dark:text-white md:dark:hover:text-blue-500 dark:hover:bg-gray-700 dark:hover:text-white md:dark:hover:bg-transparent">Gebruikers</a>
                     </li>
-                    <li>
-                        <button id="dropdownNavbarLink" data-dropdown-toggle="dropdownNavbar"
+                    <li class="relative md:static">
+                        <button id="dropdownMotiesLink" data-dropdown-toggle="dropdownNavbar"
                             class="flex items-center justify-between w-full py-2 px-3 text-gray-900 rounded-sm hover:bg-gray-100 md:hover:bg-transparent md:border-0 md:hover:text-blue-700 md:px-3 md:py-2 md:w-auto dark:text-white md:dark:hover:text-blue-500 dark:focus:text-white dark:border-gray-700 dark:hover:bg-gray-700 md:dark:hover:bg-transparent">Moties
                             <svg class="w-2.5 h-2.5 ms-2.5" aria-hidden="true" xmlns="http://www.w3.org/2000/svg"
                                 fill="none" viewBox="0 0 10 6">
@@ -287,9 +301,9 @@
                         </button>
                         <!-- Dropdown menu -->
                         <div id="dropdownNavbar"
-                            class="z-70 hidden font-normal bg-white divide-y divide-gray-100 rounded-lg shadow-sm w-60 dark:bg-gray-700 dark:divide-gray-600 md:absolute">
+                            class="nav-dropdown-panel hidden font-normal bg-white divide-y divide-gray-100 rounded-lg shadow-lg w-full md:w-60 dark:bg-gray-700 dark:divide-gray-600 md:absolute md:left-0 md:top-full md:mt-1">
                             <ul class="py-2 text-sm text-gray-700 dark:text-gray-400"
-                                aria-labelledby="dropdownLargeButton">
+                                aria-labelledby="dropdownMotiesLink">
                                 <li>
                                     <a href="{{ url_for('moties.index_personal') }}"
                                         class="block px-4 py-2 hover:bg-gray-100 dark:hover:bg-gray-600 dark:hover:text-white">Mijn
@@ -315,8 +329,8 @@
                             class="block bg-transparent py-2 px-3 text-gray-900 rounded-sm hover:bg-gray-100 md:hover:bg-transparent md:border-0 md:hover:text-blue-700 md:px-3 md:py-2 dark:text-white md:dark:hover:text-blue-500 dark:hover:bg-gray-700 dark:hover:text-white md:dark:hover:bg-transparent">Partijen</a>
                     </li>
                     {% if user_has_role('griffie') %}
-                    <li>
-                        <button id="dropdownNavbarLink" data-dropdown-toggle="dropdownGriffie"
+                    <li class="relative md:static">
+                        <button id="dropdownGriffieLink" data-dropdown-toggle="dropdownGriffie"
                             class="flex items-center justify-between w-full py-2 px-3 text-green-700 rounded-sm hover:bg-gray-100 md:hover:bg-transparent md:border-0 md:hover:text-gray-700 md:px-3 md:py-2 md:w-auto dark:text-white md:dark:hover:text-blue-500 dark:focus:text-white dark:border-gray-700 dark:hover:bg-gray-700 md:dark:hover:bg-transparent">Griffie
                             <svg class="w-2.5 h-2.5 ms-2.5" aria-hidden="true" xmlns="http://www.w3.org/2000/svg"
                                 fill="none" viewBox="0 0 10 6">
@@ -325,12 +339,37 @@
                             </svg></button>
                         <!-- Dropdown menu -->
                         <div id="dropdownGriffie"
-                            class="z-70 nav-dropdown z-[1200] hidden font-normal bg-white divide-y divide-gray-100 rounded-lg shadow-sm w-60 dark:bg-gray-700 dark:divide-gray-600 md:absolute">
+                            class="nav-dropdown-panel hidden font-normal bg-white divide-y divide-gray-100 rounded-lg shadow-lg w-full md:w-60 dark:bg-gray-700 dark:divide-gray-600 md:absolute md:left-0 md:top-full md:mt-1">
                             <ul class="py-2 text-sm text-gray-700 dark:text-gray-400"
-                                aria-labelledby="dropdownLargeButton">
-                                <li>
-                                    <a href="{{ url_for('griffie.jaarplanning') }}"
-                                        class="block px-4 py-2 hover:bg-gray-100 dark:hover:bg-gray-600 dark:hover:text-white">Jaarplanning</a>
+                                aria-labelledby="dropdownGriffieLink">
+                                <li class="relative">
+                                    {% set _griffie_spreektijden_url = '#' %}
+                                    {% if route_exists is defined and route_exists('griffie.spreektijden') %}
+                                        {% set _griffie_spreektijden_url = url_for('griffie.spreektijden') %}
+                                    {% endif %}
+                                    <button type="button"
+                                            id="dropdownGriffieAppsToggle"
+                                            data-dropdown-toggle="dropdownGriffieApps"
+                                            data-dropdown-placement="right-start"
+                                            class="flex w-full items-center justify-between px-4 py-2 text-left text-gray-700 hover:bg-gray-100 dark:text-gray-400 dark:hover:text-white dark:hover:bg-gray-600">
+                                        <span>Toepassingen</span>
+                                        <svg class="ms-3 h-3 w-3 text-gray-500 dark:text-gray-300" aria-hidden="true" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 10 6">
+                                            <path stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="m1 1 4 4 4-4" />
+                                        </svg>
+                                    </button>
+                                    <div id="dropdownGriffieApps"
+                                         class="nav-dropdown z-[1200] hidden mt-1 w-full rounded-lg border border-gray-100 bg-white text-sm shadow-sm dark:border-gray-600 dark:bg-gray-700 md:absolute md:left-full md:top-0 md:ml-2 md:mt-0 md:w-56">
+                                        <ul class="py-2 text-gray-700 dark:text-gray-400">
+                                            <li>
+                                                <a href="{{ url_for('griffie.jaarplanning') }}"
+                                                   class="block px-4 py-2 hover:bg-gray-100 dark:hover:bg-gray-600 dark:hover:text-white">Jaarplanning</a>
+                                            </li>
+                                            <li>
+                                                <a href="{{ _griffie_spreektijden_url }}"
+                                                   class="block px-4 py-2 hover:bg-gray-100 dark:hover:bg-gray-600 dark:hover:text-white">Spreektijden</a>
+                                            </li>
+                                        </ul>
+                                    </div>
                                 </li>
                                 <li>
                                     <a href="{{ url_for('griffie.advies_inbox') }}"

@@ -1,15 +1,17 @@
-# jaarplanning.py
+﻿# jaarplanning.py
 import io
 import json
 import re
-from datetime import datetime
+from datetime import datetime, date
+from decimal import Decimal, ROUND_HALF_UP
 from zoneinfo import ZoneInfo
 from app.griffie import bp
 from flask_login import current_user
 from app.auth.utils import login_and_active_required, roles_required
-from app.models import Motie, AdviceSession, User, Notification, DashboardLayout
+from app.models import Motie, AdviceSession, User, Notification, DashboardLayout, Party
 from app import db, send_email
 import datetime as dt
+from sqlalchemy import nullslast
 from sqlalchemy.orm import selectinload
 from flask import abort
 import pandas as pd
@@ -18,6 +20,7 @@ from werkzeug.utils import secure_filename
 from dateutil.parser import parse as dt_parse
 from openpyxl.utils import get_column_letter
 from openpyxl.styles import PatternFill, Alignment
+from app.griffie.forms import SpeakingTimeForm
 
 REQUIRED_COLS = [
     "onderwerp",
@@ -34,7 +37,361 @@ COLOR_NEXT_2 = "FFA7F3D0"  # zacht groen
 COLOR_NEXT_3 = "FFBFDBFE"  # zacht blauw
 COLOR_LATER  = "FFE5E7EB"  # lichtgrijs
 
+TENTH = Decimal("0.1")
+DAY_MINUTES = Decimal("1440")
+SECONDS_PER_MINUTE = Decimal("60")
+
+SPEAKING_PRESETS = {
+    "commissie_beheer": {
+        "label": "Commissie Beheer",
+        "total_minutes": 180,
+        "chair_minutes": 27,
+        "pause_minutes": 30,
+        "college_minutes": 30,
+        "speaker_slot_minutes": 5,
+    },
+    "commissie_bestuur": {
+        "label": "Commissie Bestuur",
+        "total_minutes": 180,
+        "chair_minutes": 27,
+        "pause_minutes": 30,
+        "college_minutes": 30,
+        "speaker_slot_minutes": 5,
+    },
+    "commissie_ontwikkeling": {
+        "label": "Commissie Ontwikkeling",
+        "total_minutes": 160,
+        "chair_minutes": 24,
+        "pause_minutes": 0,
+        "college_minutes": 30,
+        "speaker_slot_minutes": 5,
+    },
+    "commissie_samenleving": {
+        "label": "Commissie Samenleving",
+        "total_minutes": 160,
+        "chair_minutes": 24,
+        "pause_minutes": 10,
+        "college_minutes": 30,
+        "speaker_slot_minutes": 5,
+    },
+}
+
+DAY_NAMES_NL = [
+    "maandag",
+    "dinsdag",
+    "woensdag",
+    "donderdag",
+    "vrijdag",
+    "zaterdag",
+    "zondag",
+]
+
+MONTH_NAMES_NL = [
+    "januari",
+    "februari",
+    "maart",
+    "april",
+    "mei",
+    "juni",
+    "juli",
+    "augustus",
+    "september",
+    "oktober",
+    "november",
+    "december",
+]
+
+def _dec(value) -> Decimal:
+    if isinstance(value, Decimal):
+        return value
+    return Decimal(str(value or 0))
+
+
+def minutes_to_time_str(minutes) -> str:
+    dec_minutes = _dec(minutes)
+    sign = "-" if dec_minutes < 0 else ""
+    dec_minutes = abs(dec_minutes)
+    if dec_minutes == 0:
+        return "0:00:00"
+    total_seconds = int((dec_minutes * SECONDS_PER_MINUTE).to_integral_value(rounding=ROUND_HALF_UP))
+    hours, remainder = divmod(total_seconds, 3600)
+    minute_part, seconds = divmod(remainder, 60)
+    return f"{sign}{hours}:{minute_part:02d}:{seconds:02d}"
+
+
+def format_full_date_nl(value: date) -> str:
+    if not isinstance(value, date):
+        return ""
+    day_name = DAY_NAMES_NL[value.weekday()]
+    month_name = MONTH_NAMES_NL[value.month - 1]
+    return f"{day_name} {value.day} {month_name} {value.year}"
+
+
+def calculate_speaking_distribution(
+    parties,
+    *,
+    total_minutes: int,
+    chair_minutes: int,
+    pause_minutes: int,
+    speakers_count: int,
+    speaker_slot_minutes: int,
+    college_minutes: int,
+):
+    total_minutes_dec = _dec(total_minutes)
+    chair_minutes_dec = _dec(chair_minutes)
+    pause_minutes_dec = _dec(pause_minutes)
+    college_minutes_dec = _dec(college_minutes)
+    speaker_slot_dec = _dec(speaker_slot_minutes)
+    speakers_count_dec = _dec(speakers_count)
+
+    speaker_minutes_dec = speakers_count_dec * speaker_slot_dec
+    allocated_minutes_dec = chair_minutes_dec + pause_minutes_dec + speaker_minutes_dec + college_minutes_dec
+    remaining_minutes_dec = total_minutes_dec - allocated_minutes_dec
+
+    parties_all = list(parties)
+    party_count = len(parties_all)
+    total_seats = sum(max(p.zetelaantal or 0, 0) for p in parties_all)
+
+    if party_count:
+        equal_pool_dec = remaining_minutes_dec * Decimal(5) / Decimal(6)
+        seat_pool_dec = remaining_minutes_dec - equal_pool_dec
+        base_share_dec = equal_pool_dec / Decimal(party_count)
+    else:
+        equal_pool_dec = seat_pool_dec = base_share_dec = Decimal("0")
+
+    distribution = []
+    for party in parties_all:
+        seats = max(party.zetelaantal or 0, 0)
+        if total_seats > 0:
+            seat_share_dec = seat_pool_dec * Decimal(seats) / Decimal(total_seats)
+        else:
+            seat_share_dec = Decimal("0")
+        total_share_dec = base_share_dec + seat_share_dec
+        distribution.append(
+            {
+                "id": party.id,
+                "name": party.naam,
+                "abbreviation": party.afkorting,
+                "list_number": party.lijstnummer_volgende,
+                "seats": seats,
+                "base_minutes": float(base_share_dec),
+                "seat_minutes": float(seat_share_dec),
+                "total_minutes": float(total_share_dec),
+                "total_time": minutes_to_time_str(total_share_dec),
+                "day_fraction": float(total_share_dec / DAY_MINUTES),
+            }
+        )
+
+    college_info = {
+        "minutes": float(college_minutes_dec),
+        "time": minutes_to_time_str(college_minutes_dec),
+        "day_fraction": float(college_minutes_dec / DAY_MINUTES),
+    }
+
+    return {
+        "total_minutes": float(total_minutes_dec),
+        "chair_minutes": float(chair_minutes_dec),
+        "pause_minutes": float(pause_minutes_dec),
+        "college_minutes": float(college_minutes_dec),
+        "speakers_count": int(speakers_count),
+        "speaker_slot_minutes": float(speaker_slot_dec),
+        "speaker_minutes": float(speaker_minutes_dec),
+        "allocated_minutes": float(allocated_minutes_dec),
+        "remaining_minutes": float(remaining_minutes_dec),
+        "equal_pool_minutes": float(equal_pool_dec),
+        "seat_pool_minutes": float(seat_pool_dec),
+        "distribution": distribution,
+        "excluded_parties": [],
+        "total_seats": total_seats,
+        "college": college_info,
+    }
+
+
+def generate_speaking_pdf(result, *, committee_label: str, meeting_date: date):
+    formatted_date = format_full_date_nl(meeting_date)
+    title_text = f"Spreektijden {committee_label} van {formatted_date}"
+
+    buffer = io.BytesIO()
+
+    from reportlab.lib import colors
+    from reportlab.lib.pagesizes import A4, landscape
+    from reportlab.lib.styles import getSampleStyleSheet
+    from reportlab.lib.units import mm
+    from reportlab.platypus import (
+        SimpleDocTemplate,
+        Paragraph,
+        Spacer,
+        Table,
+        TableStyle,
+    )
+
+    doc = SimpleDocTemplate(
+        buffer,
+        pagesize=landscape(A4),
+        leftMargin=20 * mm,
+        rightMargin=20 * mm,
+        topMargin=20 * mm,
+        bottomMargin=20 * mm,
+    )
+    styles = getSampleStyleSheet()
+    elements = [
+        Paragraph(title_text, styles["Title"]),
+        Spacer(1, 12),
+    ]
+
+    table_data = [
+        ["Fractie", "Spreektijd (u:mm:ss)"],
+    ]
+    for row in result["distribution"]:
+        label = row["name"]
+        if row.get("abbreviation"):
+            label = f"{label} ({row['abbreviation']})"
+        table_data.append(
+            [
+                label,
+                row["total_time"],
+            ]
+        )
+    table_data.append(
+        [
+            "College",
+            result["college"]["time"],
+        ]
+    )
+
+    table = Table(table_data, hAlign="LEFT")
+    table.setStyle(
+        TableStyle(
+            [
+                ("BACKGROUND", (0, 0), (-1, 0), colors.HexColor("#1f2937")),
+                ("TEXTCOLOR", (0, 0), (-1, 0), colors.white),
+                ("FONTNAME", (0, 0), (-1, 0), "Helvetica-Bold"),
+                ("BOTTOMPADDING", (0, 0), (-1, 0), 10),
+                ("BACKGROUND", (0, 1), (-1, -1), colors.whitesmoke),
+                ("GRID", (0, 0), (-1, -1), 0.5, colors.grey),
+                ("ROWBACKGROUNDS", (0, 1), (-1, -1), [colors.whitesmoke, colors.lightgrey]),
+            ]
+        )
+    )
+    elements.append(table)
+
+    doc.build(elements)
+    buffer.seek(0)
+
+    filename = secure_filename(title_text.lower().replace(" ", "-")) or "spreektijden"
+    return send_file(
+        buffer,
+        mimetype="application/pdf",
+        as_attachment=True,
+        download_name=f"{filename}.pdf",
+    )
+
 # ——— Helpers: triaalbepaling ———
+# ===== Spreektijden-tool =====
+@bp.route("/spreektijden", methods=["GET", "POST"])
+@login_and_active_required
+@roles_required("griffie")
+def spreektijden():
+    form = SpeakingTimeForm()
+
+    preset_choices = sorted(
+        [(key, preset["label"]) for key, preset in SPEAKING_PRESETS.items()],
+        key=lambda item: item[1],
+    )
+    custom_choice = ("custom", "Speciaal evenement")
+    form.committee.choices = preset_choices + [custom_choice]
+
+    parties = (
+        Party.query.filter(Party.actief.is_(True))
+        .order_by(
+            nullslast(Party.lijstnummer_volgende.asc()),
+            Party.naam.asc(),
+        )
+        .all()
+    )
+
+    default_key = preset_choices[0][0] if preset_choices else custom_choice[0]
+    incoming_choice = request.values.get("committee") or form.committee.data or default_key
+
+    if request.method == "GET":
+        selected_key = incoming_choice if incoming_choice in SPEAKING_PRESETS else default_key
+        form.committee.data = selected_key
+        preset = SPEAKING_PRESETS.get(selected_key)
+        if preset:
+            form.total_minutes.data = preset["total_minutes"]
+            form.chair_minutes.data = preset["chair_minutes"]
+            form.pause_minutes.data = preset["pause_minutes"]
+            form.college_minutes.data = preset["college_minutes"]
+            form.speaker_slot_minutes.data = preset.get("speaker_slot_minutes", 5)
+
+    selected_key = form.committee.data or default_key
+    committee_label_lookup = dict(preset_choices + [custom_choice])
+    committee_label = committee_label_lookup.get(selected_key, "Speciaal evenement")
+
+    preset_payload = {
+        key: {
+            "label": preset["label"],
+            "total_minutes": preset["total_minutes"],
+            "chair_minutes": preset["chair_minutes"],
+            "pause_minutes": preset["pause_minutes"],
+            "college_minutes": preset["college_minutes"],
+            "speaker_slot_minutes": preset.get("speaker_slot_minutes", 5),
+        }
+        for key, preset in SPEAKING_PRESETS.items()
+    }
+    presets_json = json.dumps(preset_payload)
+
+    result = None
+    if form.validate_on_submit():
+        total_minutes = form.total_minutes.data or 0
+        chair_minutes = form.chair_minutes.data or 0
+        pause_minutes = form.pause_minutes.data or 0
+        college_minutes = form.college_minutes.data or 0
+        speakers_count = form.speakers_count.data or 0
+        speaker_slot_minutes = form.speaker_slot_minutes.data or 0
+
+        result = calculate_speaking_distribution(
+            parties,
+            total_minutes=total_minutes,
+            chair_minutes=chair_minutes,
+            pause_minutes=pause_minutes,
+            speakers_count=speakers_count,
+            speaker_slot_minutes=speaker_slot_minutes,
+            college_minutes=college_minutes,
+        )
+
+        if form.export_pdf.data:
+            if result["remaining_minutes"] < 0:
+                flash(
+                    "De opgegeven tijden leveren een negatieve fractietijd op. Pas de waardes aan voordat je exporteert.",
+                    "error",
+                )
+            elif not result["distribution"]:
+                flash("Er zijn geen fracties met zetels gevonden om te verdelen.", "error")
+            else:
+                meeting_date = form.meeting_date.data or date.today()
+                return generate_speaking_pdf(
+                    result,
+                    committee_label=committee_label,
+                    meeting_date=meeting_date,
+                )
+        elif result["remaining_minutes"] < 0:
+            flash(
+                "Let op: de opgegeven tijden leveren een negatieve fractietijd op.",
+                "warning",
+            )
+
+    return render_template(
+        "griffie/spreektijden.html",
+        form=form,
+        result=result,
+        presets_json=presets_json,
+        committee_label=committee_label,
+        parties=parties,
+        selected_key=selected_key,
+        title="Spreektijdenberekening",
+    )
+
 def month_to_triaal(month: int) -> int:
     # T1: 1-4, T2: 5-8, T3: 9-12
     if 1 <= month <= 4:

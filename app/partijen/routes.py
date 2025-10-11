@@ -5,6 +5,7 @@ from app.partijen.forms import PartyForm
 from app import db
 from werkzeug.utils import secure_filename
 import uuid, os
+from sqlalchemy import nullslast
 from sqlalchemy.exc import IntegrityError
 from app.models import User
 from app.auth.utils import login_and_active_required, user_has_role
@@ -31,7 +32,12 @@ def _save_logo_file(file_storage, suggested_slug: str) -> str:
 @bp.route('/')
 @login_and_active_required
 def index():
-    partijen = Party.query.order_by(Party.naam).all()
+    partijen = (
+        Party.query.order_by(
+            nullslast(Party.lijstnummer_volgende.asc()),
+            Party.naam.asc(),
+        ).all()
+    )
     return render_template('partijen/index.html', partijen=partijen, title="Partijen")
     
 @bp.route('/toevoegen', methods=['GET', 'POST'])
@@ -43,6 +49,8 @@ def toevoegen():
         afkorting = (request.form.get("afkorting") or "").strip()
         actief_raw = (request.form.get("actief") or "").lower()
         actief = actief_raw in {"on", "true", "1", "yes"}
+        zetelaantal_raw = (request.form.get("zetelaantal") or "").strip()
+        lijstnummer_raw = (request.form.get("lijstnummer_volgende") or "").strip()
         logo_url = (request.form.get("logo_url") or "").strip() or None
         file = request.files.get("logo_file")
 
@@ -50,7 +58,35 @@ def toevoegen():
             flash("Naam en afkorting zijn verplicht.", "error")
             return abort(400)
 
-        party = Party(naam=naam, afkorting=afkorting, actief=actief)
+        zetelaantal = None
+        if zetelaantal_raw:
+            try:
+                zetelaantal = int(zetelaantal_raw)
+            except ValueError:
+                flash("Zetelaantal moet een geheel getal zijn.", "error")
+                return abort(400)
+            if zetelaantal < 0:
+                flash("Zetelaantal kan niet negatief zijn.", "error")
+                return abort(400)
+
+        lijstnummer = None
+        if lijstnummer_raw:
+            try:
+                lijstnummer = int(lijstnummer_raw)
+            except ValueError:
+                flash("Lijstnummer moet een geheel getal zijn.", "error")
+                return abort(400)
+            if lijstnummer < 0:
+                flash("Lijstnummer kan niet negatief zijn.", "error")
+                return abort(400)
+
+        party = Party(
+            naam=naam,
+            afkorting=afkorting,
+            actief=actief,
+            zetelaantal=zetelaantal,
+            lijstnummer_volgende=lijstnummer
+        )
 
         # Logo via URL heeft voorrang; anders proberen we bestand te bewaren
         if logo_url:
@@ -112,15 +148,41 @@ def bewerken(partij_id):
         actief = actief_raw in {'on', 'true', '1', 'yes'}
         logo_url = (request.form.get('logo_url') or '').strip()
         remove_logo = (request.form.get('remove_logo') or '').lower() in {'on', 'true', '1', 'yes'}
+        zetelaantal_raw = (request.form.get("zetelaantal") or "").strip()
+        lijstnummer_raw = (request.form.get("lijstnummer_volgende") or "").strip()
         file = request.files.get('logo_file')
 
         if not naam or not afkorting:
             flash('Naam en afkorting zijn verplicht.', 'error')
             return render_template('partijen/bewerken.html', partij=partij, title=f'Bewerk {partij.naam}')
 
+        zetelaantal = None
+        if zetelaantal_raw:
+            try:
+                zetelaantal = int(zetelaantal_raw)
+            except ValueError:
+                flash('Zetelaantal moet een geheel getal zijn.', 'error')
+                return render_template('partijen/bewerken.html', partij=partij, title=f'Bewerk {partij.naam}')
+            if zetelaantal < 0:
+                flash('Zetelaantal kan niet negatief zijn.', 'error')
+                return render_template('partijen/bewerken.html', partij=partij, title=f'Bewerk {partij.naam}')
+
+        lijstnummer = None
+        if lijstnummer_raw:
+            try:
+                lijstnummer = int(lijstnummer_raw)
+            except ValueError:
+                flash('Lijstnummer moet een geheel getal zijn.', 'error')
+                return render_template('partijen/bewerken.html', partij=partij, title=f'Bewerk {partij.naam}')
+            if lijstnummer < 0:
+                flash('Lijstnummer kan niet negatief zijn.', 'error')
+                return render_template('partijen/bewerken.html', partij=partij, title=f'Bewerk {partij.naam}')
+
         partij.naam = naam
         partij.afkorting = afkorting
         partij.actief = actief
+        partij.zetelaantal = zetelaantal
+        partij.lijstnummer_volgende = lijstnummer
 
         if remove_logo:
             partij.logo_url = None

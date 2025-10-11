@@ -81,6 +81,14 @@
                 <i class="fa fa-calendar"></i>
                 {{ partij.created_at.strftime('%d-%m-%Y') if partij.created_at else 'Onbekend' }}
               </span>
+              <span class="inline-flex items-center gap-1 rounded-full bg-gray-100 px-2.5 py-1 font-medium">
+                <i class="fa fa-chair"></i>
+                Zetels: {{ partij.zetelaantal if partij.zetelaantal is not none else 'n.b.' }}
+              </span>
+              <span class="inline-flex items-center gap-1 rounded-full bg-gray-100 px-2.5 py-1 font-medium">
+                <i class="fa fa-list-ol"></i>
+                Lijstnr. vv: {{ partij.lijstnummer_volgende if partij.lijstnummer_volgende is not none else 'n.b.' }}
+              </span>
             </div>
           </div>
         </div>

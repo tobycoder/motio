@@ -154,6 +154,8 @@ class Party(db.Model):
     tenant_id = db.Column(db.Integer, db.ForeignKey('tenant.id', ondelete='RESTRICT'), nullable=True, index=True)
     naam = db.Column(db.String(100), nullable=False)
     afkorting = db.Column(db.String(10), nullable=False)
+    zetelaantal = db.Column(db.Integer, nullable=True)
+    lijstnummer_volgende = db.Column(db.Integer, nullable=True)
     actief = db.Column(db.Boolean, default=True)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     logo_url = db.Column(db.String(512), nullable=True)
