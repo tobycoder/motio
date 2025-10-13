@@ -30,6 +30,23 @@ import difflib
 from markupsafe import Markup
 
 
+_NOTIFICATION_LABELS = {
+    "share_received": "Motie gedeeld",
+    "share_revoked": "Toegang ingetrokken",
+    "coauthor_added": "Mede-indiener toegevoegd",
+    "advice_requested": "Advies aangevraagd",
+    "advice_returned": "Advies beschikbaar",
+    "advice_accepted": "Advies geaccepteerd",
+}
+
+_SHARE_PERMISSION_LABELS = {
+    "view": "Bekijken",
+    "comment": "Reageren",
+    "suggest": "Voorstellen",
+    "edit": "Bewerken",
+}
+
+
 def _diff_html(a: str, b: str) -> str:
     token = re.compile(r"\w+|\s+|[^\w\s]", re.UNICODE)
     A = token.findall(a or "")
@@ -54,6 +71,22 @@ def register_filters(app):
     @app.template_filter("trackdiff")
     def trackdiff_filter(original: str, edited: str):
         return Markup(_diff_html(original or "", edited or ""))
+
+    def _label_from(mapping: dict[str, str], value: str | None) -> str:
+        key = (value or "").strip().lower()
+        if not key:
+            return ""
+        if key in mapping:
+            return mapping[key]
+        return key.replace("_", " ").capitalize()
+
+    @app.template_filter("notification_label")
+    def notification_label_filter(value: str | None) -> str:
+        return _label_from(_NOTIFICATION_LABELS, value)
+
+    @app.template_filter("share_permission_label")
+    def share_permission_label_filter(value: str | None) -> str:
+        return _label_from(_SHARE_PERMISSION_LABELS, value)
 
 
 db = SQLAlchemy()

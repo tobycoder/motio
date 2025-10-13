@@ -6,6 +6,7 @@ from app.auth.forms import RegistrationForm, UserCreateForm
 from app.gebruikers.forms import ProfileUpdateForm
 from app.auth.routes import _allowed_profile, _save_profile_file
 from app import db, send_email
+from app.email_utils import render_email
 import secrets
 from werkzeug.security import generate_password_hash
 from app.auth.utils import user_has_role, roles_required, login_and_active_required
@@ -125,14 +126,19 @@ def send_password_setup_email(user: User):
     reset_url = url_for("auth.reset_password", token=token, _external=True)
 
     subject = "Stel je wachtwoord in"
-    text_body = (
-        f"Hallo {user.naam},\n\n"
-        f"Er is een account voor je aangemaakt. Klik op onderstaande link om je wachtwoord in te stellen:\n\n"
-        f"{reset_url}\n\n"
-        f"Let op: deze link verloopt na 60 minuten.\n\n"
-        f"Met vriendelijke groet,\nDe griffie"
+    greeting = f"Hallo {user.naam}," if getattr(user, 'naam', None) else "Hallo,"
+    intro = "Er is een account voor je aangemaakt. Gebruik de knop hieronder om je wachtwoord in te stellen."
+    paragraphs = ["Let op: deze link verloopt na 60 minuten."]
+    text_body, html_body = render_email(
+        subject=subject,
+        greeting=greeting,
+        intro=intro,
+        paragraphs=paragraphs,
+        cta_label="Wachtwoord instellen",
+        cta_url=reset_url,
+        footer_lines=["Met vriendelijke groet,", "De griffie"],
     )
-    send_email(subject=subject, recipients=user.email, text_body=text_body)
+    send_email(subject=subject, recipients=user.email, text_body=text_body, html_body=html_body)
 
 
 @bp.route("/toevoegen", methods=["GET", "POST"])

@@ -64,8 +64,196 @@
             :root{ --nav-h: 64px; }
             }
 
-        [modal-backdrop] { z-index: 1500 !important; }   /* Flowbite overlay */
-        .modal-topmost, .modal-topmost * { z-index: 1600 !important; }
+        [modal-backdrop],
+        [data-modal-backdrop],
+        .modal-backdrop {
+            z-index: 3000 !important;   /* Forceer overlay boven alles */
+        }
+        .modal-topmost,
+        .modal-topmost * {
+            z-index: 3010 !important;
+        }
+
+        body.modal-open .nav-root,
+        body.modal-open .nav-root *,
+        body.modal-open .page-chrome-low,
+        body.modal-open .content-dropdown,
+        body.modal-open .content-dropdown *,
+        body.modal-open .ios-bottom-nav {
+            z-index: 20 !important;
+            pointer-events: none !important;
+        }
+
+        .app-background {
+            position: fixed;
+            inset: 0;
+            overflow: hidden;
+            z-index: -10;
+            pointer-events: none;
+            background: radial-gradient(circle at top, rgba(236, 252, 255, 0.75), transparent 55%),
+                        radial-gradient(circle at bottom, rgba(226, 232, 240, 0.6), transparent 60%);
+        }
+        .app-background::after {
+            content: "";
+            position: absolute;
+            inset: 0;
+            background: linear-gradient(160deg,
+                        rgba(255, 255, 255, 0.75),
+                        rgba(248, 249, 255, 0.45) 45%,
+                        rgba(224, 231, 255, 0.35));
+            mix-blend-mode: screen;
+        }
+        .app-background::before {
+            content: "";
+            position: absolute;
+            inset: -25%;
+            background: conic-gradient(
+                from 0deg,
+                rgba(99, 102, 241, 0.42),
+                rgba(45, 212, 191, 0.32),
+                rgba(168, 85, 247, 0.36),
+                rgba(59, 130, 246, 0.4),
+                rgba(99, 102, 241, 0.42)
+            );
+            filter: blur(130px);
+            opacity: 0.7;
+            animation: appStripeSpin 18s linear infinite;
+        }
+        .app-gradient-overlay {
+            position: absolute;
+            inset: 0;
+            background: radial-gradient(circle at 25% 20%, rgba(255, 255, 255, 0.55), transparent 60%),
+                        radial-gradient(circle at 75% 25%, rgba(226, 232, 240, 0.55), transparent 65%),
+                        radial-gradient(circle at 50% 80%, rgba(191, 219, 254, 0.48), transparent 60%);
+            background-size: 130% 130%;
+            animation: appGradientShift 16s ease-in-out infinite alternate;
+            mix-blend-mode: lighten;
+        }
+        .app-gradient-canvas {
+            position: absolute;
+            inset: 0;
+            width: 100%;
+            height: 100%;
+            opacity: 0.75;
+            filter: blur(120px);
+            mix-blend-mode: screen;
+        }
+        .app-blob {
+            position: absolute;
+            width: 34rem;
+            height: 34rem;
+            filter: blur(110px);
+            opacity: 0.6;
+            border-radius: 9999px;
+            transform: translate3d(0, 0, 0);
+        }
+        .app-blob--one {
+            top: -10rem;
+            left: -6rem;
+            background: radial-gradient(circle at 25% 25%, #4338ca, rgba(67, 56, 202, 0));
+            animation: appBlobDriftOne 12s ease-in-out infinite alternate;
+        }
+        .app-blob--two {
+            bottom: -12rem;
+            right: -8rem;
+            background: radial-gradient(circle at 70% 30%, #0ea5e9, rgba(14, 165, 233, 0));
+            animation: appBlobDriftTwo 14s ease-in-out infinite alternate;
+        }
+        .app-blob--three {
+            top: 40%;
+            left: 35%;
+            background: radial-gradient(circle at 30% 70%, #a855f7, rgba(168, 85, 247, 0));
+            animation: appBlobDriftThree 18s ease-in-out infinite alternate;
+        }
+
+        @keyframes appStripeSpin {
+            0% { transform: rotate(0deg) scale(1); opacity: 0.6; }
+            50% { opacity: 0.68; }
+            100% { transform: rotate(360deg) scale(1); opacity: 0.6; }
+        }
+        @keyframes appBlobDriftOne {
+            0% { transform: translate3d(-12%, 0, 0) scale(1); }
+            50% { transform: translate3d(6%, 12%, 0) scale(1.08); opacity: 0.68; }
+            100% { transform: translate3d(-4%, 20%, 0) scale(1.04); opacity: 0.6; }
+        }
+        @keyframes appBlobDriftTwo {
+            0% { transform: translate3d(8%, 0, 0) scale(1); }
+            50% { transform: translate3d(-6%, -10%, 0) scale(1.1); opacity: 0.62; }
+            100% { transform: translate3d(4%, 8%, 0) scale(1.02); opacity: 0.55; }
+        }
+        @keyframes appBlobDriftThree {
+            0% { transform: translate3d(-8%, -6%, 0) scale(1); }
+            50% { transform: translate3d(4%, 4%, 0) scale(1.08); opacity: 0.64; }
+            100% { transform: translate3d(-2%, 10%, 0) scale(1.05); opacity: 0.58; }
+        }
+        @keyframes appGradientShift {
+            0% { transform: scale(1) translate3d(-4%, -2%, 0); }
+            50% { transform: scale(1.05) translate3d(4%, 3%, 0); opacity: 0.85; }
+            100% { transform: scale(1.04) translate3d(-2%, 4%, 0); }
+        }
+
+        @media (prefers-reduced-motion: reduce) {
+            .app-background::before,
+            .app-gradient-overlay,
+            .app-blob {
+                animation: none !important;
+            }
+            .app-gradient-canvas {
+                display: none;
+            }
+        }
+
+        .sticky-surface {
+            position: sticky;
+            top: var(--nav-h);
+            z-index: 110;
+            padding: 0.5rem 0;
+        }
+        .sticky-surface__inner {
+            --sticky-max-width: 80rem;
+            width: min(var(--sticky-max-width), calc(100% - 2rem));
+            max-width: var(--sticky-max-width);
+            margin: 0 auto;
+            padding: 1rem 1.5rem;
+            border: 1px solid rgba(255, 255, 255, 0.5);
+            background: rgba(255, 255, 255, 0.78);
+            backdrop-filter: blur(18px);
+            box-shadow: 0 18px 36px rgba(15, 23, 42, 0.12);
+        }
+        .sticky-surface__inner {
+            border-radius: 1rem;
+        }
+        .sticky-surface__inner--square {
+            border-radius: 0;
+        }
+        .sticky-surface__inner--compact {
+            --sticky-max-width: 64rem;
+        }
+        .sticky-surface__inner--narrow {
+            --sticky-max-width: 48rem;
+        }
+        .dark .sticky-surface__inner {
+            background: rgba(15, 23, 42, 0.82);
+            border-color: rgba(51, 65, 85, 0.6);
+            box-shadow: 0 22px 46px rgba(15, 23, 42, 0.55);
+        }
+        .sticky-surface--flush {
+            padding-top: 0;
+            padding-bottom: 0;
+        }
+        .sticky-surface--flush .sticky-surface__inner {
+            border-radius: 0;
+        }
+        @media (max-width: 768px) {
+            .sticky-surface {
+                padding: 0.35rem 0;
+            }
+            .sticky-surface__inner {
+                width: min(var(--sticky-max-width), calc(100% - 1.25rem));
+                padding: 0.85rem 1.125rem;
+                border-radius: 0.85rem;
+            }
+        }
 
         .nav-root { z-index: 1200; position: relative; }
         .nav-dropdown, .nav-dropdown * { z-index: 1200 !important; }
@@ -75,12 +263,125 @@
             .nav-dropdown-panel {
                 position: static !important;
                 width: 100% !important;
-                margin-top: 0rem;
+                margin-top: 0;
                 box-shadow: none !important;
                 border-width: 0 !important;
             }
             .nav-dropdown-panel ul {
-                margin-top: 0rem;
+                margin-top: 0;
+            }
+            #navbar-dropdown.ios-nav {
+                position: absolute;
+                top: calc(var(--nav-h) + 6px);
+                left: 50%;
+                transform: translateX(-50%);
+                width: calc(100% - 2rem);
+                background: rgba(248, 250, 252, 0.96);
+                border: 1px solid rgba(148, 163, 184, 0.18);
+                border-radius: 22px;
+                box-shadow: 0 18px 40px rgba(15, 23, 42, 0.16);
+                backdrop-filter: blur(18px);
+                padding: 0.35rem 0;
+                max-width: 24rem;
+            }
+            #navbar-dropdown.ios-nav ul {
+                border: none !important;
+                padding: 0 !important;
+                background: transparent !important;
+                gap: 0.25rem;
+            }
+            #navbar-dropdown.ios-nav li {
+                margin: 0;
+            }
+            #navbar-dropdown.ios-nav button,
+            #navbar-dropdown.ios-nav a {
+                display: flex;
+                align-items: center;
+                justify-content: space-between;
+                padding: 0.9rem 1.4rem;
+                font-weight: 500;
+                background: transparent;
+                border-bottom: 1px solid rgba(148, 163, 184, 0.12);
+            }
+            #navbar-dropdown.ios-nav li:last-child > a {
+                border-bottom: none;
+            }
+            #navbar-dropdown.ios-nav button:hover,
+            #navbar-dropdown.ios-nav a:hover {
+                background: rgba(148, 163, 184, 0.14);
+            }
+            #navbar-dropdown.ios-nav .ios-chevron {
+                width: 0.75rem;
+                height: 0.75rem;
+                opacity: 0.6;
+            }
+            #navbar-dropdown.ios-nav .nav-dropdown-panel {
+                background: rgba(248, 250, 252, 0.96);
+                border-radius: 18px;
+                border: 1px solid rgba(148, 163, 184, 0.16);
+                margin: 0.35rem 1rem;
+                box-shadow: inset 0 0 0 rgba(0, 0, 0, 0);
+            }
+            #navbar-dropdown.ios-nav .nav-dropdown-panel ul {
+                padding: 0.35rem 0;
+            }
+            #navbar-dropdown.ios-nav .nav-dropdown-panel a {
+                padding: 0.85rem 1.1rem;
+                border-bottom: 1px solid rgba(148, 163, 184, 0.12);
+            }
+            #navbar-dropdown.ios-nav .nav-dropdown-panel a:last-child {
+                border-bottom: none;
+            }
+            .ios-bottom-nav {
+                position: fixed;
+                bottom: env(safe-area-inset-bottom, 12px);
+                left: 50%;
+                transform: translateX(-50%);
+                width: calc(100% - 2rem);
+                max-width: 24rem;
+                display: flex;
+                justify-content: space-around;
+                background: rgba(15, 23, 42, 0.96);
+                color: #e2e8f0;
+                border-radius: 20px;
+                padding: 0.5rem 0.35rem;
+                box-shadow: 0 18px 40px rgba(15, 23, 42, 0.32);
+                backdrop-filter: blur(20px);
+                z-index: 1300;
+            }
+            .ios-bottom-nav a,
+            .ios-bottom-nav button {
+                flex: 1;
+                display: flex;
+                flex-direction: column;
+                align-items: center;
+                justify-content: center;
+                gap: 0.3rem;
+                font-size: 0.72rem;
+                font-weight: 500;
+                color: inherit;
+                padding: 0.35rem 0;
+                border: none;
+                background: transparent;
+                border-radius: 14px;
+                transition: background 150ms ease, color 150ms ease;
+            }
+            .ios-bottom-nav a.active,
+            .ios-bottom-nav button.active {
+                background: rgba(148, 163, 184, 0.18);
+                color: #f8fafc;
+            }
+            .ios-bottom-nav a:focus-visible,
+            .ios-bottom-nav button:focus-visible {
+                outline: 2px solid rgba(148, 163, 184, 0.4);
+                outline-offset: 2px;
+            }
+            .ios-bottom-nav .nav-icon {
+                font-size: 1.25rem;
+                line-height: 1;
+            }
+            body {
+                padding-bottom: 110px;
             }
         }
 
@@ -129,6 +430,13 @@
 </head>
 
 <body>
+    <div class="app-background" aria-hidden="true">
+        <div class="app-gradient-overlay"></div>
+        <div class="app-blob app-blob--one"></div>
+        <div class="app-blob app-blob--two"></div>
+        <div class="app-blob app-blob--three"></div>
+        <canvas class="app-gradient-canvas" aria-hidden="true"></canvas>
+    </div>
     <nav class="bg-white/80 backdrop-blur sticky top-0 nav-root border-gray-200 border-b dark:bg-gray-900 dark:border-gray-700">
         <div class="max-w-screen-xl flex flex-wrap items-center justify-between mx-auto p-4">
             <a href="{{ url_for('dashboard.home') }}" class="flex items-center space-x-3 rtl:space-x-reverse">
@@ -279,7 +587,7 @@
                         d="M1 1h15M1 7h15M1 13h15" />
                 </svg>
             </button>
-            <div class="nav-dropdown hidden w-full md:block z-[1200] md:w-auto" id="navbar-dropdown">
+            <div class="nav-dropdown ios-nav hidden w-full md:block z-[1200] md:w-auto" id="navbar-dropdown">
                 <ul
                     class="flex flex-col font-medium p-4 md:p-0 mt-4 border border-gray-100 rounded-lg md:flex-row md:mt-0 md:border-0 md:space-x-8 md:pl-3 dark:bg-gray-800 md:dark:bg-gray-900 dark:border-gray-700">
                     <li class="mr-0">
@@ -293,7 +601,7 @@
                     <li class="relative md:static">
                         <button id="dropdownMotiesLink" data-dropdown-toggle="dropdownNavbar"
                             class="flex items-center justify-between w-full py-2 px-3 text-gray-900 rounded-sm hover:bg-gray-100 md:hover:bg-transparent md:border-0 md:hover:text-blue-700 md:px-3 md:py-2 md:w-auto dark:text-white md:dark:hover:text-blue-500 dark:focus:text-white dark:border-gray-700 dark:hover:bg-gray-700 md:dark:hover:bg-transparent">Moties
-                            <svg class="w-2.5 h-2.5 ms-2.5" aria-hidden="true" xmlns="http://www.w3.org/2000/svg"
+                            <svg class="w-2.5 h-2.5 ms-2.5 ios-chevron" aria-hidden="true" xmlns="http://www.w3.org/2000/svg"
                                 fill="none" viewBox="0 0 10 6">
                                 <path stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"
                                     stroke-width="2" d="m1 1 4 4 4-4" />
@@ -332,7 +640,7 @@
                     <li class="relative md:static">
                         <button id="dropdownGriffieLink" data-dropdown-toggle="dropdownGriffie"
                             class="flex items-center justify-between w-full py-2 px-3 text-green-700 rounded-sm hover:bg-gray-100 md:hover:bg-transparent md:border-0 md:hover:text-gray-700 md:px-3 md:py-2 md:w-auto dark:text-white md:dark:hover:text-blue-500 dark:focus:text-white dark:border-gray-700 dark:hover:bg-gray-700 md:dark:hover:bg-transparent">Griffie
-                            <svg class="w-2.5 h-2.5 ms-2.5" aria-hidden="true" xmlns="http://www.w3.org/2000/svg"
+                            <svg class="w-2.5 h-2.5 ms-2.5 ios-chevron" aria-hidden="true" xmlns="http://www.w3.org/2000/svg"
                                 fill="none" viewBox="0 0 10 6">
                                 <path stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"
                                     stroke-width="2" d="m1 1 4 4 4-4" />
@@ -353,7 +661,7 @@
                                             data-dropdown-placement="right-start"
                                             class="flex w-full items-center justify-between px-4 py-2 text-left text-gray-700 hover:bg-gray-100 dark:text-gray-400 dark:hover:text-white dark:hover:bg-gray-600">
                                         <span>Toepassingen</span>
-                                        <svg class="ms-3 h-3 w-3 text-gray-500 dark:text-gray-300" aria-hidden="true" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 10 6">
+                                        <svg class="ms-3 h-3 w-3 text-gray-500 dark:text-gray-300 ios-chevron" aria-hidden="true" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 10 6">
                                             <path stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="m1 1 4 4 4-4" />
                                         </svg>
                                     </button>
@@ -396,6 +704,54 @@
                 </ul>
             </div>
         </div>
+    </nav>
+    {% set _endpoint = request.endpoint or '' %}
+    <nav class="ios-bottom-nav md:hidden" aria-label="Mobiele hoofdmenu">
+        <a href="{{ url_for('dashboard.home') }}"
+           class="{% if _endpoint.startswith('dashboard.') or _endpoint == 'dashboard_home' %}active{% endif %}"
+           aria-label="Home">
+            <i class="fa-solid fa-house nav-icon"></i>
+            <span>Home</span>
+        </a>
+        <a href="{{ url_for('moties.index_personal') }}"
+           class="{% if _endpoint.startswith('moties.') %}active{% endif %}"
+           aria-label="Moties">
+            <i class="fa-solid fa-file-lines nav-icon"></i>
+            <span>Moties</span>
+        </a>
+        {% if user_has_role('gebruiker') %}
+        <a href="{{ url_for('partijen.index') }}"
+           class="{% if _endpoint.startswith('partijen.') %}active{% endif %}"
+           aria-label="Partijen">
+            <i class="fa-solid fa-people-group nav-icon"></i>
+            <span>Partijen</span>
+        </a>
+        {% endif %}
+        {% if user_has_role('griffie') %}
+        <a href="{{ url_for('griffie.dashboard_builder') }}"
+           class="{% if _endpoint.startswith('griffie.') %}active{% endif %}"
+           aria-label="Griffie">
+            <i class="fa-solid fa-comment-nodes nav-icon"></i>
+            <span>Advies</span>
+        </a>
+        {% endif %}
+        {% if user_has_role('griffie') %}
+        <a href="{{ url_for('griffie.dashboard_builder') }}"
+           class="{% if _endpoint.startswith('griffie.') %}active{% endif %}"
+           aria-label="Griffie">
+            <i class="fa-solid fa-puzzle-piece nav-icon"></i>
+            <span>Toepassingen</span>
+        </a>
+        {% endif %}
+        <button type="button"
+                data-collapse-toggle="navbar-dropdown"
+                aria-controls="navbar-dropdown"
+                aria-expanded="false"
+                class="menu-trigger"
+                aria-label="Meer opties">
+            <i class="fa-solid fa-ellipsis nav-icon"></i>
+            <span>Meer</span>
+        </button>
     </nav>
     <div class="relative">
         <div class="container mt-8">
@@ -454,7 +810,161 @@
         // Als je htmx/Turbo/nav gebruikt en content wisselt:
         document.addEventListener('htmx:afterSwap', () => initChoices());
     </script>
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            const canvas = document.querySelector('.app-gradient-canvas');
+            if (!(canvas instanceof HTMLCanvasElement)) {
+                return;
+            }
+
+            const ctx = canvas.getContext('2d', { alpha: true });
+            if (!ctx) return;
+
+            const prefersReduce = window.matchMedia('(prefers-reduced-motion: reduce)');
+            const schemeWatcher = window.matchMedia('(prefers-color-scheme: dark)');
+            let frameId = 0;
+            let width = 0;
+            let height = 0;
+
+            const palettes = {
+                light: [
+                    { hue: 214, saturation: 82, lightness: 66 },
+                    { hue: 195, saturation: 88, lightness: 60 },
+                    { hue: 268, saturation: 78, lightness: 68 },
+                    { hue: 205, saturation: 86, lightness: 64 },
+                ],
+                dark: [
+                    { hue: 222, saturation: 70, lightness: 46 },
+                    { hue: 198, saturation: 68, lightness: 42 },
+                    { hue: 268, saturation: 74, lightness: 48 },
+                    { hue: 204, saturation: 70, lightness: 44 },
+                ],
+            };
+
+            const isDark = () =>
+                document.documentElement.classList.contains('dark') || schemeWatcher.matches;
+
+            const resize = () => {
+                const rect = canvas.getBoundingClientRect();
+                const dpr = Math.min(window.devicePixelRatio || 1, 2);
+                width = rect.width;
+                height = rect.height;
+                canvas.width = rect.width * dpr;
+                canvas.height = rect.height * dpr;
+                ctx.setTransform(1, 0, 0, 1, 0, 0);
+                ctx.scale(dpr, dpr);
+            };
+
+            const paint = (t = 0) => {
+                if (!width || !height) return;
+                ctx.clearRect(0, 0, width, height);
+
+                const palette = isDark() ? palettes.dark : palettes.light;
+                const gradient = ctx.createLinearGradient(0, 0, width, height);
+                const timeFactor = t * 1.4; // sneller verloop
+                palette.forEach((base, index) => {
+                    const stop = index / (palette.length - 1 || 1);
+                    const hue = (base.hue + timeFactor * 24 + Math.sin(timeFactor * 0.9 + index) * 12) % 360;
+                    const light = Math.min(
+                        92,
+                        Math.max(
+                            isDark() ? 28 : 42,
+                            base.lightness + Math.sin(timeFactor * 1.1 + index * 1.6) * 10,
+                        ),
+                    );
+                    const alpha = isDark() ? 0.55 : 0.82;
+                    gradient.addColorStop(stop, `hsla(${hue.toFixed(1)}, ${base.saturation}%, ${light.toFixed(1)}%, ${alpha})`);
+                });
+                ctx.fillStyle = gradient;
+                ctx.fillRect(0, 0, width, height);
+
+                const highlight = ctx.createRadialGradient(
+                    width * 0.2,
+                    height * 0.25,
+                    height * 0.24,
+                    width * 0.75,
+                    height * 0.75,
+                    width * 1.2,
+                );
+                highlight.addColorStop(0, isDark() ? 'rgba(255,255,255,0.12)' : 'rgba(255,255,255,0.26)');
+                highlight.addColorStop(1, 'rgba(255,255,255,0)');
+                ctx.fillStyle = highlight;
+                ctx.fillRect(0, 0, width, height);
+            };
+
+            const render = (now) => {
+                const t = now / 650; // versnelt animatie
+                paint(t);
+                frameId = requestAnimationFrame(render);
+            };
+
+            const start = () => {
+                if (frameId) {
+                    cancelAnimationFrame(frameId);
+                    frameId = 0;
+                }
+                resize();
+                if (prefersReduce.matches) {
+                    paint(0);
+                } else {
+                    frameId = requestAnimationFrame(render);
+                }
+            };
+
+            start();
+
+            window.addEventListener('resize', start, { passive: true });
+            const addMediaListener = (mq, handler) => {
+                if (!mq) return;
+                if (typeof mq.addEventListener === 'function') {
+                    mq.addEventListener('change', handler);
+                } else if (typeof mq.addListener === 'function') {
+                    mq.addListener(handler);
+                }
+            };
+            addMediaListener(prefersReduce, start);
+            addMediaListener(schemeWatcher, start);
+        });
+    </script>
     <script src="https://cdn.jsdelivr.net/npm/flowbite@3.1.2/dist/flowbite.min.js"></script>
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            const body = document.body;
+            if (!body) return;
+
+            const anyModalVisible = () =>
+                Array.from(document.querySelectorAll('.modal-topmost')).some((modal) => {
+                    const hiddenAttr = modal.getAttribute('aria-hidden');
+                    return !modal.classList.contains('hidden') && hiddenAttr !== 'true';
+                });
+
+            const updateModalState = () => {
+                if (anyModalVisible() || document.querySelector('[modal-backdrop]')) {
+                    body.classList.add('modal-open');
+                } else {
+                    body.classList.remove('modal-open');
+                }
+            };
+
+            document.querySelectorAll('.modal-topmost').forEach((modal) => {
+                modal.addEventListener('show.tw.modal', () => {
+                    body.classList.add('modal-open');
+                });
+                modal.addEventListener('shown.tw.modal', () => {
+                    body.classList.add('modal-open');
+                });
+                const onClose = () => {
+                    setTimeout(updateModalState, 0);
+                };
+                modal.addEventListener('hide.tw.modal', onClose);
+                modal.addEventListener('hidden.tw.modal', onClose);
+            });
+
+            const observer = new MutationObserver(() => updateModalState());
+            observer.observe(document.body, { childList: true });
+            updateModalState();
+        });
+    </script>
 </body>
 
 </html>

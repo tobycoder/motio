@@ -1,0 +1,86 @@
+<!DOCTYPE html>
+<html lang="nl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="color-scheme" content="light">
+    <title>{{ subject }}</title>
+</head>
+<body style="margin:0;padding:0;background-color:#eef2ff;background-image:radial-gradient(circle at 20% 20%, rgba(224,242,254,0.85), transparent 55%),radial-gradient(circle at 80% 25%, rgba(226,232,240,0.7), transparent 60%),linear-gradient(160deg, rgba(255,255,255,0.95), rgba(241,245,249,0.85) 45%, rgba(224,242,254,0.75));background-repeat:no-repeat;font-family:'Inter','Segoe UI','Roboto','Helvetica','Arial',sans-serif;color:#0f172a;-webkit-font-smoothing:antialiased;">
+    <span style="display:none!important;visibility:hidden;opacity:0;color:transparent;height:0;width:0;overflow:hidden;mso-hide:all;">{{ preheader }}</span>
+    <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="border-collapse:collapse;min-height:100%;padding:32px 16px;">
+        <tr>
+            <td align="center">
+                <table role="presentation" cellpadding="0" cellspacing="0" width="100%" style="max-width:640px;border-radius:28px;overflow:hidden;background:linear-gradient(145deg, rgba(255,255,255,0.92), rgba(255,255,255,0.82));border:1px solid rgba(148,163,184,0.35);box-shadow:0 32px 48px rgba(15,23,42,0.18);">
+                    <tr>
+                        <td style="padding:0;">
+                            <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:linear-gradient(140deg, rgba(56,189,248,0.22), rgba(99,102,241,0.35));padding:26px 36px;border-bottom:1px solid rgba(148,163,184,0.18);">
+                                <tr>
+                                    <td style="font-size:24px;font-weight:700;letter-spacing:0.02em;color:#0f172a;">Motio</td>
+                                </tr>
+                                <tr>
+                                    <td style="padding-top:6px;font-size:14px;letter-spacing:0.04em;text-transform:uppercase;color:rgba(15,23,42,0.55);">Updates vanuit de motiemanager</td>
+                                </tr>
+                            </table>
+                        </td>
+                    </tr>
+                    <tr>
+                        <td style="padding:36px 36px 32px;">
+                            {% if greeting %}
+                            <p style="margin:0 0 18px;font-size:18px;font-weight:600;color:#0f172a;">{{ greeting }}</p>
+                            {% endif %}
+                            {% if intro %}
+                            <p style="margin:0 0 18px;font-size:16px;line-height:1.65;color:#1e293b;">{{ intro }}</p>
+                            {% endif %}
+                            {% for paragraph in paragraphs %}
+                            <p style="margin:0 0 16px;font-size:16px;line-height:1.65;color:#1e293b;">{{ paragraph }}</p>
+                            {% endfor %}
+                            {% if details %}
+                            <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="border-collapse:collapse;margin:0 0 26px;background:rgba(226,232,240,0.6);border-radius:18px;overflow:hidden;">
+                                {% for item in details %}
+                                <tr>
+                                    <th scope="row" style="text-align:left;padding:14px 18px;width:40%;font-size:15px;color:#0f172a;font-weight:600;border-bottom:1px solid rgba(148,163,184,0.25);">{{ item.label }}</th>
+                                    <td style="padding:14px 18px;font-size:15px;color:#1f2937;border-bottom:1px solid rgba(148,163,184,0.25);">{{ item.value }}</td>
+                                </tr>
+                                {% endfor %}
+                            </table>
+                            {% endif %}
+                            {% if message_block %}
+                            <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="border-collapse:separate;margin:0 0 28px;">
+                                <tr>
+                                    <td style="padding:20px 22px;background:rgba(191,219,254,0.55);border-radius:20px;">
+                                        {% if message_block.title %}
+                                        <p style="margin:0 0 10px;font-size:15px;font-weight:600;color:#0f172a;">{{ message_block.title }}</p>
+                                        {% endif %}
+                                        {% for line in message_block.lines %}
+                                        <p style="margin:0 0 8px;font-size:15px;line-height:1.6;color:#1e293b;">{{ line }}</p>
+                                        {% endfor %}
+                                    </td>
+                                </tr>
+                            </table>
+                            {% endif %}
+                            {% if cta %}
+                            <div style="margin:32px 0;">
+                                <a href="{{ cta.url }}" style="display:inline-block;padding:14px 32px;border-radius:999px;background-color:#0ea5e9;background-image:linear-gradient(135deg,#0ea5e9,#0284c7);color:#ffffff;text-decoration:none;font-weight:600;font-size:16px;letter-spacing:0.01em;box-shadow:0 12px 24px rgba(14,165,233,0.35);">{{ cta.label }}</a>
+                            </div>
+                            {% endif %}
+                            {% if footer_lines %}
+                            {% for line in footer_lines %}
+                            <p style="margin:0;font-size:14px;color:#475569;line-height:1.4;">{{ line }}</p>
+                            {% endfor %}
+                            {% endif %}
+                        </td>
+                    </tr>
+                </table>
+            </td>
+        </tr>
+        <tr>
+            <td align="center" style="padding-top:18px;">
+                <p style="margin:0;font-size:12px;color:rgba(15,23,42,0.52);max-width:480px;line-height:1.5;">
+                    Deze e-mail hoort bij je Motio-account. Twijfel je aan de herkomst? Neem dan contact op met de griffie.
+                </p>
+            </td>
+        </tr>
+    </table>
+</body>
+</html>

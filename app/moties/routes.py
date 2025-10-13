@@ -5,6 +5,7 @@ from sqlalchemy.orm import Session, selectinload
 from sqlalchemy.sql import label
 from app.models import Motie, User, motie_medeindieners, MotieShare, Party, Notification, MotieVersion, AdviceSession
 from app import db, send_email
+from app.email_utils import render_email
 import json
 from app.moties import bp
 from app.exporters.motie_docx import render_motie_to_docx_bytes
@@ -233,12 +234,17 @@ def _send_notification_email(user_id: int, motie: Motie | None, ntype: str, payl
     # Respecteer per-gebruiker e-mailvoorkeuren (functionele mails elders blijven altijd aan)
     if not _is_email_pref_enabled(user, ntype):
         return
-    subject, body = _build_notification_email(user, motie, ntype, payload)
-    if not subject or not body:
+    subject, text_body, html_body = _build_notification_email(user, motie, ntype, payload)
+    if not subject or not text_body:
         return
-    send_email(subject=subject, recipients=user.email, text_body=body)
+    send_email(subject=subject, recipients=user.email, text_body=text_body, html_body=html_body)
 
-def _build_notification_email(user: User, motie: Motie | None, ntype: str, payload: dict) -> tuple[str | None, str | None]:
+def _build_notification_email(
+    user: User,
+    motie: Motie | None,
+    ntype: str,
+    payload: dict,
+) -> tuple[str | None, str | None, str | None]:
     motie_id = motie.id if motie else payload.get("motie_id")
     if motie and getattr(motie, "titel", None):
         motie_title = motie.titel
@@ -253,95 +259,131 @@ def _build_notification_email(user: User, motie: Motie | None, ntype: str, paylo
     except RuntimeError:
         view_url = url_for("moties.bekijken", motie_id=motie_id) if motie_id else None
     greeting = f"Hallo {user.naam}," if getattr(user, "naam", None) else "Hallo,"
+    default_footer = ["Groeten,", "Motio"]
+
+    def _split_lines(text: str | None) -> list[str]:
+        if not text:
+            return []
+        return [line.strip() for line in str(text).replace("\r\n", "\n").split("\n") if line.strip()]
+
+    def compose_email(
+        subject: str,
+        intro: str,
+        *,
+        paragraphs: list[str] | None = None,
+        details: list[tuple[str, str]] | None = None,
+        message_title: str | None = None,
+        message_lines: list[str] | None = None,
+        cta_label: str | None = None,
+        cta_url: str | None = None,
+        footer: list[str] | None = None,
+        preheader: str | None = None,
+    ) -> tuple[str, str, str]:
+        text_body, html_body = render_email(
+            subject=subject,
+            greeting=greeting,
+            intro=intro,
+            paragraphs=paragraphs or [],
+            details=details or [],
+            message_title=message_title,
+            message_lines=message_lines or [],
+            cta_label=cta_label,
+            cta_url=cta_url,
+            footer_lines=footer or default_footer,
+            preheader=preheader or intro,
+        )
+        return subject, text_body, html_body
+
     if ntype == "share_received":
         afzender = payload.get("afzender_naam") if payload else None
         permission = payload.get("permission") if payload else None
         message = payload.get("message") if payload else None
         subject = f"Nieuwe motie gedeeld: {motie_title}"
-        lines = [
-            greeting,
-            "",
-            f"{afzender or 'Een collega'} heeft de motie '{motie_title}' met je gedeeld.",
-        ]
+        intro = f"{afzender or 'Een collega'} heeft de motie '{motie_title}' met je gedeeld."
+        detail_rows: list[tuple[str, str]] = []
         if permission:
-            lines.append(f"Rechten: {permission}.")
-        if message:
-            lines.extend(["", "Bericht van de afzender:", message])
-        if view_url:
-            lines.extend(["", f"Bekijk de motie: {view_url}"])
-        lines.extend(["", "Groeten,", "Motio"])
-        return subject, "\n".join(lines)
+            detail_rows.append(("Rechten", str(permission)))
+        message_lines = _split_lines(message)
+        return compose_email(
+            subject=subject,
+            intro=intro,
+            details=detail_rows,
+            message_title="Bericht van de afzender" if message_lines else None,
+            message_lines=message_lines,
+            cta_label="Bekijk de motie" if view_url else None,
+            cta_url=view_url,
+        )
     if ntype == "advice_requested":
         requested_by = payload.get("requested_by_naam") if payload else None
         subject = f"Advies aangevraagd: {motie_title}"
-        lines = [
-            greeting,
-            "",
-            f"Er is advies aangevraagd voor '{motie_title}'{(' door ' + requested_by) if requested_by else ''}.",
-        ]
-        if view_url:
-            lines.extend(["", f"Open de motie: {view_url}"])
-        lines.extend(["", "Groeten,", "Motio"])
-        return subject, "\n".join(lines)
+        intro = f"Er is advies aangevraagd voor '{motie_title}'{(' door ' + requested_by) if requested_by else ''}."
+        return compose_email(
+            subject=subject,
+            intro=intro,
+            cta_label="Bekijk de motie" if view_url else None,
+            cta_url=view_url,
+        )
     if ntype == "advice_returned":
         reviewer = payload.get("reviewer_naam") if payload else None
         subject = f"Nieuw advies staat klaar: {motie_title}"
-        lines = [
-            greeting,
-            "",
-            f"De griffie heeft advies teruggestuurd voor '{motie_title}'.",
-        ]
-        if reviewer:
-            lines.append(f"Reviewer: {reviewer}.")
-        if view_url:
-            lines.extend(["", f"Bekijk het advies en de motie: {view_url}"])
-        lines.extend(["", "Groeten,", "Motio"])
-        return subject, "\n".join(lines)
+        intro = f"De griffie heeft advies teruggestuurd voor '{motie_title}'."
+        details = [("Reviewer", reviewer)] if reviewer else None
+        return compose_email(
+            subject=subject,
+            intro=intro,
+            details=details,
+            cta_label="Bekijk advies en motie" if view_url else None,
+            cta_url=view_url,
+        )
     if ntype == "advice_accepted":
         accepted_by = payload.get("accepted_by_naam") if payload else None
         subject = f"Advies geaccepteerd: {motie_title}"
-        lines = [
-            greeting,
-            "",
-            f"De indiener heeft het advies voor '{motie_title}' geaccepteerd{(' (' + accepted_by + ')') if accepted_by else ''}.",
-        ]
-        if view_url:
-            lines.extend(["", f"Open de motie: {view_url}"])
-        lines.extend(["", "Groeten,", "Motio"])
-        return subject, "\n".join(lines)
+        intro = f"De indiener heeft het advies voor '{motie_title}' geaccepteerd{(' (' + accepted_by + ')') if accepted_by else ''}."
+        details = [("Geaccepteerd door", accepted_by)] if accepted_by else None
+        return compose_email(
+            subject=subject,
+            intro=intro,
+            details=details,
+            cta_label="Open de motie" if view_url else None,
+            cta_url=view_url,
+        )
     if ntype == "share_revoked":
         revoked_by = payload.get("revoked_by_naam") if payload else None
         subject = f"Toegang ingetrokken: {motie_title}"
-        lines = [
-            greeting,
-            "",
-            f"Je toegang tot '{motie_title}' is ingetrokken door {revoked_by or 'een collega'}.",
-        ]
-        lines.extend(["", "Groeten,", "Motio"])
-        return subject, "\n".join(lines)
+        intro = f"Je toegang tot '{motie_title}' is ingetrokken door {revoked_by or 'een collega'}."
+        return compose_email(subject=subject, intro=intro)
     if ntype == "coauthor_added":
         toegevoegd_door = payload.get("toegevoegd_door_naam") if payload else None
         subject = f"Toegevoegd als mede-indiener: {motie_title}"
-        lines = [
-            greeting,
-            "",
-            f"Je bent toegevoegd als mede-indiener voor '{motie_title}' door {toegevoegd_door or 'een collega'}.",
-        ]
-        if view_url:
-            lines.extend(["", f"Bekijk de motie: {view_url}"])
-        lines.extend(["", "Succes met het vervolg!", "Motio"])
-        return subject, "\n".join(lines)
+        intro = f"Je bent toegevoegd als mede-indiener voor '{motie_title}' door {toegevoegd_door or 'een collega'}."
+        paragraphs = ["Succes met het vervolg!"]
+        return compose_email(
+            subject=subject,
+            intro=intro,
+            paragraphs=paragraphs,
+            cta_label="Bekijk de motie" if view_url else None,
+            cta_url=view_url,
+        )
     subject = "Nieuwe notificatie in Motio"
-    lines = [greeting, "", f"Je hebt een nieuwe notificatie van het type '{ntype}'."]
+    intro = f"Je hebt een nieuwe notificatie van het type '{ntype}'."
+    detail_rows: list[tuple[str, str]] = []
     if payload:
-        lines.append("")
-        lines.append("Details:")
         for key, value in payload.items():
-            lines.append(f"- {key}: {value}")
-    if view_url:
-        lines.extend(["", f"Gerelateerde motie: {view_url}"])
-    lines.extend(["", "Groeten,", "Motio"])
-    return subject, "\n".join(lines)
+            if value in (None, "", []):
+                continue
+            if isinstance(value, (list, dict)):
+                display_value = json.dumps(value, ensure_ascii=False)
+            else:
+                display_value = str(value)
+            label = str(key).replace("_", " ").capitalize()
+            detail_rows.append((label, display_value))
+    return compose_email(
+        subject=subject,
+        intro=intro,
+        details=detail_rows,
+        cta_label="Bekijk de motie" if view_url else None,
+        cta_url=view_url,
+    )
 
 # --- Griffie advies helpers ---
 def _ensure_advice_session_for(motie: Motie, requested_by: User) -> AdviceSession:
@@ -491,6 +533,7 @@ def _notify_coauthors_added(motie: Motie, user_ids: list[int]):
 def index():
     q = request.args.get('q')
     status = request.args.get('status')
+    relation_filter = (request.args.get('relation') or '').strip().lower()
     date_from = request.args.get('date_from')
     date_to = request.args.get('date_to')
     sort = request.args.get('sort', 'date')
@@ -555,6 +598,7 @@ def index():
         date_to=date_to,
         sort=sort, 
         direction=direction,
+        relation=None,
 )   
 
 @bp.route('/')
@@ -571,6 +615,10 @@ def index_personal():
     direction = request.args.get('dir', 'desc')
     page = int(request.args.get('page', 1))
     per_page = min(int(request.args.get('per_page', 20)), 100)
+    relation_param = request.args.get('relation')
+    relation_param = relation_param.strip().lower() if relation_param else None
+    allowed_relations = {"indiener", "mede_indiener", "gedeeld"}
+    relation_filter = relation_param if relation_param in allowed_relations else None
 
     # --- Sorteer mapping ---
     sort_map = {
@@ -632,9 +680,10 @@ def index_personal():
             status=status,
             date_from=date_from,
             date_to=date_to,
-            sort=sort,
-            direction=direction,
-        )
+        sort=sort,
+        direction=direction,
+        relation=relation_param,
+    )
     
     # --- Subquery 1: Indiener (Core select) ---
     own_sel = (
@@ -768,8 +817,12 @@ def index_personal():
         )
         .join(ranked, ranked.c.motie_id == Motie.id)
         .filter(ranked.c.rn == 1)
-        .order_by(order_clause, desc(Motie.id))
     )
+
+    if relation_filter:
+        final_q = final_q.filter(ranked.c.relation == relation_filter)
+
+    final_q = final_q.order_by(order_clause, desc(Motie.id))
 
     # --- Tellen & pagineren ---
     total = final_q.count()
@@ -789,7 +842,13 @@ def index_personal():
         total=total,
         page=page,
         per_page=per_page,
-        q=q, status=status, date_from=date_from, date_to=date_to, sort=sort, direction=direction
+        q=q,
+        status=status,
+        date_from=date_from,
+        date_to=date_to,
+        sort=sort,
+        direction=direction,
+        relation=relation_param,
     )
 
 @bp.route('/gedeeld')
@@ -895,7 +954,13 @@ def index_shared():
         total=total,
         page=page,
         per_page=per_page,
-        q=q, status=status, date_from=date_from, date_to=date_to, sort=sort, direction=direction,
+        q=q,
+        status=status,
+        date_from=date_from,
+        date_to=date_to,
+        sort=sort,
+        direction=direction,
+        relation='gedeeld',
     )
 
 # AEVD Routes

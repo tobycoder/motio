@@ -167,6 +167,7 @@ def calculate_speaking_distribution(
         else:
             seat_share_dec = Decimal("0")
         total_share_dec = base_share_dec + seat_share_dec
+
         distribution.append(
             {
                 "id": party.id,
@@ -886,3 +887,8 @@ def dashboard_view():
     }
 
     return render_template('griffie/dashboard.html', layout=layout, widget_data=widget_data)
+
+
+
+
+

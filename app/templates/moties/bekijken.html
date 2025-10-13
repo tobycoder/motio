@@ -6,17 +6,19 @@
     .a4 { width: 230mm; min-height: 297mm; }
     .avoid-break { break-inside: avoid; page-break-inside: avoid; }
         /* Forceer overlay onder de modal */
-    [modal-backdrop] { z-index: 1050 !important; }
+    [modal-backdrop],
+    [data-modal-backdrop],
+    .modal-backdrop { z-index: 3000 !important; }
     /* Zorg dat jouw modal erboven ligt */
-    #verwijderModal { z-index: 1060 !important; }
+    #verwijderModal { z-index: 3010 !important; }
   </style>
 
   {# ---------------- Flowbite (dropdowns/modals) ---------------- #}
   <script src="https://cdnjs.cloudflare.com/ajax/libs/flowbite/2.5.2/flowbite.min.js" defer></script>
 
   {# ---------------- Topbar: compact, sticky ---------------- #}
-  <div class="sticky top-[var(--nav-h)] page-chrome-low bg-white/90 pt-4 backdrop-blur border-b print:hidden">
-    <div class="mx-auto max-w-7xl px-4 py-2 flex items-center gap-2">
+  <div class="sticky-surface page-chrome-low print:hidden">
+    <div class="sticky-surface__inner flex items-center gap-2 px-4 py-2">
       {# Terug-knop: naar laatste overzicht / fallback #}
       <a href="{{ back_url or url_for('moties.index') }}"
          class="inline-flex items-center gap-2 rounded-lg border px-3 py-1.5 text-sm hover:bg-gray-50">
@@ -310,9 +312,9 @@
 
   {# ---------------- Verwijderen: modal bevestiging ---------------- #}
 <div id="verwijderModal" tabindex="-1" aria-hidden="true"
-     class="hidden fixed inset-0 z-[1060] overflow-y-auto overflow-x-hidden">
-    <div class="z-60 flex min-h-full items-end sm:items-center justify-center p-4">
-      <div class="z-60 relative w-full max-w-md bg-white rounded-xl shadow-lg border">
+     class="modal-topmost hidden fixed inset-0 overflow-y-auto overflow-x-hidden">
+    <div class="flex min-h-full items-end sm:items-center justify-center p-4">
+      <div class="relative w-full max-w-md bg-white rounded-xl shadow-lg border">
         <div class="p-4 sm:p-6">
           <h3 class="text-base font-semibold mb-2">Motie verwijderen?</h3>
           <p class="text-sm text-gray-600">Deze actie kan niet ongedaan worden gemaakt.</p>

@@ -1,8 +1,8 @@
 {% extends 'base.html' %}
 {% block content %}
   <script src="https://cdnjs.cloudflare.com/ajax/libs/flowbite/2.5.2/flowbite.min.js" defer></script>
-  <div class="sticky top-[var(--nav-h)] page-chrome-low bg-white/90 pt-4 backdrop-blur border-b print:hidden">
-    <div class="mx-auto max-w-7xl px-4 py-2 flex items-center gap-2">
+  <div class="sticky-surface page-chrome-low print:hidden">
+    <div class="sticky-surface__inner flex items-center gap-2 px-4 py-2">
       <a href="{{ url_for('griffie.advies_inbox') }}"
          class="inline-flex items-center gap-2 rounded-lg border px-3 py-1.5 text-sm hover:bg-gray-50">
         <i class="fa fa-arrow-left text-gray-600"></i>

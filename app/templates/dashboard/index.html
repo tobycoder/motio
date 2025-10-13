@@ -160,7 +160,7 @@
         <ul class="space-y-3">
           {% for notif in notifications_recent %}
             <li class="rounded-xl border border-gray-200 p-3 {% if notif.read_at is none %}bg-gray-50{% endif %}">
-              <p class="text-sm font-semibold text-gray-900">{{ notif.type|replace('_', ' ')|capitalize }}</p>
+              <p class="text-sm font-semibold text-gray-900">{{ notif.type|notification_label }}</p>
               <p class="text-xs text-gray-500 mt-1">{{ notif.created_at.strftime('%d-%m-%Y %H:%M') if notif.created_at else 'Onbekend' }}</p>
             </li>
           {% endfor %}

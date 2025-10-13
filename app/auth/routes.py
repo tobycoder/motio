@@ -4,6 +4,7 @@ from app.auth import bp
 from app.auth.forms import LoginForm, RegistrationForm, ResetPassword, ResetPasswordStepTwo
 from app.models import User
 from app import db, send_email
+from app.email_utils import render_email
 import uuid, os
 from werkzeug.utils import secure_filename
 from PIL import Image, ImageOps
@@ -175,13 +176,20 @@ def register():
 def _send_reset_email(user):
     token = user.generate_reset_token()
     reset_url = url_for("auth.reset_password", token=token, _external=True)
-    text_body = (
-        f"Beste {user.naam},\n\n"
-        f"Via onderstaande link kun je je wachtwoord resetten (1 uur geldig):\n"
-        f"{reset_url}\n\n"
-        f"Niet door jou aangevraagd? Negeer deze e-mail."
+    subject = "Wachtwoord resetten"
+    greeting = f"Hallo {user.naam}," if getattr(user, "naam", None) else "Hallo,"
+    intro = "Via de knop hieronder kun je je wachtwoord resetten. De link is 60 minuten geldig."
+    paragraphs = ["Heb jij deze reset niet aangevraagd? Negeer dan deze e-mail."]
+    text_body, html_body = render_email(
+        subject=subject,
+        greeting=greeting,
+        intro=intro,
+        paragraphs=paragraphs,
+        cta_label="Reset wachtwoord",
+        cta_url=reset_url,
+        footer_lines=["Met vriendelijke groet,", "Motio"],
     )
-    send_email(subject="Wachtwoord resetten", recipients=user.email, text_body=text_body)
+    send_email(subject=subject, recipients=user.email, text_body=text_body, html_body=html_body)
 
 @bp.route('<int:user_id>/admin-wachtwoord-reset', methods=["GET", "POST"])
 @login_and_active_required

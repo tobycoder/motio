@@ -18,58 +18,99 @@
 {% block content %}
 {% set stats = namespace(total=0) %}
 {% set indieners = namespace(values=[]) %}
+{% set statussen = namespace(values=[]) %}
+{% set relaties = namespace(values=[]) %}
+{% set relation_labels = {
+  'indiener': 'Indiener',
+  'mede_indiener': 'Mede-indiener',
+  'gedeeld': 'Gedeeld',
+  'superadmin': 'Alle moties'
+} %}
 {% for item in items %}
   {% set m = item.motie if item is mapping and 'motie' in item else item %}
   {% set stats.total = stats.total + 1 %}
   {% if m.indiener and m.indiener.naam and (m.indiener.naam not in indieners.values) %}
     {% set indieners.values = indieners.values + [m.indiener.naam] %}
   {% endif %}
+  {% set status_value = (m.status or '') %}
+  {% if status_value and status_value not in statussen.values %}
+    {% set statussen.values = statussen.values + [status_value] %}
+  {% endif %}
+  {% if item is mapping and 'relation' in item %}
+    {% set rel_value = item.relation %}
+    {% if rel_value and rel_value not in relaties.values %}
+      {% set relaties.values = relaties.values + [rel_value] %}
+    {% endif %}
+  {% endif %}
 {% endfor %}
 
-  <div class="sticky top-0 page-chrome-low bg-white/90 backdrop-blur border-b shadow-sm">
-  <div class="mx-auto max-w-7xl px-4 py-4 flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
-    <div>
-      <p class="text-sm uppercase tracking-wide text-gray-500">Moties</p>
-      <h1 class="text-2xl font-semibold text-gray-900">{{ title or 'Overzicht' }}</h1>
-      <div class="mt-3 flex flex-wrap gap-2 text-sm text-gray-500">
-        <span class="inline-flex items-center gap-1 rounded-full bg-gray-100 px-3 py-1">{{ stats.total }} moties</span>
+  <div class="sticky-surface page-chrome-low">
+    <div class="sticky-surface__inner flex flex-col gap-4 md:flex-row md:items-center md:justify-between px-4 py-4">
+      <div>
+        <p class="text-sm uppercase tracking-wide text-gray-500">Moties</p>
+        <h1 class="text-2xl font-semibold text-gray-900 dark:text-slate-100">{{ title or 'Overzicht' }}</h1>
+        <div class="mt-3 flex flex-wrap gap-2 text-sm text-gray-500 dark:text-slate-300">
+          <span class="inline-flex items-center gap-1 rounded-full bg-white/60 dark:bg-slate-800/60 px-3 py-1 shadow-sm">{{ stats.total }} moties</span>
+        </div>
+      </div>
+      <div class="flex items-center gap-2">
+        <span class="text-sm text-gray-500 dark:text-slate-300">Weergave:</span>
+        <div class="inline-flex rounded-lg border border-white/70 dark:border-slate-700 bg-white/80 dark:bg-slate-800/70 overflow-hidden shadow-sm" role="group" aria-label="Weergave">
+          <button id="viewListBtn" class="px-3 py-1.5 text-sm bg-transparent hover:bg-white/60 dark:hover:bg-slate-700/70 border-r border-white/60 dark:border-slate-700/60 transition">Lijst</button>
+          <button id="viewCardsBtn" class="px-3 py-1.5 text-sm bg-transparent hover:bg-white/60 dark:hover:bg-slate-700/70 transition">Kaarten</button>
+        </div>
+        <a href="{{ url_for('moties.toevoegen') }}" class="inline-flex items-center justify-center gap-2 rounded-md bg-gray-900 px-4 py-2 text-sm font-semibold text-white shadow-sm hover:bg-black transition">
+          <i class="fa fa-plus"></i> Nieuwe motie
+        </a>
       </div>
     </div>
-    <div class="flex items-center gap-2">
-      Weergave:
-      <div class="inline-flex rounded-lg border overflow-hidden" role="group" aria-label="Weergave">
-        <button id="viewListBtn" class="px-3 py-1.5 text-sm bg-white hover:bg-gray-50 border-r">Lijst</button>
-        <button id="viewCardsBtn" class="px-3 py-1.5 text-sm bg-white hover:bg-gray-50">Kaarten</button>
-      </div>
-      <a href="{{ url_for('moties.toevoegen') }}" class="inline-flex items-center justify-center gap-2 rounded-md bg-gray-900 px-4 py-2 text-sm font-semibold text-white shadow-sm hover:bg-black transition">
-        <i class="fa fa-plus"></i> Nieuwe motie
-      </a>
-    </div>
-  </div>
   </div>
 
 <section class="mx-auto max-w-7xl px-4 py-6 space-y-6">
   <div class="rounded-2xl border border-gray-200 bg-white shadow-sm">
-    <div class="grid gap-4 p-6 lg:grid-cols-4 lg:items-end">
-      <div class="lg:col-span-2 relative">
+    <div class="grid gap-4 p-6 lg:grid-cols-6 lg:items-end">
+      <div class="lg:col-span-3 relative">
         <span class="pointer-events-none absolute inset-y-0 left-3 flex items-center text-gray-400"><i class="fa fa-search"></i></span>
         <input id="motie-search" type="search" placeholder="Zoek op titel, status, partij..."
                class="w-full rounded-lg border border-gray-300 bg-white pl-10 pr-4 py-2 text-sm text-gray-700 shadow-sm focus:border-gray-900 focus:outline-none focus:ring-2 focus:ring-gray-900/20 transition" />
       </div>
-      <div>
+      <div class="lg:col-span-1">
         <label for="filter-meeting" class="block text-xs font-semibold uppercase tracking-wide text-gray-500 mb-1">Datum vergadering</label>
         <input id="filter-meeting" type="date" class="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-gray-900 focus:outline-none focus:ring-2 focus:ring-gray-900/20 transition" />
       </div>
-      <div>
+      <div class="lg:col-span-1">
         <label for="filter-created" class="block text-xs font-semibold uppercase tracking-wide text-gray-500 mb-1">Aangemaakt op</label>
         <input id="filter-created" type="date" class="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-gray-900 focus:outline-none focus:ring-2 focus:ring-gray-900/20 transition" />
       </div>
-      <div class="lg:col-span-4">
+      <div class="lg:col-span-1">
         <label for="filter-indiener" class="block text-xs font-semibold uppercase tracking-wide text-gray-500 mb-1">Indiener</label>
         <select id="filter-indiener" class="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm bg-white focus:border-gray-900 focus:outline-none focus:ring-2 focus:ring-gray-900/20 transition">
           <option value="">Alle indieners</option>
           {% for naam in indieners.values|sort %}
             <option value="{{ naam|lower }}">{{ naam }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="lg:col-span-1">
+        <label for="filter-status" class="block text-xs font-semibold uppercase tracking-wide text-gray-500 mb-1">Status</label>
+        <select id="filter-status" class="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm bg-white focus:border-gray-900 focus:outline-none focus:ring-2 focus:ring-gray-900/20 transition">
+          <option value="">Alle statussen</option>
+          {% set status_active = (status|default('')|lower) %}
+          {% for status_label in statussen.values|sort %}
+            {% set status_value = status_label|lower %}
+            <option value="{{ status_value }}"{% if status_active and status_active == status_value %} selected{% endif %}>{{ status_label }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="lg:col-span-1">
+        <label for="filter-relatie" class="block text-xs font-semibold uppercase tracking-wide text-gray-500 mb-1">Relatie</label>
+        <select id="filter-relatie" class="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm bg-white focus:border-gray-900 focus:outline-none focus:ring-2 focus:ring-gray-900/20 transition">
+          <option value="">Alle relaties</option>
+          {% set relation_active = (relation|default('')|lower) %}
+          {% for rel_key in relaties.values|sort %}
+            {% set rel_value = rel_key|lower %}
+            {% set rel_display = relation_labels.get(rel_key, rel_key|replace('_', ' ')|title) %}
+            <option value="{{ rel_value }}"{% if relation_active and relation_active == rel_value %} selected{% endif %}>{{ rel_display }}</option>
           {% endfor %}
         </select>
       </div>
@@ -81,7 +122,7 @@
       <thead class="text-xs uppercase bg-gray-50 text-gray-500">
         <tr>
           <th class="px-3 py-3">Titel</th>
-          <th class="px-6 py-3 hidden md:table-cell">Aanmaakdatum</th>
+          <th class="px-6 py-3 hidden md:table-cell">Status</th>
           <th class="px-6 py-3 hidden md:table-cell">Dag vergadering</th>
           <th class="px-6 py-3 hidden lg:table-cell">Indiener</th>
           <th class="px-6 py-3 hidden lg:table-cell">Mede-indiener</th>
@@ -96,20 +137,25 @@
           {% set meeting_date = iso_date(m.gemeenteraad_datum)|trim %}
           {% set created_date = iso_date(m.created_at)|trim %}
           {% set indiener_naam = m.indiener.naam if m.indiener and m.indiener.naam else '' %}
-          {% set search_blob = (m.titel ~ ' ' ~ (m.status or '') ~ ' ' ~ (indiener_naam) ~ ' ' ~ (m.party.naam if m.party and m.party.naam else '') ~ ' ' ~ (meeting_date) ~ ' ' ~ (created_date))|lower %}
+          {% set status_label = (m.status or '')|trim %}
+          {% set relation_key = relation or '' %}
+          {% set relation_label = relation_labels.get(relation_key, relation_key|replace('_', ' ')|title) %}
+          {% set search_blob = (m.titel ~ ' ' ~ status_label ~ ' ' ~ relation_label ~ ' ' ~ (indiener_naam) ~ ' ' ~ (m.party.naam if m.party and m.party.naam else '') ~ ' ' ~ (meeting_date) ~ ' ' ~ (created_date))|lower %}
           <tr data-motie-row
               data-search="{{ search_blob }}"
               data-meeting="{{ meeting_date }}"
               data-created="{{ created_date }}"
+              data-status="{{ status_label|lower }}"
+              data-relation="{{ relation_key|lower }}"
               data-indiener="{{ indiener_naam|lower }}"
               class="bg-white border-b border-gray-200 hover:bg-gray-50 transition">
             <td class="px-3 py-4 font-medium text-blue-600 whitespace-nowrap">
               <a href="{{ url_for('moties.bekijken', motie_id=m.id) }}" class="hover:underline">{{ m.titel }}</a>
               <div class="mt-1 text-xs text-gray-500 md:hidden">
-                {{ created_date }} • {{ m.party.naam if m.party and m.party.naam else '-' }} • {{ m.status or '-' }}
+                {{ status_label or '-' }} • {{ relation_label or 'Onbekend' }}
               </div>
             </td>
-            <td class="px-6 py-4 hidden md:table-cell">{{ display_date(m.created_at)|trim }}</td>
+            <td class="px-6 py-4 hidden md:table-cell">{{ status_label or '-' }}</td>
             <td class="px-6 py-4 hidden md:table-cell">{{ display_date(m.gemeenteraad_datum, '-')|trim }}</td>
             <td class="px-6 py-4 hidden lg:table-cell">{{ indiener_naam or '-' }}</td>
             <td class="px-6 py-4 hidden lg:table-cell">
@@ -128,12 +174,12 @@
                 <span class="px-2 py-1 text-xs rounded bg-green-100 text-green-800">Mede-indiener</span>
               {% elif relation == 'gedeeld' %}
                 <span class="px-2 py-1 text-xs rounded bg-purple-100 text-purple-800">
-                  Gedeeld{% if share_permission %}: {{ share_permission }}{% endif %}
+                  Gedeeld{% if share_permission %}: {{ share_permission|share_permission_label }}{% endif %}
                 </span>
               {% elif relation == 'superadmin' %}
                 <span class="px-2 py-1 text-xs rounded bg-amber-100 text-amber-800">Alle moties</span>
               {% else %}
-                <span class="text-gray-400">-</span>
+                <span class="px-2 py-1 text-xs rounded bg-gray-100 text-gray-600">{{ relation_label or '-' }}</span>
               {% endif %}
             </td>
           </tr>
@@ -150,19 +196,25 @@
   <!-- Kaartweergave: A4-verhouding previews -->
   <div id="moties-cards-mode" class="hidden">
     <div class="mx-auto max-w-7xl">
-      <div class="grid gap-4 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6">
+      <div class="grid grid-cols-2 gap-4 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6">
         {% for item in items %}
           {% set m = item.motie if item is mapping and 'motie' in item else item %}
           {% set meeting_date = iso_date(m.gemeenteraad_datum)|trim %}
           {% set created_date = iso_date(m.created_at)|trim %}
           {% set indiener_naam = m.indiener.naam if m.indiener and m.indiener.naam else '' %}
           {% set partij_naam = m.indiener.partij.naam if m.indiener and m.indiener.partij and m.indiener.partij.naam else '' %}
-          {% set search_blob = (m.titel ~ ' ' ~ (m.status or '') ~ ' ' ~ (indiener_naam) ~ ' ' ~ (partij_naam) ~ ' ' ~ (meeting_date) ~ ' ' ~ (created_date))|lower %}
+          {% set status_label = (m.status or '')|trim %}
+          {% set relation = item.relation if item is mapping and 'relation' in item else None %}
+          {% set relation_key = relation or '' %}
+          {% set relation_label = relation_labels.get(relation_key, relation_key|replace('_', ' ')|title) %}
+          {% set search_blob = (m.titel ~ ' ' ~ status_label ~ ' ' ~ relation_label ~ ' ' ~ (indiener_naam) ~ ' ' ~ (partij_naam) ~ ' ' ~ (meeting_date) ~ ' ' ~ (created_date))|lower %}
           <a href="{{ url_for('moties.bekijken', motie_id=m.id) }}" class="group block"
              data-card-item
              data-search="{{ search_blob }}"
              data-meeting="{{ meeting_date }}"
              data-created="{{ created_date }}"
+             data-status="{{ status_label|lower }}"
+             data-relation="{{ relation_key|lower }}"
              data-indiener="{{ (indiener_naam|lower) }}">
             <div class="rounded-xl border border-gray-200 bg-white shadow-sm p-2 transition group-hover:shadow-md">
               <div class="relative w-full bg-gray-50 rounded-md border border-gray-200 overflow-hidden" style="aspect-ratio: 210 / 297;">
@@ -191,9 +243,10 @@
                   <div class="mt-auto"></div>
                 </div>
               </div>
-              <div class="mt-2 flex items-center justify-between text-[11px] text-gray-500">
+              <div class="mt-2 flex flex-wrap items-center justify-between gap-x-2 text-[11px] text-gray-500">
                 <span class="truncate">{{ m.indiener.naam if m.indiener else '' }}</span>
-                <span class="truncate">{{ m.status or '-' }}</span>
+                <span class="inline-flex items-center gap-1 rounded-full bg-gray-100 px-2 py-0.5 text-[10px] font-semibold text-gray-600">{{ relation_label or 'Onbekend' }}</span>
+                <span class="inline-flex items-center gap-1 rounded-full bg-blue-100 px-2 py-0.5 text-[10px] font-semibold text-blue-700">{{ status_label or '-' }}</span>
               </div>
             </div>
           </a>
@@ -211,6 +264,8 @@
     const meetingInput = document.getElementById('filter-meeting');
     const createdInput = document.getElementById('filter-created');
     const indienerSelect = document.getElementById('filter-indiener');
+    const statusSelect = document.getElementById('filter-status');
+    const relationSelect = document.getElementById('filter-relatie');
     const emptyState = document.getElementById('motie-empty-state');
 
     const applyFilters = () => {
@@ -218,13 +273,17 @@
       const meetingValue = (meetingInput.value || '').trim();
       const createdValue = (createdInput.value || '').trim();
       const indienerValue = (indienerSelect.value || '').trim();
+      const statusValue = statusSelect ? (statusSelect.value || '').trim() : '';
+      const relationValue = relationSelect ? (relationSelect.value || '').trim() : '';
 
       let visibleList = 0;
       rows.forEach(el => {
         const v = (!searchValue || el.dataset.search.includes(searchValue)) &&
                   (!meetingValue || el.dataset.meeting === meetingValue) &&
                   (!createdValue || el.dataset.created === createdValue) &&
-                  (!indienerValue || el.dataset.indiener === indienerValue);
+                  (!indienerValue || el.dataset.indiener === indienerValue) &&
+                  (!statusValue || el.dataset.status === statusValue) &&
+                  (!relationValue || el.dataset.relation === relationValue);
         el.classList.toggle('hidden', !v);
         if (v) visibleList++;
       });
@@ -234,7 +293,9 @@
         const v = (!searchValue || (el.dataset.search||'').includes(searchValue)) &&
                   (!meetingValue || (el.dataset.meeting||'') === meetingValue) &&
                   (!createdValue || (el.dataset.created||'') === createdValue) &&
-                  (!indienerValue || (el.dataset.indiener||'') === indienerValue);
+                  (!indienerValue || (el.dataset.indiener||'') === indienerValue) &&
+                  (!statusValue || (el.dataset.status||'') === statusValue) &&
+                  (!relationValue || (el.dataset.relation||'') === relationValue);
         el.classList.toggle('hidden', !v);
         if (v) visibleCards++;
       });
@@ -245,7 +306,7 @@
       emptyState.classList.toggle('hidden', count !== 0);
     };
 
-    [searchInput, meetingInput, createdInput, indienerSelect].forEach(el => {
+    [searchInput, meetingInput, createdInput, indienerSelect, statusSelect, relationSelect].forEach(el => {
       el && el.addEventListener(el.tagName === 'SELECT' ? 'change' : 'input', () => {
         window.requestAnimationFrame(applyFilters);
       });
@@ -281,3 +342,8 @@
   });
 </script>
 {% endblock %}
+
+
+
+
+

@@ -33,9 +33,242 @@
             ]
             }
         </script>
+        <style>
+            .auth-background {
+                position: fixed;
+                inset: 0;
+                overflow: hidden;
+                z-index: -10;
+                background: radial-gradient(circle at top, rgba(233, 248, 255, 0.6), transparent 55%),
+                            radial-gradient(circle at bottom, rgba(226, 232, 240, 0.55), transparent 60%);
+            }
+            .auth-background::after {
+                content: "";
+                position: absolute;
+                inset: 0;
+                background: linear-gradient(160deg, rgba(255, 255, 255, 0.65), rgba(248, 250, 252, 0.35) 45%, rgba(238, 242, 255, 0.25));
+                mix-blend-mode: screen;
+            }
+            .auth-background::before {
+                content: "";
+                position: absolute;
+                inset: -30%;
+                background: conic-gradient(from 0deg, rgba(99, 102, 241, 0.25), rgba(45, 212, 191, 0.18), rgba(168, 85, 247, 0.22), rgba(99, 102, 241, 0.25));
+                filter: blur(140px);
+                opacity: 0.6;
+                animation: stripeSpin 28s linear infinite;
+            }
+            .auth-gradient-canvas {
+                position: absolute;
+                inset: 0;
+                width: 100%;
+                height: 100%;
+                opacity: 0.7;
+                filter: blur(140px);
+                pointer-events: none;
+                mix-blend-mode: screen;
+            }
+            .auth-blob {
+                position: absolute;
+                width: 36rem;
+                height: 36rem;
+                filter: blur(120px);
+                opacity: 0.55;
+                border-radius: 9999px;
+                transform: translate3d(0, 0, 0);
+            }
+            .auth-blob--one {
+                top: -10rem;
+                left: -8rem;
+                background: radial-gradient(circle at 20% 20%, #4f46e5, rgba(79, 70, 229, 0));
+                animation: blobFloatOne 18s ease-in-out infinite alternate;
+            }
+            .auth-blob--two {
+                bottom: -14rem;
+                right: -10rem;
+                background: radial-gradient(circle at 70% 30%, #22d3ee, rgba(34, 211, 238, 0));
+                animation: blobFloatTwo 22s ease-in-out infinite alternate;
+            }
+            .auth-blob--three {
+                top: 40%;
+                left: 35%;
+                background: radial-gradient(circle at 30% 70%, #a855f7, rgba(168, 85, 247, 0));
+                animation: blobFloatThree 26s ease-in-out infinite alternate;
+            }
+
+            .auth-background-gradient {
+                position: absolute;
+                inset: 0;
+                background: radial-gradient(circle at 20% 20%, rgba(255, 255, 255, 0.55), transparent 60%),
+                            radial-gradient(circle at 80% 30%, rgba(226, 232, 240, 0.45), transparent 65%),
+                            radial-gradient(circle at 50% 80%, rgba(191, 219, 254, 0.4), transparent 60%);
+                background-size: 140% 140%;
+                animation: gradientShift 20s ease-in-out infinite alternate;
+                mix-blend-mode: lighten;
+            }
+
+            @keyframes blobFloatOne {
+                0% { transform: translate3d(-10%, 0, 0) scale(1); }
+                50% { transform: translate3d(5%, 10%, 0) scale(1.05); opacity: 0.6; }
+                100% { transform: translate3d(0%, 20%, 0) scale(0.95); opacity: 0.5; }
+            }
+            @keyframes blobFloatTwo {
+                0% { transform: translate3d(10%, 0, 0) scale(1.05); }
+                50% { transform: translate3d(-5%, -10%, 0) scale(0.9); opacity: 0.45; }
+                100% { transform: translate3d(0%, -18%, 0) scale(1.1); opacity: 0.6; }
+            }
+            @keyframes blobFloatThree {
+                0% { transform: translate3d(-15%, -10%, 0) scale(0.9); opacity: 0.45; }
+                50% { transform: translate3d(5%, 5%, 0) scale(1.05); opacity: 0.55; }
+                100% { transform: translate3d(12%, -8%, 0) scale(0.95); opacity: 0.5; }
+            }
+            @keyframes stripeSpin {
+                0% { transform: rotate(0deg) scale(1); }
+                50% { transform: rotate(180deg) scale(1.05); opacity: 0.5; }
+                100% { transform: rotate(360deg) scale(1); opacity: 0.6; }
+            }
+            @keyframes gradientShift {
+                0% { background-position: 0% 30%; }
+                50% { background-position: 100% 70%; }
+                100% { background-position: 0% 30%; }
+            }
+
+            @media (prefers-reduced-motion: reduce) {
+                .auth-blob {
+                    animation: none;
+                }
+                .auth-background::before {
+                    animation: none;
+                }
+                .auth-background-gradient {
+                    animation: none;
+                }
+            }
+
+            @media (max-width: 768px) {
+                .auth-background {
+                    background: radial-gradient(circle at top, rgba(233, 248, 255, 0.75), transparent 50%),
+                                radial-gradient(circle at bottom, rgba(226, 232, 240, 0.6), transparent 55%);
+                }
+            .auth-blob {
+                width: 26rem;
+                height: 26rem;
+                filter: blur(100px);
+            }
+            .auth-background::before {
+                inset: -40%;
+                filter: blur(120px);
+            }
+            .auth-gradient-canvas {
+                filter: blur(120px);
+            }
+            }
+
+            .auth-glass {
+                position: relative;
+                overflow: hidden;
+                background: linear-gradient(135deg, rgba(255, 255, 255, 0.55), rgba(255, 255, 255, 0.2));
+                border: 1px solid rgba(255, 255, 255, 0.35);
+                box-shadow:
+                    0 40px 60px rgba(15, 23, 42, 0.18),
+                    inset 0 1px 1px rgba(255, 255, 255, 0.7),
+                    inset 0 -1px 1px rgba(148, 163, 184, 0.18);
+                backdrop-filter: blur(30px);
+            }
+            .auth-glass > * {
+                position: relative;
+                z-index: 1;
+            }
+            .auth-glass::before,
+            .auth-glass::after {
+                content: "";
+                position: absolute;
+                inset: -45%;
+                background: conic-gradient(
+                    from 120deg,
+                    rgba(226, 232, 240, 0.32),
+                    rgba(148, 163, 184, 0.22),
+                    rgba(191, 219, 254, 0.38),
+                    rgba(226, 232, 240, 0.32)
+                );
+                opacity: 0.4;
+                mix-blend-mode: screen;
+                animation: glassFlow 24s linear infinite;
+                pointer-events: none;
+                z-index: 0;
+                mask-image: radial-gradient(circle at 30% 30%, rgba(255,255,255,0.85), rgba(255,255,255,0.25) 42%, rgba(255,255,255,0) 68%);
+            }
+            .auth-glass::after {
+                animation-duration: 32s;
+                animation-direction: reverse;
+                opacity: 0.35;
+                mask-image: radial-gradient(circle at 70% 70%, rgba(255,255,255,0.85), rgba(255,255,255,0.18) 45%, rgba(255,255,255,0) 68%);
+            }
+
+            @keyframes glassFlow {
+                0% { transform: rotate(0deg) scale(1.02); }
+                50% { transform: rotate(180deg) scale(1.06); }
+                100% { transform: rotate(360deg) scale(1.02); }
+            }
+
+            .dark .auth-background {
+                background: radial-gradient(circle at top, rgba(30, 41, 59, 0.85), transparent 55%),
+                            radial-gradient(circle at bottom, rgba(15, 23, 42, 0.85), transparent 60%);
+            }
+            .dark .auth-background::after {
+                background: linear-gradient(150deg, rgba(15, 23, 42, 0.95), rgba(30, 41, 59, 0.7) 40%, rgba(12, 74, 110, 0.6));
+                mix-blend-mode: normal;
+            }
+            .dark .auth-background .auth-background-gradient {
+                background: radial-gradient(circle at 20% 30%, rgba(59, 130, 246, 0.2), transparent 55%),
+                            radial-gradient(circle at 80% 50%, rgba(30, 64, 175, 0.28), transparent 60%),
+                            radial-gradient(circle at 50% 80%, rgba(14, 165, 233, 0.24), transparent 65%);
+            }
+            .dark .auth-gradient-canvas {
+                opacity: 0.55;
+                mix-blend-mode: lighten;
+            }
+            .dark .auth-glass {
+                background: linear-gradient(145deg, rgba(15, 23, 42, 0.7), rgba(15, 23, 42, 0.42));
+                border: 1px solid rgba(94, 234, 212, 0.16);
+                box-shadow:
+                    0 45px 70px rgba(2, 6, 23, 0.58),
+                    inset 0 1px 1px rgba(148, 163, 184, 0.18),
+                    inset 0 -1px 1px rgba(15, 118, 110, 0.2);
+            }
+            .dark .auth-glass::before,
+            .dark .auth-glass::after {
+                background: conic-gradient(
+                    from 160deg,
+                    rgba(99, 102, 241, 0.38),
+                    rgba(45, 212, 191, 0.28),
+                    rgba(14, 165, 233, 0.32),
+                    rgba(99, 102, 241, 0.38)
+                );
+                opacity: 0.35;
+                mix-blend-mode: lighten;
+                mask-image: radial-gradient(circle at 30% 30%, rgba(255,255,255,0.6), rgba(255,255,255,0.12) 45%, rgba(255,255,255,0) 65%);
+            }
+            .dark .auth-blob--one {
+                background: radial-gradient(circle at 20% 20%, rgba(99, 102, 241, 0.8), rgba(99, 102, 241, 0));
+            }
+            .dark .auth-blob--two {
+                background: radial-gradient(circle at 70% 30%, rgba(45, 212, 191, 0.8), rgba(45, 212, 191, 0));
+            }
+            .dark .auth-blob--three {
+                background: radial-gradient(circle at 30% 70%, rgba(147, 197, 253, 0.7), rgba(147, 197, 253, 0));
+            }
+        </style>
     </head>
-    <body class="bg-gray-50 dark:bg-gray-950 text-gray-900 dark:text-gray-100">
-        <div class="fixed top-0 left-0 z-50 w-full bg-gray-50 dark:bg-gray-950">
+    <body class="relative bg-gray-50 dark:bg-gray-950 text-gray-900 dark:text-gray-100 overflow-x-hidden">
+        <div class="auth-background" aria-hidden="true">
+            <canvas class="auth-gradient-canvas" data-js-gradient></canvas>
+            <div class="auth-background-gradient"></div>
+            <div class="auth-blob auth-blob--one"></div>
+            <div class="auth-blob auth-blob--two"></div>
+            <div class="auth-blob auth-blob--three"></div>
+        </div>
+        <div class="fixed top-0 left-0 z-50 w-full dark:bg-gray-950">
             <div class="mx-auto max-w-7xl px-6 sm:px-6 lg:px-8">
                 <div class="relative flex h-16 justify-between">
                     <div class="flex flex-1 items-stretch justify-start">
@@ -73,5 +306,135 @@
 
             {% block content %}{% endblock %}
         </main>
+        <script>
+            document.addEventListener('DOMContentLoaded', () => {
+                const canvas = document.querySelector('[data-js-gradient]');
+                if (!canvas || !canvas.getContext) {
+                    return;
+                }
+                const ctx = canvas.getContext('2d', { alpha: true });
+                const prefersReduce = window.matchMedia('(prefers-reduced-motion: reduce)');
+                const schemeWatcher = window.matchMedia('(prefers-color-scheme: dark)');
+                let frameId = null;
+                let width = 0;
+                let height = 0;
+
+                const palettes = {
+                    light: [
+                        { hue: 226, saturation: 82, lightness: 63 },
+                        { hue: 194, saturation: 78, lightness: 65 },
+                        { hue: 266, saturation: 78, lightness: 68 },
+                        { hue: 210, saturation: 80, lightness: 64 },
+                    ],
+                    dark: [
+                        { hue: 218, saturation: 72, lightness: 48 },
+                        { hue: 195, saturation: 68, lightness: 45 },
+                        { hue: 260, saturation: 70, lightness: 50 },
+                        { hue: 200, saturation: 65, lightness: 44 },
+                    ],
+                };
+
+                const isDark = () =>
+                    document.documentElement.classList.contains('dark') || schemeWatcher.matches;
+
+                const resize = () => {
+                    const rect = canvas.getBoundingClientRect();
+                    const dpr = window.devicePixelRatio || 1;
+                    canvas.width = rect.width * dpr;
+                    canvas.height = rect.height * dpr;
+                    width = rect.width;
+                    height = rect.height;
+                    ctx.setTransform(1, 0, 0, 1, 0, 0);
+                    ctx.scale(dpr, dpr);
+                };
+
+                const paint = (t = 0) => {
+                    if (!width || !height) {
+                        return;
+                    }
+                    ctx.clearRect(0, 0, width, height);
+
+                    const palette = isDark() ? palettes.dark : palettes.light;
+                    const gradient = ctx.createLinearGradient(0, 0, width, height);
+                    for (let i = 0; i < palette.length; i += 1) {
+                        const stop = i / (palette.length - 1);
+                        const base = palette[i];
+                        const hue = (base.hue + t * 12 + Math.sin(t * 0.45 + i) * 10) % 360;
+                        const light = Math.min(
+                            90,
+                            Math.max(
+                                30,
+                                base.lightness + Math.sin(t * 0.6 + i * 1.3) * 8,
+                            ),
+                        );
+                        const alpha = isDark() ? 0.58 : 0.78;
+                        gradient.addColorStop(
+                            stop,
+                            `hsla(${hue.toFixed(1)}, ${base.saturation}%, ${light.toFixed(
+                                1,
+                            )}%, ${alpha})`,
+                        );
+                    }
+                    ctx.fillStyle = gradient;
+                    ctx.fillRect(0, 0, width, height);
+
+                    const highlight = ctx.createRadialGradient(
+                        width * 0.25,
+                        height * 0.2,
+                        height * 0.25,
+                        width * 0.7,
+                        height * 0.8,
+                        width * 1.4,
+                    );
+                    highlight.addColorStop(0, isDark() ? 'rgba(255,255,255,0.12)' : 'rgba(255,255,255,0.22)');
+                    highlight.addColorStop(1, 'rgba(255,255,255,0)');
+                    ctx.fillStyle = highlight;
+                    ctx.fillRect(0, 0, width, height);
+                };
+
+                const render = (now) => {
+                    const t = now / 1000;
+                    paint(t);
+                    frameId = requestAnimationFrame(render);
+                };
+
+                const start = () => {
+                    if (frameId) {
+                        cancelAnimationFrame(frameId);
+                        frameId = null;
+                    }
+                    resize();
+                    if (prefersReduce.matches) {
+                        paint(0);
+                    } else {
+                        frameId = requestAnimationFrame(render);
+                    }
+                };
+
+                start();
+
+                const authForms = Array.from(document.querySelectorAll('[data-js-auth-form]'))
+                    .filter((form) => form instanceof HTMLFormElement);
+                authForms.forEach((form) => {
+                    const fields = Array.from(form.querySelectorAll('[required]'))
+                        .filter((field) => field instanceof HTMLElement);
+                    fields.forEach((field) => {
+                        field.addEventListener('invalid', () => {
+                            field.setCustomValidity('');
+                            if (field.validity.valueMissing) {
+                                field.setCustomValidity('Dit veld is verplicht');
+                            } else if (field.validity.typeMismatch && field.type === 'email') {
+                                field.setCustomValidity('Voer een geldig e-mailadres in');
+                            }
+                        });
+                        field.addEventListener('input', () => field.setCustomValidity(''));
+                    });
+                });
+
+                window.addEventListener('resize', start, { passive: true });
+                prefersReduce.addEventListener?.('change', start);
+                schemeWatcher.addEventListener?.('change', start);
+            });
+        </script>
     </body>
 </html>
