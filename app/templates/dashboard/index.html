@@ -1,202 +1,334 @@
-﻿{% extends 'base.html' %}
+{% extends 'base.html' %}
 {% block content %}
-<main class="max-w-7xl mx-auto px-4 lg:px-6 py-8 space-y-8">
-  <section class="flex flex-col md:flex-row md:items-center md:justify-between gap-6">
-    <div>
-      <p class="text-sm uppercase tracking-wide text-gray-500">Welkom terug</p>
-      <h1 class="text-3xl font-semibold text-gray-900 leading-tight flex items-center gap-2"><i class="fa fa-tachometer text-gray-400"></i><span>Raadsdashboard</span></h1>
-      <p class="mt-2 text-sm text-gray-500 max-w-xl">Overzicht van jouw moties, gedeelde documenten en samenwerkingen. Alles wat je nodig hebt om voorbereid de raadzaal in te gaan.</p>
-      <div class="mt-4 flex flex-wrap gap-2">
-        <a href="{{ url_for('moties.toevoegen') }}" class="inline-flex items-center gap-2 rounded-md bg-gray-900 px-4 py-2 text-sm font-semibold text-white shadow-sm hover:bg-black transition">
-          <i class="fa fa-plus"></i> Nieuwe motie starten
+<main class="relative mx-auto max-w-6xl px-4 py-10 sm:px-6 lg:px-8">
+  <div class="pointer-events-none absolute inset-x-0 -top-48 -z-10 h-72 bg-gradient-to-br from-sky-200/40 via-indigo-200/40 to-transparent blur-3xl dark:from-sky-500/20 dark:via-purple-500/20"></div>
+  <div class="pointer-events-none absolute -bottom-24 right-0 -z-10 h-64 w-64 rounded-full bg-emerald-200/30 blur-3xl dark:bg-emerald-500/10"></div>
+
+  {% set stat_cards = [
+    {"label": "Actieve moties", "value": total, "icon": "fa-scroll", "accent": "from-sky-500 via-blue-500 to-indigo-500"},
+    {"label": "Gedeeld met jou", "value": gedeeld_total, "icon": "fa-share-nodes", "accent": "from-emerald-500 via-teal-500 to-cyan-500"},
+    {"label": "Gem. mede-indieners", "value": '%.1f'|format(avg_indieners or 0), "icon": "fa-people-group", "accent": "from-violet-500 via-purple-500 to-pink-500"},
+    {"label": "Ongelezen notificaties", "value": unread_notifications, "icon": "fa-bell", "accent": "from-amber-500 via-orange-500 to-rose-500"}
+  ] %}
+
+  <section class="relative mb-10 overflow-hidden rounded-3xl bg-gradient-to-r from-slate-900 via-slate-800 to-slate-900 p-[1px] shadow-2xl">
+    <div class="relative rounded-[calc(1.5rem-1px)] bg-white/95 px-8 py-10 dark:bg-slate-950/90">
+      <div class="absolute inset-0 -z-10 bg-[radial-gradient(circle_at_top,_rgba(255,255,255,0.45),transparent_55%)] dark:bg-[radial-gradient(circle_at_top,_rgba(15,23,42,0.6),transparent_60%)]"></div>
+      <div class="grid gap-10 lg:grid-cols-[minmax(0,1.35fr)_minmax(0,1fr)] lg:items-start">
+        <div class="space-y-6">
+          <span class="inline-flex items-center gap-2 rounded-full bg-slate-900/5 px-4 py-1 text-xs font-semibold uppercase tracking-wide text-slate-600 dark:bg-white/10 dark:text-slate-200">
+            <span class="h-2 w-2 rounded-full bg-blue-500 dark:bg-cyan-300"></span>
+            Raadsdashboard
+          </span>
+          <div>
+            <h1 class="text-3xl font-bold tracking-tight text-slate-900 sm:text-4xl dark:text-white">Alles wat je nodig hebt voor een vliegende start.</h1>
+            <p class="mt-3 max-w-xl text-base text-slate-600 dark:text-slate-300">
+              Volg de voortgang van moties, bekijk gedeelde documenten en pak de samenwerking direct op. Met één overzicht blijf je voorbereid.
+            </p>
+          </div>
+          <div class="flex flex-wrap gap-3">
+            <a href="{{ url_for('moties.toevoegen') }}" class="inline-flex items-center gap-2 rounded-2xl bg-slate-900 px-5 py-2.5 text-sm font-semibold text-white shadow-lg shadow-slate-900/20 transition duration-200 hover:-translate-y-0.5 hover:bg-black dark:bg-white dark:text-slate-900 dark:hover:bg-slate-200">
+              <i class="fa-solid fa-plus"></i>
+              Nieuwe motie starten
+            </a>
+            <a href="{{ url_for('moties.index_personal') }}" class="inline-flex items-center gap-2 rounded-2xl border border-slate-200/60 px-5 py-2.5 text-sm font-semibold text-slate-700 transition duration-200 hover:-translate-y-0.5 hover:border-slate-300 hover:bg-white dark:border-slate-700 dark:text-slate-200 dark:hover:border-slate-500 dark:hover:bg-slate-900">
+              <i class="fa-solid fa-folder-open"></i>
+              Mijn moties bekijken
+            </a>
+          </div>
+          <div class="flex flex-wrap items-center gap-4 text-xs text-slate-500 dark:text-slate-400">
+            <span class="inline-flex items-center gap-2 rounded-full bg-blue-50 px-3 py-1 font-medium text-blue-700 dark:bg-blue-500/10 dark:text-blue-200">
+              <i class="fa-solid fa-shield-check"></i> Actuele cijfers
+            </span>
+            <span class="inline-flex items-center gap-2 rounded-full bg-emerald-50 px-3 py-1 font-medium text-emerald-700 dark:bg-emerald-500/10 dark:text-emerald-200">
+              <i class="fa-solid fa-cloud-arrow-up"></i> Live updates
+            </span>
+          </div>
+        </div>
+        <div class="grid gap-4 sm:grid-cols-2">
+          {% for card in stat_cards %}
+            <div class="group relative overflow-hidden rounded-2xl border border-slate-200/70 bg-white/85 p-5 shadow-lg backdrop-blur transition-all duration-200 hover:-translate-y-1 hover:shadow-2xl dark:border-slate-700/60 dark:bg-slate-900/70">
+              <div class="absolute inset-0 bg-gradient-to-br {{ card.accent }} opacity-15 transition duration-200 group-hover:opacity-25"></div>
+              <div class="relative flex flex-col gap-4">
+                <div class="flex items-center justify-between">
+                  <span class="text-xs font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">{{ card.label }}</span>
+                  <span class="inline-flex h-11 w-11 items-center justify-center rounded-xl bg-white/70 text-lg text-slate-700 shadow-sm dark:bg-slate-950/70 dark:text-slate-100">
+                    <i class="fa-solid {{ card.icon }}"></i>
+                  </span>
+                </div>
+                <p class="text-3xl font-semibold text-slate-900 dark:text-white">{{ card.value }}</p>
+              </div>
+            </div>
+          {% endfor %}
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="grid gap-6 lg:grid-cols-12">
+    <div class="relative overflow-hidden rounded-3xl border border-slate-200/70 bg-white/95 p-6 shadow-xl ring-1 ring-white/40 transition duration-200 hover:-translate-y-1 hover:shadow-2xl dark:border-slate-800/60 dark:bg-slate-950/85 lg:col-span-7">
+      <div class="absolute inset-0 bg-gradient-to-br from-blue-500/15 via-slate-500/10 to-transparent opacity-80"></div>
+      <div class="relative flex items-center justify-between">
+        <div>
+          <h2 class="text-lg font-semibold text-slate-900 dark:text-white flex items-center gap-2">
+            <i class="fa-solid fa-chart-pie text-blue-500 dark:text-blue-300"></i>
+            Moties naar status
+          </h2>
+          <p class="text-xs text-slate-500 dark:text-slate-400 mt-1">Bekijk de verdeling per status en houd het overzicht bij.</p>
+        </div>
+        <button id="refresh-status" class="inline-flex items-center gap-2 rounded-full border border-slate-200/70 bg-white/70 px-3 py-1 text-xs font-semibold text-slate-600 transition hover:border-slate-300 hover:bg-white dark:border-slate-700/70 dark:bg-slate-900/60 dark:text-slate-300 dark:hover:border-slate-600">
+          <i class="fa-solid fa-rotate"></i> Vernieuwen
+        </button>
+      </div>
+      <div class="mt-6">
+        <canvas id="statusChart" class="w-full h-64"></canvas>
+      </div>
+    </div>
+
+    <div class="relative overflow-hidden rounded-3xl border border-slate-200/70 bg-white/95 p-6 shadow-xl ring-1 ring-white/40 transition duration-200 hover:-translate-y-1 hover:shadow-2xl dark:border-slate-800/60 dark:bg-slate-950/85 lg:col-span-5">
+      <div class="absolute inset-0 bg-gradient-to-br from-emerald-400/20 via-teal-400/15 to-transparent opacity-80"></div>
+      <div class="relative flex items-center justify-between">
+        <div>
+          <h2 class="text-lg font-semibold text-slate-900 dark:text-white flex items-center gap-2">
+            <i class="fa-solid fa-users-line text-emerald-500 dark:text-emerald-300"></i>
+            Top samenwerkingen
+          </h2>
+          <p class="text-xs text-slate-500 dark:text-slate-400 mt-1">Wie werkten het vaakst met je mee? Laatste 5 geregistreerd.</p>
+        </div>
+      </div>
+      <div id="collab-list" class="relative mt-6 space-y-3 text-sm text-slate-500 dark:text-slate-300">
+        <div class="rounded-2xl border border-slate-200/70 bg-white/70 px-4 py-3 dark:border-slate-700/70 dark:bg-slate-900/70">
+          Gegevens aan het laden...
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="mt-8 grid gap-6 lg:grid-cols-2">
+    <div class="relative overflow-hidden rounded-3xl border border-slate-200/70 bg-white/95 p-6 shadow-lg ring-1 ring-white/40 transition duration-200 hover:-translate-y-1 hover:shadow-2xl dark:border-slate-800/60 dark:bg-slate-950/85">
+      <div class="absolute inset-0 bg-gradient-to-br from-indigo-500/10 via-blue-400/10 to-transparent opacity-80"></div>
+      <div class="relative flex items-center justify-between">
+        <h2 class="text-lg font-semibold text-slate-900 dark:text-white flex items-center gap-2">
+          <i class="fa-solid fa-file-lines text-indigo-500 dark:text-indigo-300"></i>
+          Mijn laatste moties
+        </h2>
+        <a href="{{ url_for('moties.index_personal') }}" class="inline-flex items-center gap-2 text-xs font-semibold text-blue-600 hover:underline dark:text-cyan-200">
+          Alles bekijken <i class="fa-solid fa-arrow-up-right-from-square text-[0.65rem]"></i>
         </a>
-        <a href="{{ url_for('moties.index_personal') }}" class="inline-flex items-center gap-2 rounded-md border border-gray-300 px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 transition">
-          Mijn moties bekijken
+      </div>
+      <div class="relative mt-6">
+        {% if items %}
+          <ul class="space-y-4">
+            {% for motie in items[:5] %}
+              <li class="group relative overflow-hidden rounded-2xl border border-slate-200/80 bg-white/85 px-4 py-4 shadow-sm transition duration-200 hover:-translate-y-1 hover:border-blue-200 hover:bg-white dark:border-slate-700/60 dark:bg-slate-900/70">
+                <div class="flex items-start justify-between gap-4">
+                  <div>
+                    <a href="{{ url_for('moties.bekijken', motie_id=motie.id) }}" class="text-sm font-semibold text-slate-900 transition hover:text-blue-600 dark:text-white dark:hover:text-cyan-200">{{ motie.titel }}</a>
+                    <p class="mt-1 text-xs text-slate-500 dark:text-slate-400">
+                      {% if motie.indiener %}Indiener: {{ motie.indiener.naam }} &middot; {% endif %}
+                      Aangemaakt: {{ motie.created_at.strftime('%d-%m-%Y') if motie.created_at else 'Onbekend' }}
+                    </p>
+                  </div>
+                  <span class="inline-flex items-center rounded-full bg-blue-50 px-2.5 py-1 text-[11px] font-semibold uppercase tracking-wide text-blue-600 dark:bg-blue-500/15 dark:text-blue-100">
+                    {{ motie.status or 'Onbekend' }}
+                  </span>
+                </div>
+              </li>
+            {% endfor %}
+          </ul>
+        {% else %}
+          <div class="flex items-center gap-3 rounded-2xl border border-dashed border-slate-300/70 bg-white/70 px-4 py-4 text-sm text-slate-500 dark:border-slate-700/70 dark:bg-slate-900/70 dark:text-slate-400">
+            <i class="fa-regular fa-circle-plus text-lg text-slate-400"></i>
+            Je hebt nog geen moties als indiener of mede-indiener.
+          </div>
+        {% endif %}
+      </div>
+    </div>
+
+    <div class="relative overflow-hidden rounded-3xl border border-slate-200/70 bg-white/95 p-6 shadow-lg ring-1 ring-white/40 transition duration-200 hover:-translate-y-1 hover:shadow-2xl dark:border-slate-800/60 dark:bg-slate-950/85">
+      <div class="absolute inset-0 bg-gradient-to-br from-teal-400/15 via-emerald-400/15 to-transparent opacity-80"></div>
+      <div class="relative flex items-center justify-between">
+        <h2 class="text-lg font-semibold text-slate-900 dark:text-white flex items-center gap-2">
+          <i class="fa-solid fa-share-nodes text-emerald-500 dark:text-emerald-300"></i>
+          Gedeeld met mij
+        </h2>
+        <a href="{{ moties_index_shared_url or '#' }}" class="inline-flex items-center gap-2 text-xs font-semibold text-emerald-600 hover:underline dark:text-emerald-200">
+          Alles bekijken <i class="fa-solid fa-arrow-up-right-from-square text-[0.65rem]"></i>
         </a>
       </div>
-    </div>
-    <div class="grid grid-cols-2 gap-4 w-full md:w-auto md:max-w-md">
-      <div class="rounded-2xl border border-gray-200 bg-white p-4 shadow-sm">
-        <p class="text-xs uppercase tracking-wide text-gray-500">Actieve moties</p>
-        <p class="mt-1 text-2xl font-semibold text-gray-900">{{ total }}</p>
-      </div>
-      <div class="rounded-2xl border border-gray-200 bg-white p-4 shadow-sm">
-        <p class="text-xs uppercase tracking-wide text-gray-500">Gedeeld met jou</p>
-        <p class="mt-1 text-2xl font-semibold text-gray-900">{{ gedeeld_total }}</p>
-      </div>
-      <div class="rounded-2xl border border-gray-200 bg-white p-4 shadow-sm">
-        <p class="text-xs uppercase tracking-wide text-gray-500">Gem. mede-indieners</p>
-        <p class="mt-1 text-2xl font-semibold text-gray-900">{{ '%.1f'|format(avg_indieners or 0) }}</p>
-      </div>
-      <div class="rounded-2xl border border-gray-200 bg-white p-4 shadow-sm">
-        <p class="text-xs uppercase tracking-wide text-gray-500">Ongelezen notificaties</p>
-        <p class="mt-1 text-2xl font-semibold text-gray-900">{{ unread_notifications }}</p>
+      <div class="relative mt-6">
+        {% if gedeeld_met_mij %}
+          <ul class="space-y-4">
+            {% for motie in gedeeld_met_mij %}
+              <li class="group relative overflow-hidden rounded-2xl border border-slate-200/80 bg-white/85 px-4 py-4 shadow-sm transition duration-200 hover:-translate-y-1 hover:border-emerald-200 hover:bg-white dark:border-slate-700/60 dark:bg-slate-900/70">
+                <div class="flex items-start justify-between gap-4">
+                  <div>
+                    <a href="{{ url_for('moties.bekijken', motie_id=motie.id) }}" class="text-sm font-semibold text-slate-900 transition hover:text-emerald-600 dark:text-white dark:hover:text-emerald-200">{{ motie.titel }}</a>
+                    <p class="mt-1 text-xs text-slate-500 dark:text-slate-400">
+                      {% if motie.indiener %}Indiener: {{ motie.indiener.naam }} &middot; {% endif %}
+                      Laatst bijgewerkt: {{ motie.updated_at.strftime('%d-%m-%Y %H:%M') if motie.updated_at else 'Onbekend' }}
+                    </p>
+                  </div>
+                </div>
+              </li>
+            {% endfor %}
+          </ul>
+        {% else %}
+          <div class="flex items-center gap-3 rounded-2xl border border-dashed border-slate-300/70 bg-white/70 px-4 py-4 text-sm text-slate-500 dark:border-slate-700/70 dark:bg-slate-900/70 dark:text-slate-400">
+            <i class="fa-regular fa-paper-plane text-lg text-slate-400"></i>
+            Er zijn nog geen moties met je gedeeld.
+          </div>
+        {% endif %}
       </div>
     </div>
   </section>
 
-  <section class="grid gap-6 lg:grid-cols-12">
-    <div class="lg:col-span-7 rounded-2xl border border-gray-200 bg-white p-6 shadow-sm">
-      <div class="flex items-center justify-between mb-4">
-        <h2 class="text-lg font-semibold text-gray-900 flex items-center gap-2"><i class="fa fa-pie-chart text-gray-400"></i><span>Moties naar status</span></h2>
-        <button id="refresh-status" class="text-xs text-gray-500 hover:text-gray-700 transition">Vernieuwen</button>
+  <section class="mt-8 grid gap-6 xl:grid-cols-12">
+    <div class="relative overflow-hidden rounded-3xl border border-slate-200/70 bg-white/95 p-6 shadow-lg ring-1 ring-white/40 transition duration-200 hover:-translate-y-1 hover:shadow-2xl dark:border-slate-800/60 dark:bg-slate-950/85 xl:col-span-5">
+      <div class="absolute inset-0 bg-gradient-to-br from-blue-400/15 via-indigo-400/15 to-transparent opacity-80"></div>
+      <div class="relative flex items-center justify-between">
+        <div>
+          <h2 class="text-lg font-semibold text-slate-900 dark:text-white flex items-center gap-2">
+            <i class="fa-solid fa-calendar-days text-blue-500 dark:text-blue-300"></i>
+            Aanstaande vergaderingen
+          </h2>
+          <p class="text-xs text-slate-500 dark:text-slate-400 mt-1">Komende weken voor jouw moties.</p>
+        </div>
       </div>
-      <canvas id="statusChart" class="w-full h-64"></canvas>
+      <div class="relative mt-6">
+        {% if upcoming_meetings %}
+          <ul class="space-y-4">
+            {% for motie, datum in upcoming_meetings %}
+              <li class="group relative overflow-hidden rounded-2xl border border-slate-200/80 bg-white/85 px-4 py-4 shadow-sm transition duration-200 hover:-translate-y-1 hover:border-blue-200 hover:bg-white dark:border-slate-700/60 dark:bg-slate-900/70">
+                <div class="flex items-start justify-between gap-4">
+                  <div>
+                    <p class="text-sm font-semibold text-slate-900 dark:text-white">{{ motie.titel }}</p>
+                    <p class="mt-1 text-xs text-slate-500 dark:text-slate-400">{{ datum.strftime('%A %d %B %Y') }}</p>
+                  </div>
+                  {% if motie.status %}
+                    <span class="inline-flex items-center rounded-full bg-sky-50 px-2.5 py-1 text-[11px] font-semibold uppercase tracking-wide text-sky-600 dark:bg-sky-500/15 dark:text-sky-100">
+                      {{ motie.status }}
+                    </span>
+                  {% endif %}
+                </div>
+              </li>
+            {% endfor %}
+          </ul>
+        {% else %}
+          <div class="flex items-center gap-3 rounded-2xl border border-dashed border-slate-300/70 bg-white/70 px-4 py-4 text-sm text-slate-500 dark:border-slate-700/70 dark:bg-slate-900/70 dark:text-slate-400">
+            <i class="fa-regular fa-calendar text-lg text-slate-400"></i>
+            Er zijn geen geplande vergaderingen voor jouw moties.
+          </div>
+        {% endif %}
+      </div>
     </div>
-    <div class="lg:col-span-5 rounded-2xl border border-gray-200 bg-white p-6 shadow-sm">
-      <div class="flex items-center justify-between mb-4">
-        <h2 class="text-lg font-semibold text-gray-900 flex items-center gap-2"><i class="fa fa-users text-gray-400"></i><span>Top samenwerkingen</span></h2>
-        <span class="text-xs text-gray-400">Laatste 5</span>
+
+    <div class="relative overflow-hidden rounded-3xl border border-slate-200/70 bg-white/95 p-6 shadow-lg ring-1 ring-white/40 transition duration-200 hover:-translate-y-1 hover:shadow-2xl dark:border-slate-800/60 dark:bg-slate-950/85 xl:col-span-4">
+      <div class="absolute inset-0 bg-gradient-to-br from-purple-400/15 via-fuchsia-400/15 to-transparent opacity-80"></div>
+      <div class="relative flex items-center justify-between">
+        <div>
+          <h2 class="text-lg font-semibold text-slate-900 dark:text-white flex items-center gap-2">
+            <i class="fa-solid fa-clock-rotate-left text-purple-500 dark:text-purple-300"></i>
+            Recente activiteit
+          </h2>
+          <p class="text-xs text-slate-500 dark:text-slate-400 mt-1">Laatste wijzigingen op jouw moties.</p>
+        </div>
       </div>
-      <div id="collab-list" class="space-y-3">
-        <p class="text-sm text-gray-500">Laden...</p>
+      <div class="relative mt-6">
+        {% if recent_activity %}
+          <ul class="space-y-4">
+            {% for motie in recent_activity %}
+              <li class="group relative overflow-hidden rounded-2xl border border-slate-200/80 bg-white/85 px-4 py-4 shadow-sm transition duration-200 hover:-translate-y-1 hover:border-purple-200 hover:bg-white dark:border-slate-700/60 dark:bg-slate-900/70">
+                <a href="{{ url_for('moties.bekijken', motie_id=motie.id) }}" class="text-sm font-semibold text-slate-900 transition hover:text-purple-600 dark:text-white dark:hover:text-purple-200">{{ motie.titel }}</a>
+                <p class="mt-2 text-xs text-slate-500 dark:text-slate-400">
+                  Bijgewerkt op {{ motie.updated_at.strftime('%d-%m-%Y %H:%M') if motie.updated_at else 'Onbekend' }}
+                </p>
+              </li>
+            {% endfor %}
+          </ul>
+        {% else %}
+          <div class="flex items-center gap-3 rounded-2xl border border-dashed border-slate-300/70 bg-white/70 px-4 py-4 text-sm text-slate-500 dark:border-slate-700/70 dark:bg-slate-900/70 dark:text-slate-400">
+            <i class="fa-regular fa-hourglass text-lg text-slate-400"></i>
+            Nog geen recente activiteit.
+          </div>
+        {% endif %}
+      </div>
+    </div>
+
+    <div class="relative overflow-hidden rounded-3xl border border-slate-200/70 bg-white/95 p-6 shadow-lg ring-1 ring-white/40 transition duration-200 hover:-translate-y-1 hover:shadow-2xl dark:border-slate-800/60 dark:bg-slate-950/85 xl:col-span-3">
+      <div class="absolute inset-0 bg-gradient-to-br from-amber-400/20 via-orange-400/15 to-transparent opacity-80"></div>
+      <div class="relative flex items-center justify-between">
+        <div>
+          <h2 class="text-lg font-semibold text-slate-900 dark:text-white flex items-center gap-2">
+            <i class="fa-solid fa-bell text-amber-500 dark:text-amber-300"></i>
+            Notificaties
+          </h2>
+        </div>
+        <a href="{{ url_for('gebruikers.mark_all_read') }}" class="inline-flex items-center gap-2 text-xs font-semibold text-amber-600 hover:underline dark:text-amber-200">
+          Markeer als gelezen
+        </a>
+      </div>
+      <div class="relative mt-6">
+        {% if notifications_recent %}
+          <ul class="space-y-4">
+            {% for notif in notifications_recent %}
+              <li class="relative overflow-hidden rounded-2xl border border-slate-200/80 px-4 py-4 shadow-sm transition duration-200 hover:-translate-y-1 hover:border-amber-200 hover:bg-white dark:border-slate-700/60 dark:bg-slate-900/70 {% if notif.read_at is none %}bg-amber-50/70 dark:bg-amber-500/10{% else %}bg-white/85{% endif %}">
+                <p class="text-sm font-semibold text-slate-900 dark:text-white">{{ notif.type|notification_label }}</p>
+                <p class="mt-1 text-xs text-slate-500 dark:text-slate-400">{{ notif.created_at.strftime('%d-%m-%Y %H:%M') if notif.created_at else 'Onbekend' }}</p>
+              </li>
+            {% endfor %}
+          </ul>
+        {% else %}
+          <div class="flex items-center gap-3 rounded-2xl border border-dashed border-slate-300/70 bg-white/70 px-4 py-4 text-sm text-slate-500 dark:border-slate-700/70 dark:bg-slate-900/70 dark:text-slate-400">
+            <i class="fa-regular fa-bell text-lg text-slate-400"></i>
+            Geen recente notificaties.
+          </div>
+        {% endif %}
       </div>
     </div>
   </section>
 
-  <section class="grid gap-6 lg:grid-cols-12">
-    <div class="lg:col-span-6 rounded-2xl border border-gray-200 bg-white p-6 shadow-sm">
-      <div class="flex items-center justify-between mb-4">
-        <h2 class="text-lg font-semibold text-gray-900 flex items-center gap-2"><i class="fa fa-file-text-o text-gray-400"></i><span>Mijn laatste moties</span></h2>
-        <a href="{{ url_for('moties.index_personal') }}" class="text-xs text-blue-600 hover:underline">Alle moties</a>
+  <section class="mt-8">
+    <div class="relative overflow-hidden rounded-3xl border border-slate-200/70 bg-white/95 p-6 shadow-lg ring-1 ring-white/40 transition duration-200 hover:-translate-y-1 hover:shadow-2xl dark:border-slate-800/60 dark:bg-slate-950/85">
+      <div class="absolute inset-0 bg-gradient-to-br from-cyan-400/15 via-blue-500/15 to-transparent opacity-80"></div>
+      <div class="relative flex items-center justify-between">
+        <div>
+          <h2 class="text-lg font-semibold text-slate-900 dark:text-white flex items-center gap-2">
+            <i class="fa-solid fa-building-columns text-cyan-500 dark:text-cyan-300"></i>
+            Gemeenteraad Haarlem
+          </h2>
+          <p class="text-xs text-slate-500 dark:text-slate-400 mt-1">Externe agenda uit je ICS-feed.</p>
+        </div>
       </div>
-      {% if items %}
-        <ul class="space-y-3">
-          {% for motie in items[:5] %}
-            <li class="rounded-xl border border-gray-200 p-3 hover:bg-gray-50 transition">
-              <div class="flex items-start justify-between">
-                <div>
-                  <a href="{{ url_for('moties.bekijken', motie_id=motie.id) }}" class="text-sm font-semibold text-gray-900 hover:text-gray-600 transition">{{ motie.titel }}</a>
-                  <p class="text-xs text-gray-500 mt-1">
-                    {% if motie.indiener %}Indiener: {{ motie.indiener.naam }} &middot; {% endif %}
-                    Aangemaakt: {{ motie.created_at.strftime('%d-%m-%Y') if motie.created_at else 'Onbekend' }}
-                  </p>
+      <div class="relative mt-6">
+        {% if haarlem_meetings %}
+          <ul class="space-y-4">
+            {% for ev in haarlem_meetings %}
+              <li class="group relative overflow-hidden rounded-2xl border border-slate-200/80 bg-white/85 px-4 py-4 shadow-sm transition duration-200 hover:-translate-y-1 hover:border-cyan-200 hover:bg-white dark:border-slate-700/60 dark:bg-slate-900/70">
+                <div class="flex items-start justify-between gap-4">
+                  <div>
+                    <p class="text-sm font-semibold text-slate-900 dark:text-white">{{ ev.summary or 'Raadsvergadering' }}</p>
+                    <p class="mt-1 text-xs text-slate-500 dark:text-slate-400">
+                      {{ (ev.start.strftime('%A %d %B %Y %H:%M') if ev.start else '') }}
+                      {% if ev.location %}&middot; {{ ev.location }}{% endif %}
+                    </p>
+                  </div>
+                  {% if ev.url %}
+                    <a href="{{ ev.url }}" target="_blank" rel="noopener" class="inline-flex items-center gap-2 rounded-full border border-slate-200/70 px-3 py-1 text-xs font-semibold text-cyan-600 transition hover:border-cyan-300 hover:bg-white dark:border-slate-700/70 dark:text-cyan-200 dark:hover:border-slate-600">
+                      Details <i class="fa-solid fa-arrow-up-right-from-square text-[0.65rem]"></i>
+                    </a>
+                  {% endif %}
                 </div>
-                <span class="text-xs uppercase tracking-wide text-gray-400">{{ motie.status or 'Onbekend' }}</span>
-              </div>
-            </li>
-          {% endfor %}
-        </ul>
-      {% else %}
-        <p class="text-sm text-gray-500">Je hebt nog geen moties als indiener of mede-indiener.</p>
-      {% endif %}
-    </div>
-
-    <div class="lg:col-span-6 rounded-2xl border border-gray-200 bg-white p-6 shadow-sm">
-      <div class="flex items-center justify-between mb-4">
-        <h2 class="text-lg font-semibold text-gray-900 flex items-center gap-2"><i class="fa fa-share-alt text-gray-400"></i><span>Gedeeld met mij</span></h2>
-        <a href="{{ moties_index_shared_url or '#' }}" class="text-xs text-blue-600 hover:underline">Alles bekijken</a>
+              </li>
+            {% endfor %}
+          </ul>
+        {% else %}
+          <div class="flex items-center gap-3 rounded-2xl border border-dashed border-slate-300/70 bg-white/70 px-4 py-4 text-sm text-slate-500 dark:border-slate-700/70 dark:bg-slate-900/70 dark:text-slate-400">
+            <i class="fa-regular fa-calendar-xmark text-lg text-slate-400"></i>
+            Geen externe vergaderingen gevonden of feed niet geconfigureerd.
+          </div>
+        {% endif %}
       </div>
-      {% if gedeeld_met_mij %}
-        <ul class="space-y-3">
-          {% for motie in gedeeld_met_mij %}
-            <li class="rounded-xl border border-gray-200 p-3 hover:bg-gray-50 transition">
-              <div class="flex items-start justify-between">
-                <div>
-                  <a href="{{ url_for('moties.bekijken', motie_id=motie.id) }}" class="text-sm font-semibold text-gray-900 hover:text-gray-600 transition">{{ motie.titel }}</a>
-                  <p class="text-xs text-gray-500 mt-1">
-                    {% if motie.indiener %}Indiener: {{ motie.indiener.naam }} &middot; {% endif %}
-                    Laatst bijgewerkt: {{ motie.updated_at.strftime('%d-%m-%Y %H:%M') if motie.updated_at else 'Onbekend' }}
-                  </p>
-                </div>
-              </div>
-            </li>
-          {% endfor %}
-        </ul>
-      {% else %}
-        <p class="text-sm text-gray-500">Er zijn nog geen moties met je gedeeld.</p>
-      {% endif %}
-    </div>
-  </section>
-
-  <section class="grid gap-6 lg:grid-cols-12">
-    <div class="lg:col-span-5 rounded-2xl border border-gray-200 bg-white p-6 shadow-sm">
-      <div class="flex items-center justify-between mb-4">
-        <h2 class="text-lg font-semibold text-gray-900 flex items-center gap-2"><i class="fa fa-calendar text-gray-400"></i><span>Aanstaande vergaderingen</span></h2>
-        <span class="text-xs text-gray-400">Komende weken</span>
-      </div>
-      {% if upcoming_meetings %}
-        <ul class="space-y-3">
-          {% for motie, datum in upcoming_meetings %}
-            <li class="rounded-xl border border-gray-200 p-3 hover:bg-gray-50 transition">
-              <p class="text-sm font-semibold text-gray-900">{{ motie.titel }}</p>
-              <p class="text-xs text-gray-500 mt-1">{{ datum.strftime('%A %d %B %Y') }}</p>
-              {% if motie.status %}<span class="mt-2 inline-flex items-center rounded-full bg-blue-50 px-2.5 py-1 text-xs font-medium text-blue-600">{{ motie.status }}</span>{% endif %}
-            </li>
-          {% endfor %}
-        </ul>
-      {% else %}
-        <p class="text-sm text-gray-500">Er zijn geen geplande vergaderingen voor jouw moties.</p>
-      {% endif %}
-    </div>
-
-    <div class="lg:col-span-4 rounded-2xl border border-gray-200 bg-white p-6 shadow-sm">
-      <div class="flex items-center justify-between mb-4">
-        <h2 class="text-lg font-semibold text-gray-900 flex items-center gap-2"><i class="fa fa-history text-gray-400"></i><span>Recente activiteit</span></h2>
-        <span class="text-xs text-gray-400">Laatste updates</span>
-      </div>
-      {% if recent_activity %}
-        <ul class="space-y-3">
-          {% for motie in recent_activity %}
-            <li class="rounded-xl border border-gray-200 p-3">
-              <a href="{{ url_for('moties.bekijken', motie_id=motie.id) }}" class="text-sm font-semibold text-gray-900 hover:text-gray-600 transition">{{ motie.titel }}</a>
-              <p class="text-xs text-gray-500 mt-1">
-                Bijgewerkt op {{ motie.updated_at.strftime('%d-%m-%Y %H:%M') if motie.updated_at else 'Onbekend' }}
-              </p>
-            </li>
-          {% endfor %}
-        </ul>
-      {% else %}
-        <p class="text-sm text-gray-500">Nog geen recente activiteit.</p>
-      {% endif %}
-    </div>
-
-    <div class="lg:col-span-3 rounded-2xl border border-gray-200 bg-white p-6 shadow-sm">
-      <div class="flex items-center justify-between mb-4">
-        <h2 class="text-lg font-semibold text-gray-900 flex items-center gap-2"><i class="fa fa-bell text-gray-400"></i><span>Notificaties</span></h2>
-        <a href="{{ url_for('gebruikers.mark_all_read') }}" class="text-xs text-blue-600 hover:underline">Markeer als gelezen</a>
-      </div>
-      {% if notifications_recent %}
-        <ul class="space-y-3">
-          {% for notif in notifications_recent %}
-            <li class="rounded-xl border border-gray-200 p-3 {% if notif.read_at is none %}bg-gray-50{% endif %}">
-              <p class="text-sm font-semibold text-gray-900">{{ notif.type|notification_label }}</p>
-              <p class="text-xs text-gray-500 mt-1">{{ notif.created_at.strftime('%d-%m-%Y %H:%M') if notif.created_at else 'Onbekend' }}</p>
-            </li>
-          {% endfor %}
-        </ul>
-      {% else %}
-        <p class="text-sm text-gray-500">Geen recente notificaties.</p>
-      {% endif %}
-    </div>
-
-    <div class="lg:col-span-7 rounded-2xl border border-gray-200 bg-white p-6 shadow-sm">
-      <div class="flex items-center justify-between mb-4">
-        <h2 class="text-lg font-semibold text-gray-900 flex items-center gap-2"><i class="fa fa-building text-gray-400"></i><span>Gemeenteraad Haarlem</span></h2>
-        <span class="text-xs text-gray-400">Externe agenda</span>
-      </div>
-      {% if haarlem_meetings %}
-        <ul class="space-y-3">
-          {% for ev in haarlem_meetings %}
-            <li class="rounded-xl border border-gray-200 p-3 hover:bg-gray-50 transition">
-              <div class="flex items-start justify-between">
-                <div>
-                  <p class="text-sm font-semibold text-gray-900">{{ ev.summary or 'Raadsvergadering' }}</p>
-                  <p class="text-xs text-gray-500 mt-1">
-                    {{ (ev.start.strftime('%A %d %B %Y %H:%M') if ev.start else '') }}
-                    {% if ev.location %}&middot; {{ ev.location }}{% endif %}
-                  </p>
-                </div>
-                {% if ev.url %}
-                  <a href="{{ ev.url }}" target="_blank" rel="noopener" class="text-xs text-blue-600 hover:underline">Details</a>
-                {% endif %}
-              </div>
-            </li>
-          {% endfor %}
-        </ul>
-      {% else %}
-        <p class="text-sm text-gray-500">Geen externe vergaderingen gevonden of feed niet geconfigureerd.</p>
-      {% endif %}
     </div>
   </section>
 </main>
@@ -247,7 +379,7 @@
         .catch(() => {
           if (statusCtx) {
             statusCtx.replaceWith(Object.assign(document.createElement('p'), {
-              className: 'text-sm text-gray-500',
+              className: 'rounded-2xl border border-dashed border-slate-300/70 bg-white/70 px-4 py-4 text-sm text-slate-500 dark:border-slate-700/70 dark:bg-slate-900/70 dark:text-slate-300',
               textContent: 'Kan statusgegevens niet laden.',
             }));
           }
@@ -259,23 +391,24 @@
         .then(resp => resp.json())
         .then(rows => {
           if (!rows.length) {
-            collabList.innerHTML = '<p class="text-sm text-gray-500">Nog geen samenwerkingen geregistreerd.</p>';
+            collabList.innerHTML = '<div class="rounded-2xl border border-dashed border-slate-300/70 bg-white/70 px-4 py-4 text-sm text-slate-500 dark:border-slate-700/70 dark:bg-slate-900/70 dark:text-slate-300">Nog geen samenwerkingen geregistreerd.</div>';
             return;
           }
           collabList.innerHTML = rows.map((row, idx) => `
-            <div class="flex items-center justify-between rounded-xl border border-gray-200 px-3 py-2">
+            <div class="flex items-center justify-between rounded-2xl border border-slate-200/80 bg-white/85 px-4 py-3 shadow-sm transition duration-200 hover:-translate-y-1 hover:border-emerald-200 hover:bg-white dark:border-slate-700/60 dark:bg-slate-900/70">
               <div class="flex items-center gap-3">
-                <span class="h-8 w-8 flex items-center justify-center rounded-full bg-gray-900 text-white text-xs font-semibold">${idx + 1}</span>
+                <span class="inline-flex h-9 w-9 items-center justify-center rounded-full bg-emerald-500/90 text-xs font-semibold text-white shadow-lg shadow-emerald-500/30">${idx + 1}</span>
                 <div>
-                  <p class="text-sm font-semibold text-gray-900">${row.naam}</p>
-                  <p class="text-xs text-gray-500">${row.aantal} gezamenlijke motie${row.aantal === 1 ? '' : 's'}</p>
+                  <p class="text-sm font-semibold text-slate-900 dark:text-white">${row.naam}</p>
+                  <p class="text-xs text-slate-500 dark:text-slate-400">${row.aantal} gezamenlijke motie${row.aantal === 1 ? '' : 's'}</p>
                 </div>
               </div>
+              <i class="fa-solid fa-handshake-angle text-emerald-500/80 dark:text-emerald-300"></i>
             </div>
           `).join('');
         })
         .catch(() => {
-          collabList.innerHTML = '<p class="text-sm text-gray-500">Kan samenwerkingsgegevens niet laden.</p>';
+          collabList.innerHTML = '<div class="rounded-2xl border border-dashed border-slate-300/70 bg-white/70 px-4 py-4 text-sm text-slate-500 dark:border-slate-700/70 dark:bg-slate-900/70 dark:text-slate-300">Kan samenwerkingsgegevens niet laden.</div>';
         });
     };
 

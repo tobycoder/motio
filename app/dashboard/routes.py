@@ -1,4 +1,4 @@
-from flask import render_template, request, jsonify, url_for, current_app
+from flask import render_template, request, jsonify, url_for, current_app, redirect, abort
 from flask_login import login_required, current_user
 from app.auth.utils import login_and_active_required
 from flask import g
@@ -11,6 +11,16 @@ from datetime import datetime, date
 from urllib.request import urlopen
 from urllib.error import URLError
 import ssl
+
+
+@bp.before_request
+@login_and_active_required
+def _dashboard_role_guard():
+    role = (getattr(current_user, "role", "") or "").lower()
+    if role == "bestuursadviseur":
+        ep = request.endpoint or ""
+        if ep not in {"dashboard.home"}:
+            abort(403)
 
 
 def _moties_for_user_query(user):
@@ -112,6 +122,8 @@ def _fetch_haarlem_meetings(max_items: int = 5):
 @bp.route('/')
 @login_and_active_required
 def home():
+    if (getattr(current_user, "role", "") or "").lower() == "bestuursadviseur":
+        return redirect(url_for('griffie.toepassingen'))
     query = _moties_for_user_query(current_user)
 
     page = int(request.args.get("page", 1))

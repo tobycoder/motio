@@ -17,6 +17,14 @@ from app.auth.utils import login_and_active_required, roles_required
 from urllib.parse import urlparse
 PERM_ORDER = {"view": 1, "comment": 2, "suggest": 3, "edit": 4}
 
+
+@bp.before_request
+@login_and_active_required
+def _moties_role_guard():
+    role = (getattr(current_user, "role", "") or "").lower()
+    if role == "bestuursadviseur":
+        abort(403)
+
 # Helpers
 def as_list(value):
     """Converteer DB-waarde naar list zonder te crashen."""

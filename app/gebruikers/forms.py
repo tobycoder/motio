@@ -9,6 +9,7 @@ from app.models import User
 ROLE_CHOICES = [
     ('gebruiker', 'Gebruiker'),
     ('griffie', 'Griffie'),
+    ('bestuursadviseur', 'Bestuursadviseur'),
     ('superadmin', 'Superadmin'),
 ]
 

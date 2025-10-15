@@ -257,6 +257,7 @@ def create_app(config_class=Config):
 
     @app.context_processor
     def inject_tenant_context():
+        fallback_tenant = None
         tenant_name = None
         tenant_settings = {}
         tenant_slug = None
@@ -265,6 +266,13 @@ def create_app(config_class=Config):
                 tenant_name = g.tenant.naam
                 tenant_settings = g.tenant.settings or {}
                 tenant_slug = getattr(g.tenant, 'slug', None)
+            else:
+                from app.models import Tenant
+                fallback = Tenant.query.filter(Tenant.slug == "__global__").first()
+                if fallback:
+                    tenant_name = fallback.naam or tenant_name
+                    tenant_settings = fallback.settings or tenant_settings
+                    fallback_tenant = fallback
         except Exception:
             pass
         if not tenant_name:
@@ -275,6 +283,7 @@ def create_app(config_class=Config):
             'tenant_name': tenant_name,
             'tenant_slug': tenant_slug,
             'tenant_settings': tenant_settings,
+            'tenant_global': fallback_tenant,
         }
 
     # ====== Tenant-aware Jinja loader (per-tenant template overrides) ======
@@ -404,6 +413,10 @@ def _register_error_handlers(app: Flask) -> None:
             ),
             500,
         )
+
+    @app.errorhandler(403)
+    def _handle_forbidden_error(error):
+        return render_template("errors/403.html"), 403
 
 
 def _register_tenant_scoping_events():

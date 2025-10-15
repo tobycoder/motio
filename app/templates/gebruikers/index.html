@@ -1,10 +1,11 @@
 {% extends 'base.html' %}
 {% block content %}
-{% set stats = namespace(total=0, active=0, griffie=0) %}
+{% set stats = namespace(total=0, active=0, griffie=0, bestuursadviseur=0) %}
 {% for u in users %}
   {% set stats.total = stats.total + 1 %}
   {% if u.actief %}{% set stats.active = stats.active + 1 %}{% endif %}
   {% if (u.role or '').lower() == 'griffie' %}{% set stats.griffie = stats.griffie + 1 %}{% endif %}
+  {% if (u.role or '').lower() == 'bestuursadviseur' %}{% set stats.bestuursadviseur = stats.bestuursadviseur + 1 %}{% endif %}
 {% endfor %}
 
 <div class="sticky-surface page-chrome z-20">
@@ -16,6 +17,7 @@
         <span class="inline-flex items-center gap-1 rounded-full bg-gray-100 px-3 py-1">{{ stats.total }} totaal</span>
         <span class="inline-flex items-center gap-1 rounded-full bg-green-100 text-green-700 px-3 py-1">{{ stats.active }} actief</span>
         <span class="inline-flex items-center gap-1 rounded-full bg-blue-100 text-blue-700 px-3 py-1">{{ stats.griffie }} griffie</span>
+        <span class="inline-flex items-center gap-1 rounded-full bg-emerald-100 text-emerald-700 px-3 py-1">{{ stats.bestuursadviseur }} bestuursadviseur</span>
       </div>
     </div>
     <div class="flex flex-col sm:flex-row gap-2">
@@ -44,7 +46,7 @@
       <div class="flex flex-wrap items-center gap-2">
         <span class="text-xs font-semibold uppercase tracking-wide text-gray-400">Rol</span>
         <div class="flex flex-wrap gap-2" id="role-filters">
-          {% set roles = ['all', 'superadmin', 'griffie', 'gebruiker'] %}
+          {% set roles = ['all', 'superadmin', 'griffie', 'bestuursadviseur', 'gebruiker'] %}
           {% for role in roles %}
             <button type="button" class="filter-chip" data-role-filter="{{ role }}">
               {% if role == 'all' %}Alle rollen{% else %}{{ role|capitalize }}{% endif %}

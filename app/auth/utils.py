@@ -22,7 +22,7 @@ def login_and_active_required(view):
 # ---------------------------
 # 2) Rol-helpers (géén current_user aanraken hier)
 # ---------------------------
-VALID_ROLES = {"gebruiker", "griffie", "superadmin"}
+VALID_ROLES = {"gebruiker", "griffie", "superadmin", "bestuursadviseur"}
 
 def has_role(user, roles: Iterable[str], allow_superadmin: bool = True) -> bool:
     """Pure helper op basis van een user-object (GEEN current_user hier)."""

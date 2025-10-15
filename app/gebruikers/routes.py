@@ -13,6 +13,22 @@ from app.auth.utils import user_has_role, roles_required, login_and_active_requi
 from sqlalchemy import func
 
 
+@bp.before_request
+@login_and_active_required
+def _gebruikers_role_guard():
+    role = (getattr(current_user, "role", "") or "").lower()
+    if role == "bestuursadviseur":
+        allowed = {
+            "gebruikers.view_profiel",
+            "gebruikers.edit_profiel",
+            "gebruikers.settings",
+            "gebruikers.email_settings",
+            "gebruikers.mark_all_read",
+        }
+        if request.endpoint not in allowed:
+            abort(403)
+
+
 def _update_user_profile_from_form(user: User, form: ProfileUpdateForm, render_args: dict):
     new_name = (form.naam.data or '').strip()
     new_email = (form.email.data or '').strip().lower()
@@ -248,6 +264,11 @@ def settings():
         links.append({'label': 'E-mailmeldingen', 'href': url_for('gebruikers.email_settings')})
     except Exception:
         pass
+    if has_role(current_user, ['superadmin']):
+        try:
+            links.append({'label': 'Toegang tot toepassingen', 'href': url_for('settings.application_access')})
+        except Exception:
+            pass
     try:
         links.append({'label': 'Markeer alle notificaties als gelezen', 'href': url_for('gebruikers.mark_all_read')})
     except Exception:

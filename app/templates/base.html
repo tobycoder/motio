@@ -430,6 +430,7 @@
 </head>
 
 <body>
+    {% set _current_role = (current_user.role or '').lower() if current_user.is_authenticated else '' %}
     <div class="app-background" aria-hidden="true">
         <div class="app-gradient-overlay"></div>
         <div class="app-blob app-blob--one"></div>
@@ -589,116 +590,119 @@
             </button>
             <div class="nav-dropdown ios-nav hidden w-full md:block z-[1200] md:w-auto" id="navbar-dropdown">
                 <ul
-                    class="flex flex-col font-medium p-4 md:p-0 mt-4 border border-gray-100 rounded-lg md:flex-row md:mt-0 md:border-0 md:space-x-8 md:pl-3 dark:bg-gray-800 md:dark:bg-gray-900 dark:border-gray-700">
-                    <li class="mr-0">
-                        <a href="{{ url_for('dashboard.home') }}"
-                            class="block bg-transparent py-2 px-3 text-gray-900 rounded-sm hover:bg-gray-100 md:hover:bg-transparent md:border-0 md:hover:text-blue-700 md:px-3 md:py-2 dark:text-white md:dark:hover:text-blue-500 dark:hover:bg-gray-700 dark:hover:text-white md:dark:hover:bg-transparent">Home</a>
-                    </li>
+                    class="flex flex-col font-medium p-4 md:p-0 mt-4 border border-gray-100 rounded-lg md:flex-row md:mt-0 md:border-0 md:space-x-6 md:pl-3 dark:bg-gray-800 md:dark:bg-gray-900 dark:border-gray-700">
+                    {% if _current_role != 'bestuursadviseur' %}
                     <li>
-                        <a href="{{ url_for('gebruikers.index') if user_has_role('griffie','superadmin') else url_for('gebruikers.index_user') }}"
-                           class="block bg-transparent py-2 px-3 text-gray-900 rounded-sm hover:bg-gray-100 md:hover:bg-transparent md:border-0 md:hover:text-blue-700 md:px-3 md:py-2 dark:text-white md:dark:hover:text-blue-500 dark:hover:bg-gray-700 dark:hover:text-white md:dark:hover:bg-transparent">Gebruikers</a>
+                        <a href="{{ url_for('dashboard.home') }}"
+                           class="block bg-transparent py-2 px-3 text-gray-900 rounded-sm hover:bg-gray-100 md:hover:bg-transparent md:border-0 md:hover:text-blue-700 md:px-3 md:py-2 dark:text-white md:dark:hover:text-blue-500 dark:hover:bg-gray-700 dark:hover:text-white md:dark:hover:bg-transparent">
+                            Dashboard
+                        </a>
                     </li>
+                    {% endif %}
+                    {% if user_has_role('gebruiker','griffie','superadmin') %}
                     <li class="relative md:static">
-                        <button id="dropdownMotiesLink" data-dropdown-toggle="dropdownNavbar"
-                            class="flex items-center justify-between w-full py-2 px-3 text-gray-900 rounded-sm hover:bg-gray-100 md:hover:bg-transparent md:border-0 md:hover:text-blue-700 md:px-3 md:py-2 md:w-auto dark:text-white md:dark:hover:text-blue-500 dark:focus:text-white dark:border-gray-700 dark:hover:bg-gray-700 md:dark:hover:bg-transparent">Moties
-                            <svg class="w-2.5 h-2.5 ms-2.5 ios-chevron" aria-hidden="true" xmlns="http://www.w3.org/2000/svg"
-                                fill="none" viewBox="0 0 10 6">
-                                <path stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"
-                                    stroke-width="2" d="m1 1 4 4 4-4" />
+                        <button id="dropdownMotiesLink"
+                                data-dropdown-toggle="dropdownMoties"
+                                class="flex items-center justify-between w-full py-2 px-3 text-gray-900 rounded-sm hover:bg-gray-100 md:hover:bg-transparent md:border-0 md:hover:text-blue-700 md:px-3 md:py-2 md:w-auto dark:text-white md:dark:hover:text-blue-500 dark:focus:text-white dark:border-gray-700 dark:hover:bg-gray-700 md:dark:hover:bg-transparent">
+                            Moties
+                            <svg class="w-2.5 h-2.5 ms-2.5 ios-chevron" aria-hidden="true" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 10 6">
+                                <path stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="m1 1 4 4 4-4" />
                             </svg>
                         </button>
-                        <!-- Dropdown menu -->
-                        <div id="dropdownNavbar"
-                            class="nav-dropdown-panel hidden font-normal bg-white divide-y divide-gray-100 rounded-lg shadow-lg w-full md:w-60 dark:bg-gray-700 dark:divide-gray-600 md:absolute md:left-0 md:top-full md:mt-1">
-                            <ul class="py-2 text-sm text-gray-700 dark:text-gray-400"
-                                aria-labelledby="dropdownMotiesLink">
+                        <div id="dropdownMoties"
+                             class="nav-dropdown-panel hidden font-normal bg-white divide-y divide-gray-100 rounded-lg shadow-lg w-full md:w-64 dark:bg-gray-700 dark:divide-gray-600 md:absolute md:left-0 md:top-full md:mt-1">
+                            <ul class="py-2 text-sm text-gray-700 dark:text-gray-400" aria-labelledby="dropdownMotiesLink">
+                                {% if user_has_role('gebruiker') or user_has_role('superadmin') %}
                                 <li>
                                     <a href="{{ url_for('moties.index_personal') }}"
-                                        class="block px-4 py-2 hover:bg-gray-100 dark:hover:bg-gray-600 dark:hover:text-white">Mijn
-                                        moties</a>
+                                       class="block px-4 py-2 hover:bg-gray-100 dark:hover:bg-gray-600 dark:hover:text-white">Mijn moties</a>
                                 </li>
-                                <li>
-                                    <a href="{{ url_for('moties.index_shared') }}"
-                                        class="block px-4 py-2 hover:bg-gray-100 dark:hover:bg-gray-600 dark:hover:text-white">Moties
-                                        gedeeld met mij</a>
-                                </li>
-                            </ul>
-                            {% if user_has_role('superadmin') %}
-                            <div class="py-1">
-                                <a href="{{ url_for('moties.index') }}"
-                                    class="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 dark:hover:bg-gray-600 dark:text-gray-200 dark:hover:text-white">Alle
-                                    moties</a>
-                            </div>
-                            {% endif %}
-                        </div>
-                    </li>
-                    <li>
-                        <a href="{{ url_for('partijen.index') }}"
-                            class="block bg-transparent py-2 px-3 text-gray-900 rounded-sm hover:bg-gray-100 md:hover:bg-transparent md:border-0 md:hover:text-blue-700 md:px-3 md:py-2 dark:text-white md:dark:hover:text-blue-500 dark:hover:bg-gray-700 dark:hover:text-white md:dark:hover:bg-transparent">Partijen</a>
-                    </li>
-                    {% if user_has_role('griffie') %}
-                    <li class="relative md:static">
-                        <button id="dropdownGriffieLink" data-dropdown-toggle="dropdownGriffie"
-                            class="flex items-center justify-between w-full py-2 px-3 text-green-700 rounded-sm hover:bg-gray-100 md:hover:bg-transparent md:border-0 md:hover:text-gray-700 md:px-3 md:py-2 md:w-auto dark:text-white md:dark:hover:text-blue-500 dark:focus:text-white dark:border-gray-700 dark:hover:bg-gray-700 md:dark:hover:bg-transparent">Griffie
-                            <svg class="w-2.5 h-2.5 ms-2.5 ios-chevron" aria-hidden="true" xmlns="http://www.w3.org/2000/svg"
-                                fill="none" viewBox="0 0 10 6">
-                                <path stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"
-                                    stroke-width="2" d="m1 1 4 4 4-4" />
-                            </svg></button>
-                        <!-- Dropdown menu -->
-                        <div id="dropdownGriffie"
-                            class="nav-dropdown-panel hidden font-normal bg-white divide-y divide-gray-100 rounded-lg shadow-lg w-full md:w-60 dark:bg-gray-700 dark:divide-gray-600 md:absolute md:left-0 md:top-full md:mt-1">
-                            <ul class="py-2 text-sm text-gray-700 dark:text-gray-400"
-                                aria-labelledby="dropdownGriffieLink">
-                                <li class="relative">
-                                    {% set _griffie_spreektijden_url = '#' %}
-                                    {% if route_exists is defined and route_exists('griffie.spreektijden') %}
-                                        {% set _griffie_spreektijden_url = url_for('griffie.spreektijden') %}
-                                    {% endif %}
-                                    <button type="button"
-                                            id="dropdownGriffieAppsToggle"
-                                            data-dropdown-toggle="dropdownGriffieApps"
-                                            data-dropdown-placement="right-start"
-                                            class="flex w-full items-center justify-between px-4 py-2 text-left text-gray-700 hover:bg-gray-100 dark:text-gray-400 dark:hover:text-white dark:hover:bg-gray-600">
-                                        <span>Toepassingen</span>
-                                        <svg class="ms-3 h-3 w-3 text-gray-500 dark:text-gray-300 ios-chevron" aria-hidden="true" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 10 6">
-                                            <path stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="m1 1 4 4 4-4" />
-                                        </svg>
-                                    </button>
-                                    <div id="dropdownGriffieApps"
-                                         class="nav-dropdown z-[1200] hidden mt-1 w-full rounded-lg border border-gray-100 bg-white text-sm shadow-sm dark:border-gray-600 dark:bg-gray-700 md:absolute md:left-full md:top-0 md:ml-2 md:mt-0 md:w-56">
-                                        <ul class="py-2 text-gray-700 dark:text-gray-400">
-                                            <li>
-                                                <a href="{{ url_for('griffie.jaarplanning') }}"
-                                                   class="block px-4 py-2 hover:bg-gray-100 dark:hover:bg-gray-600 dark:hover:text-white">Jaarplanning</a>
-                                            </li>
-                                            <li>
-                                                <a href="{{ _griffie_spreektijden_url }}"
-                                                   class="block px-4 py-2 hover:bg-gray-100 dark:hover:bg-gray-600 dark:hover:text-white">Spreektijden</a>
-                                            </li>
-                                        </ul>
-                                    </div>
-                                </li>
+                                {% endif %}
+                                {% if user_has_role('griffie') %}
                                 <li>
                                     <a href="{{ url_for('griffie.advies_inbox') }}"
-                                       class="block px-4 py-2 hover:bg-gray-100 dark:hover:bg-gray-600 dark:hover:text-white flex items-center gap-2">
-                                        <span>Advies</span>
-                                        {% if griffie_advice_count|default(0) > 0 %}
-                                          <span class="ml-auto inline-flex items-center justify-center min-w-[1.1rem] h-4 px-1 text-[10px] font-semibold text-white bg-blue-600 rounded-full">{{ griffie_advice_count }}</span>
-                                        {% endif %}
-                                    </a>
+                                       class="block px-4 py-2 hover:bg-gray-100 dark:hover:bg-gray-600 dark:hover:text-white">Adviesaanvragen</a>
                                 </li>
                                 <li>
                                     <a href="{{ url_for('griffie.indienen_index') }}"
-                                       class="block px-4 py-2 hover:bg-gray-100 dark:hover:bg-gray-600 dark:hover:text-white flex items-center gap-2">
-                                        <span>Indienen</span>
-                                        {% if griffie_submit_count|default(0) > 0 %}
-                                          <span class="ml-auto inline-flex items-center justify-center w-2 h-2 bg-red-600 rounded-full"></span>
-                                        {% endif %}
-                                    </a>
+                                       class="block px-4 py-2 hover:bg-gray-100 dark:hover:bg-gray-600 dark:hover:text-white">Klaar om in te dienen</a>
+                                </li>
+                                {% endif %}
+                                {% if user_has_role('superadmin') %}
+                                <li>
+                                    <a href="{{ url_for('moties.index') }}"
+                                       class="block px-4 py-2 hover:bg-gray-100 dark:hover:bg-gray-600 dark:hover:text-white">Alle moties</a>
+                                </li>
+                                {% endif %}
+                            </ul>
+                        </div>
+                    </li>
+                    {% endif %}
+                    {% if user_has_role('gebruiker','griffie','superadmin') %}
+                    <li class="relative md:static">
+                        <button id="dropdownRaadLink"
+                                data-dropdown-toggle="dropdownRaad"
+                                class="flex items-center justify-between w-full py-2 px-3 text-gray-900 rounded-sm hover:bg-gray-100 md:hover:bg-transparent md:border-0 md:hover:text-blue-700 md:px-3 md:py-2 md:w-auto dark:text-white md:dark:hover:text-blue-500 dark:focus:text-white dark:border-gray-700 dark:hover:bg-gray-700 md:dark:hover:bg-transparent">
+                            Raad
+                            <svg class="w-2.5 h-2.5 ms-2.5 ios-chevron" aria-hidden="true" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 10 6">
+                                <path stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="m1 1 4 4 4-4" />
+                            </svg>
+                        </button>
+                        <div id="dropdownRaad"
+                             class="nav-dropdown-panel hidden font-normal bg-white divide-y divide-gray-100 rounded-lg shadow-lg w-full md:w-60 dark:bg-gray-700 dark:divide-gray-600 md:absolute md:left-0 md:top-full md:mt-1">
+                            <ul class="py-2 text-sm text-gray-700 dark:text-gray-400" aria-labelledby="dropdownRaadLink">
+                                <li>
+                                    <a href="{{ url_for('gebruikers.index') if user_has_role('griffie','superadmin') else url_for('gebruikers.index_user') }}"
+                                       class="block px-4 py-2 hover:bg-gray-100 dark:hover:bg-gray-600 dark:hover:text-white">Gebruikers</a>
+                                </li>
+                                <li>
+                                    <a href="{{ url_for('partijen.index') }}"
+                                       class="block px-4 py-2 hover:bg-gray-100 dark:hover:bg-gray-600 dark:hover:text-white">Partijen</a>
                                 </li>
                             </ul>
                         </div>
+                    </li>
+
+                    {% endif %}
+                    {% if user_has_role('griffie','superadmin') %}
+                    <li class="relative md:static">
+                        <button id="dropdownBeheerLink"
+                                data-dropdown-toggle="dropdownBeheer"
+                                class="flex items-center justify-between w-full py-2 px-3 text-emerald-600 rounded-sm hover:bg-emerald-50 md:hover:bg-transparent md:border-0 md:hover:text-emerald-500 md:px-3 md:py-2 md:w-auto dark:text-emerald-300 dark:hover:text-emerald-200 dark:border-gray-700 dark:hover:bg-gray-700 md:dark:hover:bg-transparent">
+                            Beheer
+                            <svg class="w-2.5 h-2.5 ms-2.5 ios-chevron" aria-hidden="true" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 10 6">
+                                <path stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="m1 1 4 4 4-4" />
+                            </svg>
+                        </button>
+                        <div id="dropdownBeheer"
+                             class="nav-dropdown-panel hidden font-normal bg-white divide-y divide-gray-100 rounded-lg shadow-lg w-full md:w-60 dark:bg-gray-700 dark:divide-gray-600 md:absolute md:left-0 md:top-full md:mt-1">
+                            <ul class="py-2 text-sm text-gray-700 dark:text-gray-400" aria-labelledby="dropdownBeheerLink">
+                                <li>
+                                    {% if route_exists is defined and route_exists('griffie.toepassingen') %}
+                                    <a href="{{ url_for('griffie.toepassingen') }}"
+                                       class="block px-4 py-2 hover:bg-emerald-50 hover:text-emerald-700 dark:hover:bg-gray-600 dark:hover:text-white">Toepassingen</a>
+                                    {% else %}
+                                    <span class="block px-4 py-2 text-gray-400 dark:text-gray-500">Toepassingen</span>
+                                    {% endif %}
+                                </li>
+                                <li>
+                                    <a href="{{ url_for('gebruikers.index') }}"
+                                       class="block px-4 py-2 hover:bg-emerald-50 hover:text-emerald-700 dark:hover:bg-gray-600 dark:hover:text-white">Gebruikers beheren</a>
+                                </li>
+                                <li>
+                                    <a href="{{ url_for('partijen.index') }}"
+                                       class="block px-4 py-2 hover:bg-emerald-50 hover:text-emerald-700 dark:hover:bg-gray-600 dark:hover:text-white">Partijen beheren</a>
+                                </li>
+                            </ul>
+                        </div>
+                    </li>
+                    {% endif %}
+                    {% if _current_role == 'bestuursadviseur' %}
+                    <li>
+                        <a href="{{ url_for('griffie.toepassingen') }}"
+                           class="block bg-transparent py-2 px-3 text-emerald-700 rounded-sm hover:bg-emerald-50 md:hover:bg-transparent md:border-0 md:hover:text-emerald-500 md:px-3 md:py-2 dark:text-emerald-300 md:dark:hover:text-emerald-200 dark:hover:bg-gray-700 dark:hover:text-white md:dark:hover:bg-transparent">
+                            Toepassingen
+                        </a>
                     </li>
                     {% endif %}
                 </ul>
@@ -707,19 +711,45 @@
     </nav>
     {% set _endpoint = request.endpoint or '' %}
     <nav class="ios-bottom-nav md:hidden" aria-label="Mobiele hoofdmenu">
-        <a href="{{ url_for('dashboard.home') }}"
-           class="{% if _endpoint.startswith('dashboard.') or _endpoint == 'dashboard_home' %}active{% endif %}"
-           aria-label="Home">
+        {% set _home_href = url_for('dashboard.home') %}
+        {% set _home_active = (_endpoint.startswith('dashboard.') or _endpoint == 'dashboard_home') %}
+        {% set _home_label = 'Home' %}
+        {% if _current_role == 'bestuursadviseur' and route_exists('griffie.toepassingen') %}
+            {% set _home_href = url_for('griffie.toepassingen') %}
+            {% set _home_active = _endpoint.startswith('griffie.toepassingen') %}
+            {% set _home_label = 'Toepassingen' %}
+        {% endif %}
+        <a href="{{ _home_href }}"
+           class="{% if _home_active %}active{% endif %}"
+           aria-label="{{ _home_label }}">
             <i class="fa-solid fa-house nav-icon"></i>
-            <span>Home</span>
+            <span>{{ _home_label }}</span>
         </a>
-        <a href="{{ url_for('moties.index_personal') }}"
-           class="{% if _endpoint.startswith('moties.') %}active{% endif %}"
+        {% set _moties_target = None %}
+        {% if user_has_role('griffie') %}
+            {% set _moties_target = url_for('griffie.advies_inbox') %}
+        {% elif user_has_role('gebruiker') or user_has_role('superadmin') %}
+            {% set _moties_target = url_for('moties.index_personal') %}
+        {% endif %}
+        {% if _moties_target %}
+        <a href="{{ _moties_target }}"
+           class="{% if _endpoint.startswith('moties.') or _endpoint.startswith('griffie.advies') or _endpoint.startswith('griffie.indienen') %}active{% endif %}"
            aria-label="Moties">
             <i class="fa-solid fa-file-lines nav-icon"></i>
             <span>Moties</span>
         </a>
-        {% if user_has_role('gebruiker') %}
+        {% endif %}
+
+        {% if user_has_role('gebruiker','griffie','superadmin') %}
+        <a href="{{ url_for('gebruikers.index') if user_has_role('griffie','superadmin') else url_for('gebruikers.index_user') }}"
+           class="{% if _endpoint.startswith('gebruikers.') %}active{% endif %}"
+           aria-label="Gebruikers">
+            <i class="fa-solid fa-user-group nav-icon"></i>
+            <span>Gebruikers</span>
+        </a>
+        {% endif %}
+
+        {% if user_has_role('gebruiker','griffie','superadmin') %}
         <a href="{{ url_for('partijen.index') }}"
            class="{% if _endpoint.startswith('partijen.') %}active{% endif %}"
            aria-label="Partijen">
@@ -727,20 +757,13 @@
             <span>Partijen</span>
         </a>
         {% endif %}
-        {% if user_has_role('griffie') %}
-        <a href="{{ url_for('griffie.dashboard_builder') }}"
-           class="{% if _endpoint.startswith('griffie.') %}active{% endif %}"
-           aria-label="Griffie">
-            <i class="fa-solid fa-comment-nodes nav-icon"></i>
-            <span>Advies</span>
-        </a>
-        {% endif %}
-        {% if user_has_role('griffie') %}
-        <a href="{{ url_for('griffie.dashboard_builder') }}"
-           class="{% if _endpoint.startswith('griffie.') %}active{% endif %}"
-           aria-label="Griffie">
+
+        {% if user_has_role('griffie','superadmin') and route_exists('griffie.toepassingen') %}
+        <a href="{{ url_for('griffie.toepassingen') }}"
+           class="{% if _endpoint.startswith('griffie.dashboard') or _endpoint.startswith('griffie.toepassingen') %}active{% endif %}"
+           aria-label="Beheer">
             <i class="fa-solid fa-puzzle-piece nav-icon"></i>
-            <span>Toepassingen</span>
+            <span>Beheer</span>
         </a>
         {% endif %}
         <button type="button"

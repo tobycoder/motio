@@ -1,39 +1,49 @@
-﻿{% extends 'base_0auth.html' %}
+{% extends 'base_0auth.html' %}
 {% block content %}
 <section class="px-4">
-  <div class="mx-auto flex min-h-[70vh] max-w-4xl flex-col items-center justify-center gap-10 py-10">
-    <div class="auth-glass rounded-3xl border border-slate-200 bg-white/65 p-8 shadow-xl backdrop-blur-lg dark:border-slate-700 dark:bg-slate-900/55">
-      <div class="max-w-xl space-y-6">
-        <div class="space-y-2">
-          <p class="text-sm font-semibold uppercase tracking-wide text-indigo-600">Wachtwoord resetten</p>
-          <h1 class="text-3xl font-semibold text-gray-900 dark:text-white">Wachtwoord vergeten?</h1>
-          <p class="text-sm leading-relaxed text-gray-600 dark:text-gray-300">
-            Geen zorgen; vul hieronder je e-mailadres in en we sturen je meteen een link om een nieuw wachtwoord in te stellen.
-          </p>
+  <div class="mx-auto grid max-w-5xl gap-10 lg:grid-cols-[minmax(0,1.15fr)_minmax(0,1fr)]">
+    <div class="auth-glass rounded-3xl border border-slate-200 bg-white/60 p-8 shadow-xl backdrop-blur-lg dark:border-slate-700 dark:bg-slate-900/55">
+      <p class="text-sm font-semibold uppercase tracking-wide text-indigo-600">Wachtwoord resetten</p>
+      <h1 class="mt-2 text-3xl font-semibold text-gray-900 dark:text-white">Wachtwoord vergeten?</h1>
+      <p class="mt-3 text-sm leading-relaxed text-gray-600 dark:text-gray-300">
+        Geen zorgen. Geef je e-mailadres op en wij sturen je direct een veilige link om een nieuw wachtwoord te kiezen.
+      </p>
+      <ul class="mt-8 space-y-3 text-sm text-gray-600 dark:text-gray-300">
+        <li class="flex items-start gap-3">
+          <span class="mt-1 text-indigo-500"><i class="fa-solid fa-shield-halved"></i></span>
+          <span>De resetlink blijft 60 minuten geldig en kan slechts een keer worden gebruikt.</span>
+        </li>
+        <li class="flex items-start gap-3">
+          <span class="mt-1 text-indigo-500"><i class="fa-solid fa-inbox"></i></span>
+          <span>Geen mail ontvangen? Controleer de map met ongewenste berichten of probeer het opnieuw.</span>
+        </li>
+        <li class="flex items-start gap-3">
+          <span class="mt-1 text-indigo-500"><i class="fa-solid fa-headset"></i></span>
+          <span>Kom je er niet uit of heb je geen toegang tot je e-mail? Neem contact op met de griffie.</span>
+        </li>
+      </ul>
+    </div>
+
+    <div class="auth-glass rounded-3xl border border-slate-200 bg-white/70 p-8 shadow-xl backdrop-blur-lg dark:border-slate-700 dark:bg-slate-900/55">
+      <h2 class="text-xl font-semibold text-gray-900 dark:text-white">Vraag een resetlink aan</h2>
+      <form data-js-auth-form class="mt-6 space-y-6" action="{{ url_for('auth.forgot_password') }}" method="post" novalidate>
+        {{ form.hidden_tag() }}
+        <div>
+          <label class="block text-sm font-medium text-gray-700 dark:text-gray-200" for="{{ form.email.id }}">E-mailadres</label>
+          {{ form.email(class="mt-1 w-full rounded-lg border border-slate-300 bg-white/80 px-4 py-2 text-sm text-gray-900 backdrop-blur focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-200 dark:border-slate-600 dark:bg-slate-800/80 dark:text-white", placeholder="naam@organisatie.nl") }}
+          {% if form.email.errors %}
+            <p class="mt-1 text-xs text-rose-500">{{ form.email.errors[0] }}</p>
+          {% endif %}
         </div>
-
-        <form data-js-auth-form class="space-y-5" action="{{ url_for('auth.forgot_password') }}" method="post" novalidate>
-          {{ form.csrf_token }}
-          <div>
-            <label for="email" class="block text-sm font-medium text-gray-700 dark:text-gray-200">E-mailadres</label>
-            <input type="email"
-                   name="email"
-                   id="email"
-                   class="mt-1 w-full rounded-lg border border-slate-300 bg-white/70 px-4 py-2 text-sm text-gray-900 backdrop-blur focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-200 dark:border-slate-600 dark:bg-slate-800/70 dark:text-white"
-                   placeholder="naam@organisatie.nl"
-                   required>
-          </div>
-          <button type="submit"
-                  class="w-full inline-flex items-center justify-center gap-2 rounded-lg bg-indigo-600 px-5 py-2.5 text-sm font-semibold text-white shadow-lg shadow-indigo-600/25 transition hover:bg-indigo-700 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-500 active:scale-[0.98] active:translate-y-0.5 active:shadow-md">
-            <i class="fa-solid fa-envelope-circle-check"></i>
-            Verstuur resetlink
-          </button>
-        </form>
-
-        <p class="text-sm text-gray-500 dark:text-gray-400">
-          Toch je wachtwoord herinnerd? <a href="{{ url_for('auth.login') }}" class="font-medium text-indigo-600 hover:underline dark:text-indigo-400">Log weer in</a>
-        </p>
-      </div>
+        <button type="submit"
+                class="w-full inline-flex items-center justify-center gap-2 rounded-lg bg-indigo-600 px-5 py-2.5 text-sm font-semibold text-white shadow-lg shadow-indigo-600/25 transition hover:bg-indigo-700 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-500 active:scale-[0.98] active:translate-y-0.5 active:shadow-md">
+          <i class="fa-solid fa-envelope-circle-check"></i>
+          Verstuur resetlink
+        </button>
+      </form>
+      <p class="mt-6 text-sm text-gray-500 dark:text-gray-400">
+        Toch je wachtwoord herinnerd? <a href="{{ url_for('auth.login') }}" class="font-medium text-indigo-600 hover:underline dark:text-indigo-400">Log weer in</a>
+      </p>
     </div>
   </div>
 </section>

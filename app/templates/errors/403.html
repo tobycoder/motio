@@ -1,0 +1,27 @@
+<!DOCTYPE html>
+<html lang="nl">
+<head>
+    <meta charset="utf-8">
+    <title>Geen toegang</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <style>
+        body { font-family: "Segoe UI", system-ui, -apple-system, sans-serif; margin: 2.5rem; background: #f8fafc; color: #0f172a; }
+        main { max-width: 960px; margin: 0 auto; padding: 2rem 2.5rem; background: #ffffff; border-radius: 1rem; box-shadow: 0 20px 45px -12px rgba(15, 23, 42, 0.25); }
+        h1 { font-size: 2rem; margin-bottom: 1rem; }
+        p { margin-bottom: 1rem; line-height: 1.5; }
+        footer { margin-top: 2rem; font-size: 0.875rem; color: #475569; }
+        .badge { display: inline-flex; align-items: center; gap: 0.5rem; padding: 0.45rem 0.85rem; border-radius: 9999px; background: #f1f5f9; color: #0f172a; font-size: 0.85rem; font-weight: 600; }
+    </style>
+</head>
+<body>
+    <main>
+        <span class="badge">Toegang geweigerd</span>
+        <h1>Hier eindigt jouw motie-tie</h1>
+        <p>Deze agenda is voor een andere fractie: je hebt geen permissies om deze pagina te bekijken.</p>
+        <p>Vraag eventueel de griffie om toegang, of loop even langs collega’s om te stemmen welke route wél is toegestaan.</p>
+        <footer>
+            <a href="javascript:history.back()">Ga terug</a> of <a href="{{ url_for('dashboard.home') }}">terug naar het overzicht</a>.
+        </footer>
+    </main>
+</body>
+</html>

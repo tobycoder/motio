@@ -8,14 +8,14 @@ from zoneinfo import ZoneInfo
 from app.griffie import bp
 from flask_login import current_user
 from app.auth.utils import login_and_active_required, roles_required
-from app.models import Motie, AdviceSession, User, Notification, DashboardLayout, Party
+from app.models import Motie, AdviceSession, User, Notification, DashboardLayout, Party, Tenant
 from app import db, send_email
 import datetime as dt
 from sqlalchemy import nullslast
 from sqlalchemy.orm import selectinload
 from flask import abort
 import pandas as pd
-from flask import Blueprint, render_template, request, send_file, flash, redirect, url_for
+from flask import Blueprint, render_template, request, send_file, flash, redirect, url_for, current_app, g
 from werkzeug.utils import secure_filename
 from dateutil.parser import parse as dt_parse
 from openpyxl.utils import get_column_letter
@@ -100,6 +100,96 @@ MONTH_NAMES_NL = [
     "november",
     "december",
 ]
+
+APPLICATION_REGISTRY = [
+    {
+        "slug": "spreektijden",
+        "title": "Spreektijden",
+        "description": "Bereken spreektijden per fractie op basis van presets of eigen instellingen en exporteer direct naar PDF.",
+        "icon": "fa-microphone-lines",
+        "chip": "Vergaderingen",
+        "gradient": "from-sky-500 via-blue-500 to-indigo-500",
+        "endpoints": ("griffie.spreektijden",),
+        "default_roles": ["griffie", "bestuursadviseur"],
+    },
+    {
+        "slug": "actielijst",
+        "title": "Actielijst",
+        "description": "Houd acties en opvolging overzichtelijk bij en creëer een actuele lijst voor commissies of raadsvergaderingen.",
+        "icon": "fa-list-check",
+        "chip": "Opvolging",
+        "gradient": "from-emerald-500 via-teal-500 to-cyan-500",
+        "endpoints": ("griffie.actielijst", "griffie.jaarplanning"),
+        "default_roles": ["griffie", "bestuursadviseur"],
+        "note_map": {
+            "griffie.jaarplanning": "Linkt voorlopig naar de jaarplanning-tool",
+        },
+    },
+]
+
+GLOBAL_TENANT_SLUG = "__global__"
+
+
+def _application_role_mapping() -> dict:
+    tenant = getattr(g, "tenant", None)
+    if tenant and isinstance(getattr(tenant, "settings", None), dict):
+        return tenant.settings.get("application_roles") or {}
+    fallback = Tenant.query.filter(Tenant.slug == GLOBAL_TENANT_SLUG).first()
+    if fallback and isinstance(getattr(fallback, "settings", None), dict):
+        return fallback.settings.get("application_roles") or {}
+    return {}
+
+
+@bp.route("/toepassingen", methods=["GET"])
+@login_and_active_required
+@roles_required("griffie", "bestuursadviseur")
+def toepassingen():
+    """Overzichtspagina met griffie-applicaties."""
+
+    def _resolve_endpoint(*candidates: str) -> tuple[str, str | None]:
+        for endpoint in candidates:
+            if not endpoint:
+                continue
+            if endpoint in current_app.view_functions:
+                try:
+                    return url_for(endpoint), endpoint
+                except Exception:
+                    continue
+        return "#", None
+
+    role_overrides = _application_role_mapping()
+
+    applications = []
+    for app_def in APPLICATION_REGISTRY:
+        url, endpoint = _resolve_endpoint(*app_def.get("endpoints", ()))
+        allowed_roles = role_overrides.get(app_def["slug"], app_def.get("default_roles", [])) or []
+        allowed_roles = [r.lower() for r in allowed_roles]
+
+        is_available = endpoint is not None and url != "#"
+        note = None
+        if endpoint and app_def.get("note_map"):
+            note = app_def["note_map"].get(endpoint)
+
+        if is_available and current_user.has_role(*allowed_roles):
+            applications.append(
+                {
+                    "slug": app_def["slug"],
+                    "title": app_def["title"],
+                    "description": app_def["description"],
+                    "icon": app_def["icon"],
+                    "chip": app_def["chip"],
+                    "gradient": app_def["gradient"],
+                    "href": url,
+                    "available": True,
+                    "note": note,
+                }
+            )
+
+    return render_template(
+        "griffie/toepassingen.html",
+        applications=applications,
+        available_total=len(applications),
+    )
 
 def _dec(value) -> Decimal:
     if isinstance(value, Decimal):

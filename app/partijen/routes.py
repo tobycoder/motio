@@ -9,6 +9,15 @@ from sqlalchemy import nullslast
 from sqlalchemy.exc import IntegrityError
 from app.models import User
 from app.auth.utils import login_and_active_required, user_has_role
+from flask_login import current_user
+
+
+@bp.before_request
+@login_and_active_required
+def _partijen_role_guard():
+    role = (getattr(current_user, "role", "") or "").lower()
+    if role == "bestuursadviseur":
+        abort(403)
 
 ALLOWED_LOGO_EXTENSIONS = {"png", "jpg", "jpeg", "webp", "svg"}
 
