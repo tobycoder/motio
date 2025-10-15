@@ -18,8 +18,9 @@ import pandas as pd
 from flask import Blueprint, render_template, request, send_file, flash, redirect, url_for, current_app, g
 from werkzeug.utils import secure_filename
 from dateutil.parser import parse as dt_parse
+from dateutil.relativedelta import relativedelta
 from openpyxl.utils import get_column_letter
-from openpyxl.styles import PatternFill, Alignment
+from openpyxl.styles import PatternFill, Alignment, Font, Border, Side
 from app.griffie.forms import SpeakingTimeForm
 
 REQUIRED_COLS = [
@@ -31,11 +32,13 @@ REQUIRED_COLS = [
     "huidige planning",
 ]
 
-# Kleuren (hex) voor Excel achtergrondvulling (openpyxl)
-COLOR_NEXT_1 = "FFFDE68A"  # zacht geel
-COLOR_NEXT_2 = "FFA7F3D0"  # zacht groen
-COLOR_NEXT_3 = "FFBFDBFE"  # zacht blauw
-COLOR_LATER  = "FFE5E7EB"  # lichtgrijs
+# Kleuren voor nieuwe planning-categorieën
+COLUMN_COLOR_EXACT = "FFA7F3D0"   # kolomkleur voor exacte datums (groen)
+ROW_COLOR_EXACT = "FFEAFCF4"
+COLUMN_COLOR_MONTH = "FFFDE68A"   # kolomkleur voor maandlabels (geel)
+ROW_COLOR_MONTH = "FFFFF9E1"
+COLUMN_COLOR_QUARTER = "FF95B3D7" # kolomkleur voor kwartaal (blauw)
+ROW_COLOR_QUARTER = "FFE6EDF6"
 
 TENTH = Decimal("0.1")
 DAY_MINUTES = Decimal("1440")
@@ -114,16 +117,13 @@ APPLICATION_REGISTRY = [
     },
     {
         "slug": "actielijst",
-        "title": "Actielijst",
-        "description": "Houd acties en opvolging overzichtelijk bij en creëer een actuele lijst voor commissies of raadsvergaderingen.",
-        "icon": "fa-list-check",
-        "chip": "Opvolging",
+        "title": "Jaarplanning",
+        "description": "Zet ruwe Excel-overzichten om naar een gestructureerde jaarplanning met kleurcodes en slimme sortering.",
+        "icon": "fa-calendar-days",
+        "chip": "Planning",
         "gradient": "from-emerald-500 via-teal-500 to-cyan-500",
-        "endpoints": ("griffie.actielijst", "griffie.jaarplanning"),
+        "endpoints": ("griffie.jaarplanning",),
         "default_roles": ["griffie", "bestuursadviseur"],
-        "note_map": {
-            "griffie.jaarplanning": "Linkt voorlopig naar de jaarplanning-tool",
-        },
     },
 ]
 
@@ -483,57 +483,45 @@ def spreektijden():
         title="Spreektijdenberekening",
     )
 
-def month_to_triaal(month: int) -> int:
-    # T1: 1-4, T2: 5-8, T3: 9-12
-    if 1 <= month <= 4:
-        return 1
-    elif 5 <= month <= 8:
-        return 2
-    else:
-        return 3
-
-def triaal_label(year: int, month: int) -> str:
-    return f"T{month_to_triaal(month)} {year}"
-
-def normalize_to_year_month(val):
+def normalize_planning_date(val) -> date | None:
     """
-    Probeert waarde uit 'Huidige planning' om te zetten naar (year, month).
-    Ondersteunt:
+    Zet waarden uit 'Huidige planning' om naar een datum (date).
+    Ondersteunt diverse representaties:
       - echte datumwaarden
-      - tekst met NL maandnamen ('maart 2026', 'sep 2025')
-      - triaalnotatie 'T2 2025'
-      - losse 'YYYY-MM' / 'YYYY' / 'MM-YYYY'
-    Valt terug op None bij mislukken.
+      - NL maandnamen (bijv. 'maart 2026')
+      - triaalachtige notaties (T1/T2/T3)
+      - 'YYYY-MM', 'MM-YYYY'
+    Retourneert None als het niet lukt.
     """
     if pd.isna(val):
         return None
 
-    # Reeds datetime?
-    if isinstance(val, (pd.Timestamp, datetime)):
+    if isinstance(val, (datetime, pd.Timestamp, date)):
         dt = pd.to_datetime(val, errors="coerce")
         if pd.notna(dt):
-            return dt.year, dt.month
+            return dt.date()
 
     s = str(val).strip()
+    if not s:
+        return None
 
-    # Tn YYYY
-    m = re.match(r"^[Tt]\s?([123])\s+(\d{4})$", s)
-    if m:
-        t = int(m.group(1))
-        y = int(m.group(2))
-        # Koppel T1->jan, T2->mei, T3->sep (eerste maand van triaal)
-        month = {1: 1, 2: 5, 3: 9}[t]
-        return y, month
-
-    # Probeer generieke datumparser (met dag=1 fallback)
+    # Probeer directe datumparse (inclusief dag)
     try:
-        dt = dt_parse(s, dayfirst=True, default=datetime(1900, 1, 1))
-        if dt.year != 1900:  # parser vond iets bruikbaars
-            return dt.year, dt.month
+        parsed = dt_parse(s, dayfirst=True, default=datetime(1900, 1, 1))
+        if parsed.year != 1900:
+            return parsed.date()
     except Exception:
         pass
 
-    # NL maandnamen grofweg mappen (als parser faalt)
+    # Triaalnotatie -> eerste maand van kwartaal
+    m = re.match(r"^[Tt]\s?([123])\s+(\d{4})$", s)
+    if m:
+        quarter = int(m.group(1))
+        year = int(m.group(2))
+        month = {1: 1, 2: 5, 3: 9}[quarter]
+        return date(year, month, 1)
+
+    # NL maandnamen
     nl_months = {
         "jan": 1, "januari": 1,
         "feb": 2, "februari": 2,
@@ -549,7 +537,6 @@ def normalize_to_year_month(val):
         "dec": 12, "december": 12,
     }
     parts = re.findall(r"[A-Za-z]+|\d{4}", s.lower())
-    # Zoek maand + jaar
     year = None
     month = None
     for p in parts:
@@ -558,43 +545,46 @@ def normalize_to_year_month(val):
         elif p in nl_months:
             month = nl_months[p]
     if year and month:
-        return year, month
+        return date(year, month, 1)
 
     # 'YYYY-MM' / 'MM-YYYY'
     m2 = re.match(r"^(\d{4})[-/](\d{1,2})$", s)
     if m2:
-        return int(m2.group(1)), int(m2.group(2))
+        return date(int(m2.group(1)), int(m2.group(2)), 1)
     m3 = re.match(r"^(\d{1,2})[-/](\d{4})$", s)
     if m3:
-        return int(m3.group(2)), int(m3.group(1))
+        return date(int(m3.group(2)), int(m3.group(1)), 1)
 
     return None
 
-def compute_next_three_triaal_labels(now_dt: datetime):
-    """Eerstvolgende triaal = waarin we nu zitten (inclusief huidige), plus de 2 daaropvolgende."""
-    y, m = now_dt.year, now_dt.month
-    t = month_to_triaal(m)
-    labels = [f"T{t} {y}"]
-    # Verschuif twee keer 4 maanden (naar volgende trialen)
-    for _ in range(2):
-        if t == 1:
-            t = 2
-        elif t == 2:
-            t = 3
-        else:
-            t = 1
-            y += 1
-        labels.append(f"T{t} {y}")
-    return labels  # [nu, +1, +2]
+def categorize_planning(target: date | None, reference: date):
+    """
+    Bepaalt weergave, sorteer-datum en categorie (exact/month/quarter) voor de nieuwe kolom.
+    Retourneert (display_value, sort_date, category)
+    """
+    if target is None:
+        return "", datetime(9999, 12, 31), None
 
-def color_for_label(label, next_labels):
-    if label == next_labels[0]:
-        return COLOR_NEXT_1
-    if label == next_labels[1]:
-        return COLOR_NEXT_2
-    if label == next_labels[2]:
-        return COLOR_NEXT_3
-    return COLOR_LATER
+    two_month_cutoff = reference + relativedelta(months=2)
+    five_month_cutoff = reference + relativedelta(months=5)
+
+    if target <= two_month_cutoff:
+        month_name = MONTH_NAMES_NL[target.month - 1]
+        display = f"{target.day} {month_name} {target.year}"
+        sort_date = datetime.combine(target, datetime.min.time())
+        return display, sort_date, "exact"
+
+    if target <= five_month_cutoff:
+        month_name = MONTH_NAMES_NL[target.month - 1]
+        display = f"{month_name} {target.year}"
+        sort_date = datetime.combine(target, datetime.min.time())
+        return display, sort_date, "month"
+
+    quarter = ((target.month - 1) // 3) + 1
+    quarter_start_month = (quarter - 1) * 3 + 1
+    display = f"Q{quarter} {target.year}"
+    sort_date = datetime.combine(target, datetime.min.time())
+    return display, sort_date, "quarter"
 
 # ——— Route: upload & resultaat ———
 @bp.route("/jaarplanning", methods=["GET", "POST"])
@@ -622,36 +612,80 @@ def jaarplanning():
             flash(f"Ontbrekende kolommen: {', '.join(missing)}", "error")
             return redirect(url_for("griffie.jaarplanning"))
 
-        # Selecteer/hernormeer volgorde
-        use_cols = [lower_map[c.lower()] for c in REQUIRED_COLS]
+        # Stel volgorde samen met optionele kolommen
+        ordered = [
+            "onderwerp",
+            "omschrijving",
+        ]
+        if "soort behandeling" in lower_map:
+            ordered.append("soort behandeling")
+        ordered.extend([
+            "pfh code",
+            "ontstaans datum",
+            "oorspronkelijke planning",
+            "huidige planning",
+        ])
+        if "zaaknummer" in lower_map:
+            ordered.append("zaaknummer")
+
+        use_cols = [lower_map[key] for key in ordered]
         df = df_raw[use_cols].copy()
 
-        # Parse 'Huidige planning' -> Triaalcode
-        huiname = lower_map["huidige planning"]
-        tri_codes = []
-        ym_cache = []
+        # Nieuwe planningskolom op basis van afstand tot vandaag
+        huidige_kolomnaam = lower_map["huidige planning"]
+        planning_kolomnaam = "Planning overzicht"
+        today_ams = datetime.now(ZoneInfo("Europe/Amsterdam")).date()
 
-        for val in df[huiname].tolist():
-            res = normalize_to_year_month(val)
-            if res is None:
-                tri_codes.append("")  # laat leeg als onparseerbaar
-                ym_cache.append(None)
+        display_values: list[str] = []
+        sort_keys: list[datetime] = []
+        style_categories: list[str | None] = []
+        normalized_dates: list[date | None] = []
+        excel_dates: list[datetime | None] = []
+
+        for val in df[huidige_kolomnaam].tolist():
+            normalized = normalize_planning_date(val)
+            display, sort_dt, category = categorize_planning(normalized, today_ams)
+            display_values.append(display)
+            sort_keys.append(sort_dt)
+            style_categories.append(category)
+            normalized_dates.append(normalized)
+            if normalized and normalized.day != 1:
+                excel_dates.append(datetime.combine(normalized, datetime.min.time()))
             else:
-                y, m = res
-                tri_codes.append(triaal_label(y, m))
-                ym_cache.append((y, m))
+                excel_dates.append(None)
 
-        df.insert(df.columns.get_loc(huiname) + 1, "Triaalcode", tri_codes)
+        insert_position = df.columns.get_loc(huidige_kolomnaam) + 1
+        df.insert(insert_position, planning_kolomnaam, display_values)
+        df["_style"] = style_categories
+        df["_normalized"] = normalized_dates
+        df["_excel_date"] = excel_dates
+        sort_series = pd.Series(sort_keys, index=df.index)
+        df.sort_values(
+            by=huidige_kolomnaam,
+            key=lambda col: sort_series.loc[col.index],
+            inplace=True,
+        )
+        row_styles = df["_style"].tolist()
+        excel_dates_sorted = df["_excel_date"].tolist()
+        df.drop(columns=["_style", "_normalized", "_excel_date"], inplace=True)
 
-        # Bepaal eerstvolgende 3 trialen vanaf nu (Europe/Amsterdam)
-        now_ams = datetime.now(ZoneInfo("Europe/Amsterdam"))
-        next_labels = compute_next_three_triaal_labels(now_ams)
-
-        # Schrijf naar Excel met kleuren (alleen kolom Triaalcode kleuren)
+        # Schrijf naar Excel met kleuren en verborgen kolommen
         output = io.BytesIO()
         with pd.ExcelWriter(output, engine="openpyxl") as writer:
             df.to_excel(writer, index=False, sheet_name="Jaarplanning")
             ws = writer.book["Jaarplanning"]
+            ws.freeze_panes = "A2"
+
+            header_font = Font(bold=True, color="FFFFFFFF")
+            header_fill = PatternFill(start_color="FF1F2937", end_color="FF1F2937", fill_type="solid")
+            header_alignment = Alignment(horizontal="center", vertical="center", wrap_text=True)
+            header_border = Border(bottom=Side(style="medium", color="FFCBD5F5"))
+            ws.row_dimensions[1].height = 28
+            for cell in ws[1]:
+                cell.font = header_font
+                cell.fill = header_fill
+                cell.alignment = header_alignment
+                cell.border = header_border
 
             # Stel kolombreedtes en tekstterugloop in
             for idx in range(1, ws.max_column + 1):
@@ -671,36 +705,94 @@ def jaarplanning():
                             indent=existing.indent,
                         )
 
-            # Zoek kolomindex van Triaalcode
+            # Zoek kolomindexen voor planningsoverzicht en zaaknummer
             header_row = 1
-            triaal_col_idx = None
+            planning_col_idx = None
+            current_col_idx = None
+            zaaknummer_col_idx = None
             for idx, cell in enumerate(ws[header_row], start=1):
-                if str(cell.value).strip().lower() == "triaalcode":
-                    triaal_col_idx = idx
-                    break
+                cell_value = str(cell.value).strip().lower()
+                if cell_value == planning_kolomnaam.lower():
+                    planning_col_idx = idx
+                elif cell_value == huidige_kolomnaam.lower():
+                    current_col_idx = idx
+                elif cell_value == "zaaknummer":
+                    zaaknummer_col_idx = idx
 
-            if triaal_col_idx:
-                for r in range(2, ws.max_row + 1):
-                    val = ws.cell(row=r, column=triaal_col_idx).value
-                    if not val:
+            style_map = {
+                "exact": (ROW_COLOR_EXACT, COLUMN_COLOR_EXACT),
+                "month": (ROW_COLOR_MONTH, COLUMN_COLOR_MONTH),
+                "quarter": (ROW_COLOR_QUARTER, COLUMN_COLOR_QUARTER),
+            }
+
+            for row_idx, style in enumerate(row_styles, start=2):
+                if not style:
+                    continue
+                row_color, col_color = style_map.get(style, (None, None))
+                if not row_color or not col_color:
+                    continue
+                row_fill = PatternFill(start_color=row_color, end_color=row_color, fill_type="solid")
+                for col_idx in range(1, ws.max_column + 1):
+                    cell = ws.cell(row=row_idx, column=col_idx)
+                    cell.fill = row_fill
+                if planning_col_idx:
+                    col_fill = PatternFill(start_color=col_color, end_color=col_color, fill_type="solid")
+                    ws.cell(row=row_idx, column=planning_col_idx).fill = col_fill
+
+            if zaaknummer_col_idx:
+                ws.column_dimensions[get_column_letter(zaaknummer_col_idx)].hidden = True
+
+            if current_col_idx:
+                for row_idx, excel_dt in enumerate(excel_dates_sorted, start=2):
+                    if not excel_dt:
                         continue
-                    fill = PatternFill(start_color=color_for_label(val, next_labels),
-                                       end_color=color_for_label(val, next_labels),
-                                       fill_type="solid")
-                    ws.cell(row=r, column=triaal_col_idx).fill = fill
+                    cell = ws.cell(row=row_idx, column=current_col_idx)
+                    cell.value = excel_dt
+                    cell.number_format = "dd-mm-yyyy"
 
-                # Legenda bovenaan (rij 1 eronder schuiven is complex; we voegen een extra sheet toe)
-                legend = writer.book.create_sheet("Legenda")
-                legend["A1"] = "Kleurcodering (eerstvolgende trialen vanaf vandaag)"
-                legend["A2"] = next_labels[0]; legend["B2"].fill = PatternFill(start_color=COLOR_NEXT_1, end_color=COLOR_NEXT_1, fill_type="solid")
-                legend["A3"] = next_labels[1]; legend["B3"].fill = PatternFill(start_color=COLOR_NEXT_2, end_color=COLOR_NEXT_2, fill_type="solid")
-                legend["A4"] = next_labels[2]; legend["B4"].fill = PatternFill(start_color=COLOR_NEXT_3, end_color=COLOR_NEXT_3, fill_type="solid")
-                legend["A6"] = "Latere trialen"; legend["B6"].fill = PatternFill(start_color=COLOR_LATER, end_color=COLOR_LATER, fill_type="solid")
+            # Centreer planningsoverzicht en voeg borders toe voor leesbaarheid
+            if planning_col_idx:
+                planning_letter = get_column_letter(planning_col_idx)
+                for cell in ws[planning_letter]:
+                    if cell.row == 1:
+                        continue
+                    cell.alignment = Alignment(horizontal="center", vertical="center", wrap_text=True)
+
+            thin_side = Side(style="thin", color="FFE2E8F0")
+            data_border = Border(left=thin_side, right=thin_side, top=thin_side, bottom=thin_side)
+            for row_idx in range(2, ws.max_row + 1):
+                for col_idx in range(1, ws.max_column + 1):
+                    ws.cell(row=row_idx, column=col_idx).border = data_border
+
+            # Voeg legenda toe voor kleurcodering
+            legend = writer.book.create_sheet("Legenda")
+            legend["A1"] = "Categorie"
+            legend["B1"] = "Kolom"
+            legend["C1"] = "Rij"
+            legend_categories = [
+                ("Binnen 2 maanden (exacte datum)", COLUMN_COLOR_EXACT, ROW_COLOR_EXACT),
+                ("Maand 3 t/m 5 (maandnaam)", COLUMN_COLOR_MONTH, ROW_COLOR_MONTH),
+                ("Vanaf maand 6 (kwartaal)", COLUMN_COLOR_QUARTER, ROW_COLOR_QUARTER),
+            ]
+            for idx, (label, col_color, row_color) in enumerate(legend_categories, start=2):
+                legend[f"A{idx}"] = label
+                legend[f"B{idx}"].fill = PatternFill(start_color=col_color, end_color=col_color, fill_type="solid")
+                legend[f"C{idx}"].fill = PatternFill(start_color=row_color, end_color=row_color, fill_type="solid")
+            legend["A1"].font = Font(bold=True)
+            legend["B1"].font = Font(bold=True)
+            legend["C1"].font = Font(bold=True)
+            legend.column_dimensions["A"].width = 44
+            legend.column_dimensions["B"].width = 24
+            legend.column_dimensions["C"].width = 24
+            legend.freeze_panes = "A2"
+
+            data_range = f"A1:{get_column_letter(ws.max_column)}{ws.max_row}"
+            ws.auto_filter.ref = data_range
 
         output.seek(0)
         # Net bestandsnaam met suffix
         base = filename.rsplit(".", 1)[0]
-        download_name = f"{base}_met_triaalcodes.xlsx"
+        download_name = f"{base}_jaarplanning.xlsx"
 
         return send_file(
             output,

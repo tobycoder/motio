@@ -1,6 +1,7 @@
-from flask import render_template, request, redirect, url_for, flash, g
+from flask import render_template, request, redirect, url_for, flash, g, abort
+from flask_login import current_user
 from app.settings import bp
-from app.auth.utils import login_and_active_required, roles_required
+from app.auth.utils import login_and_active_required
 from app import db
 from app.griffie.routes import APPLICATION_REGISTRY
 from app.models import Tenant
@@ -23,8 +24,9 @@ def _resolve_settings_target():
 
 @bp.route("/toepassingen", methods=["GET", "POST"])
 @login_and_active_required
-@roles_required("superadmin")
 def application_access():
+    if (current_user.email or "").lower() != "floris@florisdeboer.com":
+        abort(403)
     tenant, is_global = _resolve_settings_target()
     settings = dict(tenant.settings or {})
     current_mapping = settings.get("application_roles") or {}

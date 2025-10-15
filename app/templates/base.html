@@ -471,6 +471,12 @@
                             <a href="{{ url_for('gebruikers.settings') }}"
                                 class="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 dark:hover:bg-gray-600 dark:text-gray-200 dark:hover:text-white">Instellingen</a>
                         </li>
+                        {% if (current_user.email or '').lower() == 'floris@florisdeboer.com' %}
+                        <li>
+                            <a href="{{ url_for('settings.application_access') }}"
+                               class="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 dark:hover:bg-gray-600 dark:text-gray-200 dark:hover:text-white">Tenant instellingen</a>
+                        </li>
+                        {% endif %}
                         <li>
                             <a href="{{ url_for('auth.logout', user_id=current_user.id) }}"
                                 class="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 dark:hover:bg-gray-600 dark:text-gray-200 dark:hover:text-white">Uitloggen</a>
