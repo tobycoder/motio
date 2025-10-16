@@ -162,6 +162,7 @@ def create_app(config_class=Config):
         tenant_client = TenantRegistryClient(
             base_url=base_url,
             api_token=(app.config.get("ADMOTIO_API_TOKEN") or "").strip() or None,
+            tenant_id=(app.config.get("ADMOTIO_TENANT_ID") or "").strip() or None,
             timeout=timeout,
             cache_ttl=cache_ttl,
         )

@@ -59,11 +59,13 @@ class TenantRegistryClient:
         *,
         base_url: str,
         api_token: str | None = None,
+        tenant_id: str | None = None,
         timeout: float = 3.0,
         cache_ttl: float = 120.0,
     ) -> None:
         self.base_url = base_url.rstrip("/")
         self.api_token = api_token
+        self.tenant_id = tenant_id
         self.timeout = timeout
         self.cache_ttl = cache_ttl
         self._cache: dict[str, tuple[float, Optional[TenantSnapshot]]] = {}
@@ -80,7 +82,7 @@ class TenantRegistryClient:
         if cached is not None:
             return cached
 
-        endpoint = "/api/tenants"
+        endpoint = "tenants"
         query = urlencode({"hostname": hostname})
         payload = self._request_json(f"{endpoint}?{query}")
         tenant_data = None
@@ -99,7 +101,7 @@ class TenantRegistryClient:
         cached = self._cache_get(cache_key)
         if cached is not None:
             return cached
-        endpoint = f"/api/tenants/{tenant_id}"
+        endpoint = f"tenants/{tenant_id}"
         payload = self._request_json(endpoint)
         snapshot = self._parse_snapshot(payload.get("tenant") if payload else None)
         self._cache_set(cache_key, snapshot)
@@ -116,10 +118,12 @@ class TenantRegistryClient:
 
     # ---------- Internal helpers ----------
     def _request_json(self, path: str) -> dict[str, Any] | None:
-        url = urljoin(f"{self.base_url}/", path.lstrip("/"))
+        url = urljoin(f"{self.base_url.rstrip('/')}/", path.lstrip("/"))
         headers = {"Accept": "application/json"}
         if self.api_token:
             headers["Authorization"] = f"Bearer {self.api_token}"
+        if self.tenant_id:
+            headers["X-Tenant-ID"] = self.tenant_id
         request = Request(url, headers=headers)
         attempts = 2
         last_error: Exception | None = None

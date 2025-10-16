@@ -23,6 +23,12 @@ def all_party_query():
     return Party.query.order_by(Party.naam.asc())
 
 
+def _strip_filter(value: str | None) -> str | None:
+    if isinstance(value, str):
+        return value.strip()
+    return value
+
+
 class LoginForm(FlaskForm):
     email = StringField('Email', validators=[DataRequired(), Email()])
     password = PasswordField('Wachtwoord', validators=[DataRequired()])
@@ -59,10 +65,21 @@ class ResetPassword(FlaskForm):
 
 
 class ResetPasswordStepTwo(FlaskForm):
-    password = PasswordField('Wachtwoord', validators=[DataRequired(), Length(min=6)])
+    password = PasswordField(
+        'Nieuw wachtwoord',
+        validators=[
+            DataRequired(message='Kies een nieuw wachtwoord.'),
+            Length(min=8, message='Gebruik minimaal 8 tekens.'),
+        ],
+        filters=[_strip_filter],
+    )
     confirm_password = PasswordField(
         'Herhaal wachtwoord',
-        validators=[DataRequired(), EqualTo('password')]
+        validators=[
+            DataRequired(message='Bevestig je wachtwoord.'),
+            EqualTo('password', message='Wachtwoorden komen niet overeen.'),
+        ],
+        filters=[_strip_filter],
     )
 
 

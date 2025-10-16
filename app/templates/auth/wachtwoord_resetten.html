@@ -1,48 +1,59 @@
-﻿{% extends 'base_0auth.html' %}
+{% extends 'base_0auth.html' %}
 {% block content %}
-<section class=\"px-4\">
-  <div class=\"mx-auto flex min-h-[70vh] max-w-4xl flex-col items-center justify-center gap-10 py-10\">
-    <div class=\"auth-glass rounded-3xl border border-slate-200 bg-white/65 p-8 shadow-xl backdrop-blur-lg dark:border-slate-700 dark:bg-slate-900/55\">
-      <div class=\"max-w-xl space-y-6\">
-        <div class=\"space-y-2\">
-          <p class=\"text-sm font-semibold uppercase tracking-wide text-indigo-600\">Wachtwoord resetten</p>
-          <h1 class=\"text-3xl font-semibold text-gray-900 dark:text-white\">Stel je nieuwe wachtwoord in</h1>
-          <p class=\"text-sm leading-relaxed text-gray-600 dark:text-gray-300\">
+<section class="px-4">
+  <div class="mx-auto flex min-h-[70vh] max-w-4xl flex-col items-center justify-center gap-10 py-10">
+    <div class="auth-glass rounded-3xl border border-slate-200 bg-white/65 p-8 shadow-xl backdrop-blur-lg dark:border-slate-700 dark:bg-slate-900/55">
+      <div class="max-w-xl space-y-6">
+        <div class="space-y-2">
+          <p class="text-sm font-semibold uppercase tracking-wide text-indigo-600">Wachtwoord resetten</p>
+          <h1 class="text-3xl font-semibold text-gray-900 dark:text-white">Stel je nieuwe wachtwoord in</h1>
+          <p class="text-sm leading-relaxed text-gray-600 dark:text-gray-300">
             Kies een sterk wachtwoord en bevestig het vervolgens. Je kunt daarna meteen weer aan de slag.
           </p>
         </div>
 
-        <form data-js-auth-form class=\"space-y-5\" action=\"{{ url_for('auth.reset_password', token=token) }}\" method=\"post\" novalidate>
-          {{ form.csrf_token }}
-          <div class=\"grid gap-4 sm:grid-cols-2\">
+        <form data-js-auth-form class="space-y-5" action="{{ url_for('auth.reset_password', token=token) }}" method="post" novalidate>
+          {{ form.hidden_tag() }}
+          <div class="grid gap-4 sm:grid-cols-2">
             <div>
-              <label for=\"password\" class=\"block text-sm font-medium text-gray-700 dark:text-gray-200\">Nieuw wachtwoord</label>
-              <input type=\"password\" name=\"password\" id=\"password\"
-                     class=\"mt-1 w-full rounded-lg border border-slate-300 bg-white/70 px-4 py-2 text-sm text-gray-900 backdrop-blur focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-200 dark:border-slate-600 dark:bg-slate-800/70 dark:text-white\"
-                     placeholder=\"••••••••\"
-                     required>
+              <label for="{{ form.password.id }}" class="block text-sm font-medium text-gray-700 dark:text-gray-200">Nieuw wachtwoord</label>
+              {{ form.password(
+                class_="mt-1 w-full rounded-lg border border-slate-300 bg-white/70 px-4 py-2 text-sm text-gray-900 backdrop-blur focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-200 dark:border-slate-600 dark:bg-slate-800/70 dark:text-white",
+                placeholder="********",
+                autocomplete="new-password",
+                required=True
+              ) }}
+              {% if form.password.errors %}
+                <p class="mt-1 text-xs text-rose-500">{{ form.password.errors[0] }}</p>
+              {% endif %}
             </div>
             <div>
-              <label for=\"confirm_password\" class=\"block text-sm font-medium text-gray-700 dark:text-gray-200\">Bevestig wachtwoord</label>
-              <input type=\"password\" name=\"confirm_password\" id=\"confirm_password\"
-                     class=\"mt-1 w-full rounded-lg border border-slate-300 bg-white/70 px-4 py-2 text-sm text-gray-900 backdrop-blur focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-200 dark:border-slate-600 dark:bg-slate-800/70 dark:text-white\"
-                     placeholder=\"••••••••\"
-                     required>
+              <label for="{{ form.confirm_password.id }}" class="block text-sm font-medium text-gray-700 dark:text-gray-200">Bevestig wachtwoord</label>
+              {{ form.confirm_password(
+                class_="mt-1 w-full rounded-lg border border-slate-300 bg-white/70 px-4 py-2 text-sm text-gray-900 backdrop-blur focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-200 dark:border-slate-600 dark:bg-slate-800/70 dark:text-white",
+                placeholder="********",
+                autocomplete="new-password",
+                required=True
+              ) }}
+              {% if form.confirm_password.errors %}
+                <p class="mt-1 text-xs text-rose-500">{{ form.confirm_password.errors[0] }}</p>
+              {% endif %}
             </div>
           </div>
-          <button type=\"submit\"
-                  class=\"w-full inline-flex items-center justify-center gap-2 rounded-lg bg-indigo-600 px-5 py-2.5 text-sm font-semibold text-white shadow-lg shadow-indigo-600/25 transition hover:bg-indigo-700 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-500 active:scale-[0.98] active:translate-y-0.5 active:shadow-md\">
-            <i class=\"fa-solid fa-unlock-keyhole\"></i>
+          <button type="submit"
+                  formmethod="post"
+                  formaction="{{ url_for('auth.reset_password', token=token) }}"
+                  class="w-full inline-flex items-center justify-center gap-2 rounded-lg bg-indigo-600 px-5 py-2.5 text-sm font-semibold text-white shadow-lg shadow-indigo-600/25 transition hover:bg-indigo-700 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-500 active:scale-[0.98] active:translate-y-0.5 active:shadow-md">
+            <i class="fa-solid fa-unlock-keyhole"></i>
             Wachtwoord opslaan
           </button>
         </form>
 
-        <p class=\"text-sm text-gray-500 dark:text-gray-400\">
-          Toch geen nieuw wachtwoord nodig? <a href=\"{{ url_for('auth.login') }}\" class=\"font-medium text-indigo-600 hover:underline dark:text-indigo-400\">Ga terug naar inloggen</a>
+        <p class="text-sm text-gray-500 dark:text-gray-400">
+          Toch geen nieuw wachtwoord nodig? <a href="{{ url_for('auth.login') }}" class="font-medium text-indigo-600 hover:underline dark:text-indigo-400">Ga terug naar inloggen</a>
         </p>
       </div>
     </div>
   </div>
 </section>
 {% endblock %}
-

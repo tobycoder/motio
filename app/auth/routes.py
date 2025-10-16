@@ -199,10 +199,10 @@ def reset_password_admin(user_id):
     if user.email:
         _send_reset_email(user)
         flash("Email verzonden, laat gebruiker ook de spam checken", "success")
-        return redirect('gebruikers.bekijken', user_id=user.id)
+        return redirect(url_for('gebruikers.bekijken', user_id=user.id))
     else:
         flash("Geen email opgegeven.", "error")
-        return redirect('gebruikers.bekijken', user_id=user.id)
+        return redirect(url_for('gebruikers.bekijken', user_id=user.id))
 
 @bp.route("/wachtwoord-vergeten", methods=["GET","POST"])
 def forgot_password():
@@ -224,21 +224,15 @@ def reset_password(token):
         flash("Deze resetlink is ongeldig of verlopen. Vraag een nieuwe aan.", "danger")
         return redirect(url_for("auth.forgot_password"))
 
-    if request.method == "POST":
-        pw1 = (request.form.get("password") or "").strip()
-        pw2 = (request.form.get("confirm_password") or "").strip()
-
-        if pw1 != pw2:
-            flash("Wachtwoorden komen niet overeen.", "warning")
-            return redirect(url_for("auth.reset_password", token=token))
-        if len(pw1) < 8:
-            flash("Gebruik minimaal 8 tekens.", "warning")
-            return redirect(url_for("auth.reset_password", token=token))
-
-        user.set_password(pw1)
+    if form.validate_on_submit():
+        user.set_password(form.password.data)
         db.session.commit()
         flash("Je wachtwoord is aangepast. Je kunt nu inloggen.", "success")
         return redirect(url_for("auth.login"))  # pas aan als jouw login-endpoint anders heet
+    if request.method == "POST" and form.errors:
+        errors = next(iter(form.errors.values()), [])
+        if errors:
+            flash(errors[0], "warning")
 
     # GET: toon formulier
     return render_template("auth/wachtwoord_resetten.html", token=token, user=user, form=form)
