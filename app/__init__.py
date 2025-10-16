@@ -18,6 +18,7 @@ from flask import Flask, current_app, g, request, render_template, got_request_e
 import logging
 import traceback
 import uuid
+from typing import Any
 from jinja2 import BaseLoader, FileSystemLoader, TemplateNotFound
 from flask_sqlalchemy import SQLAlchemy
 from flask_migrate import Migrate
@@ -25,6 +26,7 @@ from flask_login import LoginManager
 import resend
 from resend.exceptions import ResendError
 from .config import Config
+from .tenant_registry.client import TenantRegistryClient
 import re
 import difflib
 from markupsafe import Markup
@@ -146,6 +148,28 @@ def create_app(config_class=Config):
     _configure_logging(app)
     register_filters(app)
 
+    tenant_client = None
+    base_url = (app.config.get("ADMOTIO_API_BASE_URL") or "").strip()
+    if base_url:
+        try:
+            timeout = float(app.config.get("ADMOTIO_API_TIMEOUT") or 3.0)
+        except (TypeError, ValueError):
+            timeout = 3.0
+        try:
+            cache_ttl = float(app.config.get("ADMOTIO_CACHE_TTL") or 120.0)
+        except (TypeError, ValueError):
+            cache_ttl = 120.0
+        tenant_client = TenantRegistryClient(
+            base_url=base_url,
+            api_token=(app.config.get("ADMOTIO_API_TOKEN") or "").strip() or None,
+            timeout=timeout,
+            cache_ttl=cache_ttl,
+        )
+        app.logger.debug("Tenant registry client geconfigureerd voor %s", base_url)
+    else:
+        app.logger.debug("Geen ADMOTIO_API_BASE_URL geconfigureerd; lokale tenantinstellingen worden gebruikt")
+    app.extensions["tenant_registry_client"] = tenant_client
+
     db.init_app(app)
     Migrate(app, db)
     login_manager.init_app(app)
@@ -237,23 +261,36 @@ def create_app(config_class=Config):
         Avoid hitting the database for public/static or unknown endpoints to
         prevent timeouts when the DB is slow/unavailable (e.g. random bot hits).
         """
+        g.tenant = None
+        g.tenant_meta = None
         try:
             ep = request.endpoint or ""
             # Skip for unknown endpoints (404s), public endpoints and cheap methods
             if not ep or ep in PUBLIC_ENDPOINTS or request.method in ("HEAD", "OPTIONS"):
-                g.tenant = None
                 return
 
-            from app.models import TenantDomain  # imported lazily
-            host = (request.host or '').split(':')[0].lower()
+            host = (request.host or "").split(":")[0].lower()
             if not host:
-                g.tenant = None
                 return
+
+            tenant_client = current_app.extensions.get("tenant_registry_client")
+            remote_meta = tenant_client.get_by_hostname(host) if tenant_client else None
+            if remote_meta:
+                g.tenant_meta = remote_meta
+
+            from app.models import TenantDomain, Tenant  # imported lazily
+
             td = TenantDomain.query.filter(TenantDomain.hostname.ilike(host)).first()
-            g.tenant = td.tenant if td else None
+            if td and td.tenant:
+                g.tenant = td.tenant
+            elif remote_meta:
+                # Probeer lokale tenant te vinden op basis van slug zodat bestaande logica werkt
+                local = Tenant.query.filter(Tenant.slug.ilike(remote_meta.slug)).first()
+                if local:
+                    g.tenant = local
         except Exception:
             # Never let tenant resolution block the request path
-            g.tenant = None
+            current_app.logger.debug("Tenant resolutie mislukt", exc_info=True)
 
     @app.context_processor
     def inject_tenant_context():
@@ -261,11 +298,40 @@ def create_app(config_class=Config):
         tenant_name = None
         tenant_settings = {}
         tenant_slug = None
+        tenant_meta = getattr(g, "tenant_meta", None)
+
+        def _merge_remote_settings(base: dict[str, Any], meta) -> dict[str, Any]:
+            merged = dict(base or {})
+            remote_settings = getattr(meta, "settings", None)
+            if isinstance(remote_settings, dict):
+                merged.update(remote_settings)
+            remote_brand = getattr(meta, "branding", None)
+            if isinstance(remote_brand, dict):
+                brand_section = merged.get("brand")
+                if isinstance(brand_section, dict):
+                    brand_section.update(remote_brand)
+                else:
+                    merged["brand"] = dict(remote_brand)
+            remote_phrasing = getattr(meta, "phrasing", None)
+            if isinstance(remote_phrasing, dict):
+                phrasing_section = merged.get("phrasing")
+                if isinstance(phrasing_section, dict):
+                    phrasing_section.update(remote_phrasing)
+                else:
+                    merged["phrasing"] = dict(remote_phrasing)
+            return merged
+
         try:
-            if getattr(g, 'tenant', None):
-                tenant_name = g.tenant.naam
-                tenant_settings = g.tenant.settings or {}
-                tenant_slug = getattr(g.tenant, 'slug', None)
+            local_tenant = getattr(g, "tenant", None)
+            local_settings = dict(local_tenant.settings) if getattr(local_tenant, "settings", None) else {}
+            if tenant_meta:
+                tenant_name = getattr(tenant_meta, "display_name", None) or tenant_name
+                tenant_slug = tenant_meta.slug
+                tenant_settings = _merge_remote_settings(local_settings, tenant_meta)
+            elif local_tenant:
+                tenant_name = local_tenant.naam
+                tenant_slug = getattr(local_tenant, "slug", None)
+                tenant_settings = local_settings or {}
             else:
                 from app.models import Tenant
                 fallback = Tenant.query.filter(Tenant.slug == "__global__").first()
@@ -274,12 +340,14 @@ def create_app(config_class=Config):
                     tenant_settings = fallback.settings or tenant_settings
                     fallback_tenant = fallback
         except Exception:
-            pass
+            current_app.logger.debug("Tenant context kon niet worden opgebouwd", exc_info=True)
+
         if not tenant_name:
             # fallback naar configuratie
             tenant_name = current_app.config.get('GEMEENTE_NAAM') or 'Motio'
         return {
             'tenant': getattr(g, 'tenant', None),
+            'tenant_meta': tenant_meta,
             'tenant_name': tenant_name,
             'tenant_slug': tenant_slug,
             'tenant_settings': tenant_settings,
@@ -294,6 +362,8 @@ def create_app(config_class=Config):
         def get_source(self, environment, template):
             try:
                 slug = getattr(getattr(g, 'tenant', None), 'slug', None)
+                if not slug:
+                    slug = getattr(getattr(g, 'tenant_meta', None), 'slug', None)
                 if slug:
                     tenant_templates_dir = os.path.join(app.root_path, 'templates_tenants', slug)
                     if os.path.isdir(tenant_templates_dir):

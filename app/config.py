@@ -62,6 +62,19 @@ class Config:
     ALLOWED_LOGO_EXTENSIONS = {"png", "jpg", "jpeg", "webp", "svg"}
     MAX_CONTENT_LENGTH = 4 * 1024 * 1024
 
+    # Admotio tenant registry API
+    ADMOTIO_API_BASE_URL = os.environ.get("ADMOTIO_API_BASE_URL") or ""
+    ADMOTIO_API_TOKEN = os.environ.get("ADMOTIO_API_TOKEN") or ""
+    try:
+        ADMOTIO_API_TIMEOUT = float(os.environ.get("ADMOTIO_API_TIMEOUT", "3.0") or "3.0")
+    except ValueError:
+        ADMOTIO_API_TIMEOUT = 3.0
+    try:
+        ADMOTIO_CACHE_TTL = float(os.environ.get("ADMOTIO_CACHE_TTL", "120") or "120")
+    except ValueError:
+        ADMOTIO_CACHE_TTL = 120.0
+    ADMOTIO_WEBHOOK_TOKEN = os.environ.get("ADMOTIO_WEBHOOK_TOKEN") or ""
+
 
 class DevelopmentConfig(Config):
     DEBUG = True
