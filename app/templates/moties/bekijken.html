@@ -1,350 +1,379 @@
 {% extends 'base.html' %}
 {% block content %}
-  {# ---------------- CSS: print & A4 behoud (ongewijzigd) ---------------- #}
   <style>
-    @page { size: A4; margin: 12mm; }
-    .a4 { width: 230mm; min-height: 297mm; }
-    .avoid-break { break-inside: avoid; page-break-inside: avoid; }
-        /* Forceer overlay onder de modal */
-    [modal-backdrop],
-    [data-modal-backdrop],
-    .modal-backdrop { z-index: 3000 !important; }
-    /* Zorg dat jouw modal erboven ligt */
-    #verwijderModal { z-index: 3010 !important; }
+    @media print {
+      body {
+        background: #fff;
+      }
+      .print-hidden {
+        display: none !important;
+      }
+      .print-card {
+        box-shadow: none !important;
+        border: 1px solid rgba(15, 23, 42, 0.12);
+      }
+    }
   </style>
 
-  {# ---------------- Flowbite (dropdowns/modals) ---------------- #}
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/flowbite/2.5.2/flowbite.min.js" defer></script>
+  {% set status_label = motie.status or "Concept" %}
+  {% set status_lower = status_label | lower %}
+  {% set status_classes = "bg-slate-100 text-slate-700 ring-1 ring-slate-200" %}
+  {% if "aangenomen" in status_lower or "gereed" in status_lower or "klaar" in status_lower %}
+    {% set status_classes = "bg-emerald-100 text-emerald-700 ring-1 ring-emerald-200" %}
+  {% elif "verworpen" in status_lower or "afgewezen" in status_lower %}
+    {% set status_classes = "bg-rose-100 text-rose-700 ring-1 ring-rose-200" %}
+  {% elif "advies" in status_lower %}
+    {% set status_classes = "bg-sky-100 text-sky-700 ring-1 ring-sky-200" %}
+  {% elif "concept" in status_lower %}
+    {% set status_classes = "bg-amber-100 text-amber-700 ring-1 ring-amber-200" %}
+  {% endif %}
 
-  {# ---------------- Topbar: compact, sticky ---------------- #}
-  <div class="sticky-surface page-chrome-low print:hidden">
-    <div class="sticky-surface__inner flex items-center gap-2 px-4 py-2">
-      {# Terug-knop: naar laatste overzicht / fallback #}
-      <a href="{{ back_url or url_for('moties.index') }}"
-         class="inline-flex items-center gap-2 rounded-lg border px-3 py-1.5 text-sm hover:bg-gray-50">
-        <i class="fa fa-arrow-left text-gray-600"></i>
-        <span class="hidden sm:inline">Terug naar overzicht</span>
-      </a>
+  {% set primary_indiener = motie.indiener if motie.indiener is defined else None %}
+  {% set parties = namespace(ids=[], items=[]) %}
+  {% if primary_indiener and primary_indiener.partij %}
+    {% if primary_indiener.partij.id not in parties.ids %}
+      {% set _ = parties.ids.append(primary_indiener.partij.id) %}
+      {% set _ = parties.items.append(primary_indiener.partij) %}
+    {% endif %}
+  {% endif %}
+  {% for mede in mede_indieners %}
+    {% if mede.partij and mede.partij.id not in parties.ids %}
+      {% set _ = parties.ids.append(mede.partij.id) %}
+      {% set _ = parties.items.append(mede.partij) %}
+    {% endif %}
+  {% endfor %}
 
-      <div class="flex-1 min-w-0">
-        <div class="truncate text-sm text-gray-500">Motie</div>
-        <h1 class="truncate text-base sm:text-lg font-semibold">{{ motie.titel }}</h1>
+  {% set signers = namespace(items=[]) %}
+  {% if primary_indiener %}
+    {% set _ = signers.items.append(primary_indiener) %}
+  {% endif %}
+  {% for mede in mede_indieners %}
+    {% set _ = signers.items.append(mede) %}
+  {% endfor %}
+
+  <div class="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8 space-y-6 print:px-0">
+    <div class="flex flex-wrap items-start justify-between gap-4 print-hidden">
+      <div class="min-w-0 flex-1 space-y-3">
+        <div class="flex items-center gap-2 text-sm text-slate-500">
+          <a href="{{ back_url or url_for('moties.index') }}"
+             class="inline-flex items-center gap-2 rounded-full border border-slate-200 px-3 py-1.5 font-medium text-slate-600 hover:bg-slate-50">
+            <i class="fa-solid fa-arrow-left-long"></i>
+            <span class="hidden sm:inline">Terug naar moties</span>
+          </a>
+          <span class="hidden sm:inline text-slate-300">/</span>
+          <span class="font-medium text-slate-500">Motie bekijken</span>
+        </div>
+        <div class="flex flex-wrap items-center gap-3">
+          <h1 class="text-3xl font-semibold text-slate-900 dark:text-white tracking-tight leading-tight">
+            {{ motie.titel or "Motie zonder titel" }}
+          </h1>
+        </div>
+        <div class="flex flex-wrap items-center gap-3 text-sm text-slate-500 dark:text-slate-400">
+          <span class="inline-flex items-center gap-2 rounded-full px-3 py-1 text-xs font-semibold {{ status_classes }}">
+            <span class="h-2 w-2 rounded-full bg-current opacity-60"></span>
+            {{ status_label }}
+          </span>
+          {% if motie.gemeenteraad_datum %}
+            <span class="inline-flex items-center gap-2 rounded-full bg-slate-100 px-3 py-1 text-xs font-semibold text-slate-600 dark:bg-slate-800/80 dark:text-slate-300">
+              <i class="fa-solid fa-calendar-day"></i>{{ motie.gemeenteraad_datum }}
+            </span>
+          {% endif %}
+          {% if motie.agendapunt %}
+            <span class="inline-flex items-center gap-2 rounded-full bg-slate-100 px-3 py-1 text-xs font-semibold text-slate-600 dark:bg-slate-800/80 dark:text-slate-300">
+              <i class="fa-solid fa-list-ol"></i>Agendapunt {{ motie.agendapunt }}
+            </span>
+          {% endif %}
+          <span class="inline-flex items-center gap-2 rounded-full bg-slate-100 px-3 py-1 text-xs font-semibold text-slate-600 dark:bg-slate-800/80 dark:text-slate-300">
+            <i class="fa-regular fa-clock"></i>Laatst bijgewerkt {{ motie.updated_at.strftime('%d-%m-%Y %H:%M') if motie.updated_at else 'onbekend' }}
+          </span>
+        </div>
       </div>
-
-      {# Primaire acties (desktop & tablet) #}
-      <div class="hidden md:flex items-center gap-2">
+      <div class="print-hidden flex flex-wrap items-center gap-2 md:justify-end">
         <a href="{{ url_for('moties.bewerken', motie_id=motie.id) }}"
-           class="inline-flex items-center gap-2 rounded-lg border px-3 py-1.5 text-sm hover:bg-gray-50">
-          <i class="fa fa-edit"></i><span>Bewerk</span>
+           class="inline-flex items-center gap-2 rounded-xl bg-emerald-600 px-4 py-2 text-sm font-semibold text-white shadow-sm hover:bg-emerald-700 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:ring-offset-2">
+          <i class="fa-solid fa-pen-to-square"></i>Bewerk
         </a>
         <a href="{{ url_for('moties.share_create', motie_id=motie.id) }}"
-           class="inline-flex items-center gap-2 rounded-lg border px-3 py-1.5 text-sm hover:bg-gray-50">
-          <i class="fa fa-share"></i><span>Deel</span>
+           class="inline-flex items-center gap-2 rounded-xl border border-slate-200 px-4 py-2 text-sm font-semibold text-slate-600 hover:bg-slate-50 dark:border-slate-700 dark:text-slate-200 dark:hover:bg-slate-800">
+          <i class="fa-solid fa-share-nodes"></i>Deel
         </a>
         <a href="{{ url_for('moties.export_motie_docx', motie_id=motie.id) }}"
-           class="inline-flex items-center gap-2 rounded-lg border px-3 py-1.5 text-sm hover:bg-gray-50">
-          <i class="fa fa-download"></i><span>Exporteer</span>
+           class="inline-flex items-center gap-2 rounded-xl border border-slate-200 px-4 py-2 text-sm font-semibold text-slate-600 hover:bg-slate-50 dark:border-slate-700 dark:text-slate-200 dark:hover:bg-slate-800">
+          <i class="fa-solid fa-download"></i>Exporteer
         </a>
-
-        {# Meer-acties dropdown #}
         <div class="relative">
-          <button id="meerMenuBtn" data-dropdown-toggle="meerMenu"
-                  class="inline-flex items-center gap-2 rounded-lg border px-3 py-1.5 text-sm hover:bg-gray-50">
-            <i class="fa fa-ellipsis-h"></i><span>Meer</span>
+          <button id="moreMenuButton"
+                  data-dropdown-toggle="moreMenu"
+                  class="inline-flex items-center gap-2 rounded-xl border border-slate-200 px-4 py-2 text-sm font-semibold text-slate-600 hover:bg-slate-50 dark:border-slate-700 dark:text-slate-200 dark:hover:bg-slate-800">
+            <i class="fa-solid fa-ellipsis"></i>Meer
           </button>
-          <div id="meerMenu"
-               class="content-dropdown hidden w-56 bg-white border rounded-lg shadow-md">
-            <ul class="py-2 text-sm">
+          <div id="moreMenu"
+               class="content-dropdown z-40 hidden w-60 rounded-2xl border border-slate-200 bg-white p-2 shadow-xl dark:border-slate-700 dark:bg-slate-900/95">
+            <ul class="space-y-1 text-sm text-slate-600 dark:text-slate-200">
               {% if current_user.id == motie.indiener_id and (motie.status or '').lower() not in ['advies griffie'] %}
               <li>
                 <form method="post" action="{{ url_for('moties.advies_aanvragen', motie_id=motie.id) }}">
-                  <button class="w-full text-left px-4 py-2 hover:bg-gray-50">
-                    <i class="fa fa-clipboard-list mr-2"></i>Advies vragen griffie
+                  <button class="flex w-full items-center gap-2 rounded-xl px-3 py-2 hover:bg-slate-50 dark:hover:bg-slate-800">
+                    <i class="fa-solid fa-clipboard-list text-slate-400"></i>Advies vragen griffie
                   </button>
                 </form>
               </li>
               {% endif %}
               <li>
-                <button type="button" data-modal-target="verwijderModal" data-modal-toggle="verwijderModal"
-                        class="w-full text-left px-4 py-2 hover:bg-red-50 text-red-600">
-                  <i class="fa fa-trash mr-2"></i>Verwijder
+                <button type="button"
+                        class="flex w-full items-center gap-2 rounded-xl px-3 py-2 text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-900/30"
+                        data-modal-target="verwijderModal"
+                        data-modal-toggle="verwijderModal">
+                  <i class="fa-solid fa-trash"></i>Verwijder
                 </button>
               </li>
               <li>
                 <a href="{{ url_for('moties.geschiedenis', motie_id=motie.id) }}"
-                   class="block px-4 py-2 hover:bg-gray-50">
-                  <i class="fa fa-clock-o mr-2"></i>Versiegeschiedenis
+                   class="flex items-center gap-2 rounded-xl px-3 py-2 hover:bg-slate-50 dark:hover:bg-slate-800">
+                  <i class="fa-solid fa-clock-rotate-left text-slate-400"></i>Versiegeschiedenis
                 </a>
               </li>
               <li>
-                <a href="#"
-                   class="block px-4 py-2 hover:bg-gray-50" target="_blank" rel="noopener">
-                  <i class="fa fa-print mr-2"></i>Printweergave
-                </a>
+                <button type="button"
+                        class="flex w-full items-center gap-2 rounded-xl px-3 py-2 hover:bg-slate-50 dark:hover:bg-slate-800"
+                        onclick="window.print()">
+                  <i class="fa-solid fa-print text-slate-400"></i>Printweergave
+                </button>
               </li>
               <li>
-                <button type="button" id="copyLinkBtn"
+                <button type="button"
+                        id="copyLinkBtn"
                         data-copy-link="{{ request.url }}"
-                        class="w-full text-left px-4 py-2 hover:bg-gray-50">
-                  <i class="fa fa-link mr-2"></i>Kopieer link
+                        class="flex w-full items-center gap-2 rounded-xl px-3 py-2 hover:bg-slate-50 dark:hover:bg-slate-800">
+                  <i class="fa-solid fa-link text-slate-400"></i>Kopieer link
                 </button>
               </li>
             </ul>
           </div>
         </div>
       </div>
+    </div>
 
-      {# Op mobiel tonen we 1 compacte knop die de onderbalk zichtbaar maakt #}
-      <button id="mobileActionsBtn"
-              class="md:hidden inline-flex items-center gap-2 rounded-lg border px-3 py-1.5 text-sm hover:bg-gray-50">
-        <i class="fa fa-bolt"></i><span>Acties</span>
+    <div class="grid gap-6 lg:grid-cols-[minmax(0,2fr)_minmax(0,1fr)] xl:gap-8">
+      <div class="space-y-6">
+        <section class="rounded-3xl border border-slate-200/80 bg-white/95 shadow-sm backdrop-blur print-card dark:border-slate-700/70 dark:bg-slate-900/80">
+          <div class="border-b border-slate-200 px-6 py-4 dark:border-slate-700/70">
+            <div class="flex flex-wrap items-center justify-between gap-3">
+              <div>
+                <h2 class="text-lg font-semibold text-slate-900 dark:text-white">Motietekst</h2>
+                <p class="text-sm text-slate-500 dark:text-slate-400">Documentweergave inclusief partijen en indieners.</p>
+              </div>
+              <button type="button"
+                      class="print-hidden inline-flex items-center gap-2 rounded-xl border border-slate-200 px-3 py-2 text-sm font-medium text-slate-600 hover:bg-slate-50 dark:border-slate-700 dark:text-slate-200 dark:hover:bg-slate-800"
+                      onclick="window.print()">
+                <i class="fa-solid fa-print"></i>Print
+              </button>
+            </div>
+          </div>
+          <div class="px-4 py-6 sm:px-8 sm:py-8">
+            <article class="mx-auto w-full max-w-3xl rounded-[28px] border border-slate-200 bg-white px-8 py-10 text-[15px] leading-relaxed text-slate-900 shadow-xl print:rounded-none print:border print:px-10 print:py-12 print:shadow-none dark:border-slate-700/60 dark:bg-slate-900 dark:text-slate-100">
+              {% if parties.items %}
+                <div class="mb-10 flex flex-wrap items-center justify-center gap-8 print:mb-8">
+                  {% for partij in parties.items %}
+                    <div class="max-h-16">
+                      <img src="{{ partij.logo_src }}" alt="{{ partij.naam }}" class="h-16 w-auto object-contain">
+                    </div>
+                  {% endfor %}
+                </div>
+              {% endif %}
+
+              <header class="mb-10 text-center">
+                {% if tenant_name %}
+                  <p class="text-xs font-semibold uppercase tracking-[0.35em] text-slate-500 dark:text-slate-400">Gemeenteraad {{ tenant_name }}</p>
+                {% endif %}
+                {% if motie.agendapunt %}
+                  <h2 class="mt-3 text-2xl font-semibold uppercase tracking-[0.25em] text-slate-800 dark:text-slate-100">Motie</h2>
+                {% else %}
+                  <h2 class="mt-3 text-2xl font-semibold uppercase tracking-[0.22em] text-slate-800 dark:text-slate-100">Motie vreemd aan de orde van de dag</h2>
+                {% endif %}
+                <p class="mt-4 text-xl font-semibold text-slate-900 dark:text-white">{{ motie.titel or "Motie zonder titel" }}</p>
+              </header>
+
+              <section class="mb-8 space-y-4 text-justify">
+                {% if motie.agendapunt %}
+                  <p>Deze motie hoort bij agendapunt {{ motie.agendapunt or "onbekend" }}, ingediend voor de raadsvergadering van {{ motie.gemeenteraad_datum or "onbekend" }}.</p>
+                {% else %}
+                  <p>Deze motie is ingediend voor de raadsvergadering van {{ motie.gemeenteraad_datum or "onbekend" }}.</p>
+                {% endif %}
+                <p>De indieners stellen de raad voor om het volgende besluit te nemen.</p>
+              </section>
+
+              <section class="mb-8">
+                <h3 class="text-sm font-semibold uppercase tracking-[0.25em] text-slate-600 dark:text-slate-300">Constaterende dat</h3>
+                <ul class="mt-3 space-y-2 list-outside list-disc pl-6">
+                  {% for punt in motie.constaterende_dat %}
+                    <li>{{ punt }}</li>
+                  {% else %}
+                    <li class="text-slate-400">Er zijn geen constateringen vastgelegd.</li>
+                  {% endfor %}
+                </ul>
+              </section>
+
+              <section class="mb-8">
+                <h3 class="text-sm font-semibold uppercase tracking-[0.25em] text-slate-600 dark:text-slate-300">Overwegende dat</h3>
+                <ul class="mt-3 space-y-2 list-outside list-disc pl-6">
+                  {% for punt in motie.overwegende_dat %}
+                    <li>{{ punt }}</li>
+                  {% else %}
+                    <li class="text-slate-400">Er zijn geen overwegingen vastgelegd.</li>
+                  {% endfor %}
+                </ul>
+              </section>
+
+              <section class="mb-8">
+                <h3 class="text-sm font-semibold uppercase tracking-[0.25em] text-slate-600 dark:text-slate-300">{{ motie.opdracht_formulering or "Draagt het college op" }}</h3>
+                <ul class="mt-3 space-y-2 list-outside list-disc pl-6">
+                  {% for punt in motie.draagt_college_op %}
+                    <li>{{ punt }}</li>
+                  {% else %}
+                    <li class="text-slate-400">Er zijn geen opdrachten vastgelegd.</li>
+                  {% endfor %}
+                </ul>
+              </section>
+
+              <section class="mb-10 text-justify">
+                <p>En gaat over tot de orde van de dag.</p>
+              </section>
+
+              <section class="mb-10">
+                <h3 class="text-sm font-semibold uppercase tracking-[0.25em] text-slate-600 dark:text-slate-300">Ingediend door</h3>
+                {% if signers.items %}
+                  <div class="mt-4 grid gap-4 sm:grid-cols-2">
+                    {% for indiener in signers.items %}
+                      <div class="rounded-2xl border border-slate-200 px-4 py-3 text-sm dark:border-slate-700/50">
+                        <div class="font-semibold text-slate-800 dark:text-white">{{ indiener.naam }}</div>
+                        <div class="text-slate-500 dark:text-slate-300">{{ indiener.partij.naam if indiener.partij else "Partij onbekend" }}</div>
+                      </div>
+                    {% endfor %}
+                  </div>
+                {% else %}
+                  <p class="mt-3 text-sm text-slate-400">Er zijn nog geen ondertekenaars geregistreerd.</p>
+                {% endif %}
+              </section>
+
+              <footer class="border-t border-slate-200 pt-6 text-sm text-slate-500 dark:border-slate-700 dark:text-slate-300">
+                <div class="flex flex-wrap items-center justify-between gap-3">
+                  <span>Raadsvergadering: {{ motie.gemeenteraad_datum or "Niet gepland" }}</span>
+                  <span>Conceptstatus: {{ status_label }}</span>
+                </div>
+              </footer>
+            </article>
+          </div>
+        </section>
+      </div>
+
+      <aside class="space-y-6 print-hidden">
+        <section class="rounded-3xl border border-slate-200/80 bg-white/95 p-6 shadow-sm backdrop-blur dark:border-slate-700/70 dark:bg-slate-900/80">
+          <h3 class="text-base font-semibold text-slate-900 dark:text-white">Eigenschappen</h3>
+          <dl class="mt-4 space-y-3 text-sm text-slate-600 dark:text-slate-300">
+            <div class="flex items-center justify-between gap-4">
+              <dt class="text-slate-500">Status</dt>
+              <dd class="font-medium text-slate-900 dark:text-white">{{ status_label }}</dd>
+            </div>
+            <div class="flex items-center justify-between gap-4">
+              <dt class="text-slate-500">Vergadering</dt>
+              <dd>{{ motie.gemeenteraad_datum or "Niet gepland" }}</dd>
+            </div>
+            {% if motie.agendapunt %}
+              <div class="flex items-center justify-between gap-4">
+                <dt class="text-slate-500">Agendapunt</dt>
+                <dd>{{ motie.agendapunt }}</dd>
+              </div>
+            {% endif %}
+            <div class="flex items-center justify-between gap-4">
+              <dt class="text-slate-500">Motie ID</dt>
+              <dd>#{{ motie.id }}</dd>
+            </div>
+            <div class="flex items-center justify-between gap-4">
+              <dt class="text-slate-500">Aangemaakt</dt>
+              <dd>{{ motie.created_at.strftime('%d-%m-%Y %H:%M') if motie.created_at else 'Onbekend' }}</dd>
+            </div>
+            <div class="flex items-center justify-between gap-4">
+              <dt class="text-slate-500">Laatst bewerkt</dt>
+              <dd>{{ motie.updated_at.strftime('%d-%m-%Y %H:%M') if motie.updated_at else 'Onbekend' }}</dd>
+            </div>
+          </dl>
+        </section>
+
+        <section class="rounded-3xl border border-slate-200/80 bg-white/95 p-6 shadow-sm backdrop-blur dark:border-slate-700/70 dark:bg-slate-900/80">
+          <h3 class="text-base font-semibold text-slate-900 dark:text-white">Snelle acties</h3>
+          <div class="mt-4 grid gap-2">
+            <a href="{{ url_for('moties.bewerken', motie_id=motie.id) }}"
+               class="inline-flex items-center gap-2 rounded-xl border border-slate-200 px-3 py-2 text-sm font-medium text-slate-600 hover:bg-slate-50 dark:border-slate-700 dark:text-slate-200 dark:hover:bg-slate-800">
+              <i class="fa-solid fa-pen-to-square text-slate-400"></i>Bewerk motie
+            </a>
+            <a href="{{ url_for('moties.share_create', motie_id=motie.id) }}"
+               class="inline-flex items-center gap-2 rounded-xl border border-slate-200 px-3 py-2 text-sm font-medium text-slate-600 hover:bg-slate-50 dark:border-slate-700 dark:text-slate-200 dark:hover:bg-slate-800">
+              <i class="fa-solid fa-share-nodes text-slate-400"></i>Deel met anderen
+            </a>
+            <a href="{{ url_for('moties.export_motie_docx', motie_id=motie.id) }}"
+               class="inline-flex items-center gap-2 rounded-xl border border-slate-200 px-3 py-2 text-sm font-medium text-slate-600 hover:bg-slate-50 dark:border-slate-700 dark:text-slate-200 dark:hover:bg-slate-800">
+              <i class="fa-solid fa-file-word text-slate-400"></i>Download Word
+            </a>
+            <button type="button"
+                    class="inline-flex items-center gap-2 rounded-xl border border-rose-200 px-3 py-2 text-sm font-medium text-rose-600 hover:bg-rose-50 dark:border-rose-900/40 dark:text-rose-300 dark:hover:bg-rose-900/30"
+                    data-modal-target="verwijderModal"
+                    data-modal-toggle="verwijderModal">
+              <i class="fa-solid fa-trash"></i>Verwijder motie
+            </button>
+          </div>
+        </section>
+      </aside>
+    </div>
+  </div>
+
+  <div id="mobileActionsBar"
+       class="print-hidden md:hidden fixed inset-x-0 bottom-0 z-50 border-t border-slate-200 bg-white/95 px-4 py-3 shadow-lg backdrop-blur">
+    <div class="flex items-center justify-between gap-2 text-sm">
+      <a href="{{ url_for('moties.bewerken', motie_id=motie.id) }}"
+         class="flex-1 inline-flex items-center justify-center gap-2 rounded-xl border border-slate-200 px-3 py-2 font-medium text-slate-700 hover:bg-slate-50">
+        <i class="fa-solid fa-pen-to-square"></i>Bewerk
+      </a>
+      <a href="{{ url_for('moties.share_create', motie_id=motie.id) }}"
+         class="flex-1 inline-flex items-center justify-center gap-2 rounded-xl border border-slate-200 px-3 py-2 font-medium text-slate-700 hover:bg-slate-50">
+        <i class="fa-solid fa-share-nodes"></i>Deel
+      </a>
+      <a href="{{ url_for('moties.export_motie_docx', motie_id=motie.id) }}"
+         class="flex-1 inline-flex items-center justify-center gap-2 rounded-xl border border-slate-200 px-3 py-2 font-medium text-slate-700 hover:bg-slate-50">
+        <i class="fa-solid fa-download"></i>Export
+      </a>
+      <button type="button"
+              data-modal-target="verwijderModal"
+              data-modal-toggle="verwijderModal"
+              class="inline-flex h-10 w-10 items-center justify-center rounded-full border border-rose-200 text-rose-600 hover:bg-rose-50">
+        <i class="fa-solid fa-trash"></i>
       </button>
     </div>
   </div>
 
-  {# ---------------- Layout: canvas gecentreerd, A4 ongewijzigd ---------------- #}
-  {% if (motie.status or '').lower() == 'geadviseerd' and current_user.id == motie.indiener_id %}
-    <div class="mx-auto max-w-7xl px-2 sm:px-4 md:px-6 mt-6">
-      <div class="mb-4 bg-amber-50 border border-amber-200 text-amber-800 rounded-xl p-4 flex items-center justify-between">
-        <div>Er staat een advies voor je klaar.</div>
-        <a href="{{ url_for('moties.advies_review', motie_id=motie.id) }}" class="inline-flex items-center gap-2 rounded-lg bg-amber-600 text-white px-3 py-1.5 text-sm hover:bg-amber-700">
-          <i class="fa fa-comments"></i><span>Bekijk advies</span>
-        </a>
-      </div>
-    </div>
-  {% endif %}
-  <div class="mx-auto max-w-7xl px-2 sm:px-4 md:px-6">
-    <div class="grid grid-cols-1 lg:grid-cols-12 gap-6 lg:gap-8 mt-6">
-
-      {# (optioneel) rechter kolom met meta-informatie of comments #}
-      <aside class="order-2 lg:order-2 lg:col-span-3 print:hidden">
-        <div class="sticky top-20 space-y-4">
-          <div class="rounded-xl border bg-white p-4">
-            <h3 class="font-medium mb-2">Eigenschappen</h3>
-            <dl class="text-sm text-gray-700 space-y-1">
-              <div class="flex justify-between"><dt>Status</dt><dd>{{ motie.status or "Concept" }}</dd></div>
-              <div class="flex justify-between"><dt>Vergadering</dt><dd>{{ motie.gemeenteraad_datum or "Niet gepland" }}</dd></div>
-              {% if motie.agendapunt %}
-              <div class="flex justify-between"><dt>Agendapunt</dt><dd>{{ motie.agendapunt }}</dd></div>
-              {% endif %}
-              <div class="flex justify-between"><dt>ID</dt><dd>#{{ motie.id }}</dd></div>
-              <div class="flex justify-between"><dt>Aangemaakt</dt><dd>{{ motie.created_at.strftime('%d-%m-%Y %H:%M') if motie.created_at else '—' }}</dd></div>
-              <div class="flex justify-between"><dt>Laatst bewerkt</dt><dd>{{ motie.updated_at.strftime('%d-%m-%Y %H:%M') if motie.updated_at else '—' }}</dd></div>
-            </dl>
-          </div>
-
-          <div class="rounded-xl border bg-white p-4">
-            <h3 class="font-medium mb-2">Snelle acties</h3>
-            <div class="flex flex-wrap gap-2">
-              <a href="{{ url_for('moties.bewerken', motie_id=motie.id) }}"
-                 class="px-3 py-1.5 rounded-lg border text-sm hover:bg-gray-50"><i class="fa fa-edit mr-2"></i>Bewerk</a>
-              <a href="{{ url_for('moties.share_create', motie_id=motie.id) }}"
-                 class="px-3 py-1.5 rounded-lg border text-sm hover:bg-gray-50"><i class="fa fa-share mr-2"></i>Deel</a>
-              <a href="{{ url_for('moties.export_motie_docx', motie_id=motie.id) }}"
-                 class="px-3 py-1.5 rounded-lg border text-sm hover:bg-gray-50"><i class="fa fa-download mr-2"></i>Exporteer</a>
-            </div>
-          </div>
+  <div id="verwijderModal" tabindex="-1" aria-hidden="true"
+       class="modal-topmost hidden fixed inset-0 z-[1200] overflow-y-auto overflow-x-hidden">
+    <div class="flex min-h-full items-end justify-center p-4 sm:items-center">
+      <div class="relative w-full max-w-md rounded-2xl border border-slate-200 bg-white shadow-2xl dark:border-slate-700 dark:bg-slate-900">
+        <div class="px-6 py-5">
+          <h3 class="text-lg font-semibold text-slate-900 dark:text-white">Motie verwijderen?</h3>
+          <p class="mt-2 text-sm text-slate-600 dark:text-slate-300">Deze actie kan niet ongedaan worden gemaakt.</p>
         </div>
-      </aside>
-
-      {# A4 canvas (ongewijzigde inhoud) #}
-      <main class="order-1 lg:order-1 lg:col-span-9">
-        <!-- Canvas: centreer A4 op het scherm -->
-        <div class="min-h-screen py-4 sm:py-6 md:py-8 flex items-start justify-center print:p-0">
-          <article
-            class="a4 bg-white shadow-2xl ring-1 ring-black/5 rounded-none print:shadow-none print:ring-0 print:w-auto print:min-h-0
-                   px-12 py-14 leading-relaxed text-[11pt] text-gray-900">
-
-            {# ---------- LOGO-RIJEN & PARTIJEN (ongewijzigd) ---------- #}
-            {% set hoofd = motie.indiener if motie.indiener is defined else None %}
-            {% set ns = namespace(seen_ids=[], partijen=[]) %}
-            {% if hoofd and hoofd.partij and hoofd.partij.id not in ns.seen_ids %}
-              {% set _ = ns.seen_ids.append(hoofd.partij.id) %}
-              {% set _ = ns.partijen.append(hoofd.partij) %}
-            {% endif %}
-            {% for x in mede_indieners %}
-              {% if x.partij and x.partij.id not in ns.seen_ids %}
-                {% set _ = ns.seen_ids.append(x.partij.id) %}
-                {% set _ = ns.partijen.append(x.partij) %}
-              {% endif %}
-            {% endfor %}
-
-            <section class="mb-8 avoid-break">
-              <table>
-                {% if ns.partijen %}
-                  {% for row in ns.partijen|batch(6, None) %}
-                    <tr class="mb-6">
-                      {% for p in row %}
-                        {% if p %}
-                          <td class="pr-6 align-top pb-6">
-                            <i><img class="h-24 w-auto" src="{{ p.logo_src }}" alt="{{ p.naam }}"></i>
-                          </td>
-                        {% else %}
-                          <td></td>
-                        {% endif %}
-                      {% endfor %}
-                    </tr>
-                  {% endfor %}
-                {% else %}
-                  <tr><td class="text-gray-500">—</td></tr>
-                {% endif %}
-              </table>
-            </section>
-
-            <!-- Kop -->
-            <header class="text-center mb-8">
-              {% if motie.agendapunt %}
-                <h1 class="text-xl font-semibold tracking-tight">MOTIE</h1>
-              {% else %}
-                <h1 class="text-xl font-semibold tracking-tight">MOTIE vreemd aan de orde van de dag</h1>
-              {% endif %}
-              <p class="text-sm text-gray-600 mt-1">{{ motie.titel or "—" }}</p>
-            </header>
-
-            <!-- Titel motie -->
-            <section class="mb-6 avoid-break">
-              {% if motie.agendapunt %}
-                <p class="text-[11pt]">Deze motie hoort bij agendapunt {{ motie.agendapunt or "—" }}, ingediend bij de raadsvergadering van {{ motie.gemeenteraad_datum }}</p><br>
-              {% endif %}
-              <p class="text-[11pt]">De indieners stellen de raad voor om het volgende besluit te nemen:</p>
-            </section>
-
-            <!-- Constaterende dat -->
-            <section class="mb-6 avoid-break">
-              <h2 class="text-base font-semibold mb-1">We stellen vast dat:</h2>
-              <ul class="list-disc pl-6 space-y-1">
-                {% for punt in motie.constaterende_dat %}
-                  <li>{{ punt }}</li>
-                {% else %}
-                  <li class="text-gray-500">—</li>
-                {% endfor %}
-              </ul>
-            </section>
-
-            <!-- Overwegende dat -->
-            <section class="mb-6 avoid-break">
-              <h2 class="text-base font-semibold mb-1">We overwegen dat:</h2>
-              <ul class="list-disc pl-6 space-y-1">
-                {% for punt in motie.overwegende_dat %}
-                  <li>{{ punt }}</li>
-                {% else %}
-                  <li class="text-gray-500">—</li>
-                {% endfor %}
-              </ul>
-            </section>
-
-            <!-- Draagt het college op -->
-            <section class="mb-8 avoid-break">
-              <h2 class="text-base font-semibold mb-1">{{ motie.opdracht_formulering }}:</h2>
-              <ul class="list-disc pl-6 space-y-1">
-                {% for punt in motie.draagt_college_op %}
-                  <li>{{ punt }}</li>
-                {% else %}
-                  <li class="text-gray-500">—</li>
-                {% endfor %}
-              </ul>
-            </section>
-
-            <!-- Ondertekening -->
-            <section class="mb-6 avoid-break">
-              <p class="text-[11pt]">En gaat over tot de orde van de dag</p>
-            </section>
-
-            <section class="mb-8 avoid-break">
-              <h2 class="text-base font-semibold mb-1">Ingediend door:</h2>
-              {% set ondertekenaars = [] %}
-              {% if hoofd %}{% set _ = ondertekenaars.append(hoofd) %}{% endif %}
-              {% for x in mede_indieners %}{% set _ = ondertekenaars.append(x) %}{% endfor %}
-              <table>
-                {% if ondertekenaars %}
-                  {% for row in ondertekenaars|batch(6, None) %}
-                    <tr class="mb-6">
-                      {% for u in row %}
-                        {% if u %}
-                          <td class="pr-6 align-top pb-6">
-                            {{ u.naam }}<br><i>{{ u.partij.naam if u.partij else '—' }}</i>
-                          </td>
-                        {% else %}
-                          <td></td>
-                        {% endif %}
-                      {% endfor %}
-                    </tr>
-                  {% endfor %}
-                {% else %}
-                  <tr><td class="text-gray-500">—</td></tr>
-                {% endif %}
-              </table>
-            </section>
-
-            <!-- Voet -->
-            <footer class="mt-12 pt-4 text-[10pt] text-gray-500 border-t border-gray-200">
-              <div class="flex items-center justify-between self-end">
-                <span>Raadsvergadering: {{ motie.gemeenteraad_datum or "Niet gepland" }}</span>
-                <span>Conceptstatus: {{ motie.status or "Concept" }}</span>
-              </div>
-            </footer>
-          </article>
-        </div>
-      </main>
-    </div>
-  </div>
-
-  {# ---------------- Mobiele onderbalk met primaire acties ---------------- #}
-  <div id="mobileActionsBar"
-       class="md:hidden fixed inset-x-0 bottom-0 content-dropdown border-t bg-white/95 backdrop-blur px-3 py-2 flex items-center justify-between gap-2 print:hidden">
-    <a href="{{ url_for('moties.bewerken', motie_id=motie.id) }}"
-       class="flex-1 inline-flex items-center justify-center gap-2 rounded-lg border px-3 py-2 text-sm hover:bg-gray-50">
-      <i class="fa fa-edit"></i><span>Bewerk</span>
-    </a>
-    <a href="{{ url_for('moties.share_create', motie_id=motie.id) }}"
-       class="flex-1 inline-flex items-center justify-center gap-2 rounded-lg border px-3 py-2 text-sm hover:bg-gray-50">
-      <i class="fa fa-share"></i><span>Deel</span>
-    </a>
-    <a href="{{ url_for('moties.export_motie_docx', motie_id=motie.id) }}"
-       class="flex-1 inline-flex items-center justify-center gap-2 rounded-lg border px-3 py-2 text-sm hover:bg-gray-50">
-      <i class="fa fa-download"></i><span>Export</span>
-    </a>
-    <button type="button" data-modal-target="verwijderModal" data-modal-toggle="verwijderModal"
-            class="inline-flex items-center justify-center rounded-full w-10 h-10 border hover:bg-red-50">
-      <i class="fa fa-trash text-red-600"></i>
-    </button>
-  </div>
-
-  {# ---------------- Verwijderen: modal bevestiging ---------------- #}
-<div id="verwijderModal" tabindex="-1" aria-hidden="true"
-     class="modal-topmost hidden fixed inset-0 overflow-y-auto overflow-x-hidden">
-    <div class="flex min-h-full items-end sm:items-center justify-center p-4">
-      <div class="relative w-full max-w-md bg-white rounded-xl shadow-lg border">
-        <div class="p-4 sm:p-6">
-          <h3 class="text-base font-semibold mb-2">Motie verwijderen?</h3>
-          <p class="text-sm text-gray-600">Deze actie kan niet ongedaan worden gemaakt.</p>
-        </div>
-        <div class="px-4 sm:px-6 py-3 bg-gray-50 rounded-b-xl flex justify-end gap-2">
+        <div class="flex items-center justify-end gap-2 rounded-b-2xl bg-slate-50 px-6 py-4 dark:bg-slate-800/70">
           <button data-modal-hide="verwijderModal"
-                  class="rounded-lg border px-3 py-1.5 text-sm hover:bg-white">Annuleer</button>
+                  class="rounded-xl border border-slate-200 px-4 py-2 text-sm font-medium text-slate-600 hover:bg-white dark:border-slate-700 dark:text-slate-200 dark:hover:bg-slate-800">
+            Annuleer
+          </button>
           <a href="{{ url_for('moties.verwijderen', motie_id=motie.id) }}"
-             class="inline-flex items-center gap-2 rounded-lg bg-red-600 text-white px-3 py-1.5 text-sm hover:bg-red-700">
-            <i class="fa fa-trash"></i><span>Verwijder</span>
+             class="inline-flex items-center gap-2 rounded-xl bg-rose-600 px-4 py-2 text-sm font-semibold text-white shadow-sm hover:bg-rose-700">
+            <i class="fa-solid fa-trash"></i>Verwijder
           </a>
         </div>
       </div>
     </div>
   </div>
 
-  {# ---------------- Kleine JS helpers ---------------- #}
   <script>
-    // Mobiele "Acties" knop toggelt de onderbalk in/uit (optioneel: altijd zichtbaar laten)
-    (function () {
-      const btn = document.getElementById('mobileActionsBtn');
-      const bar = document.getElementById('mobileActionsBar');
-      if (btn && bar) {
-        btn.addEventListener('click', () => {
-          bar.classList.toggle('hidden');
-        });
-      }
-    })();
-
-    // Kopieer link naar klembord
     (function () {
       const btn = document.getElementById('copyLinkBtn');
       if (!btn) return;
@@ -352,10 +381,15 @@
         const url = btn.getAttribute('data-copy-link') || window.location.href;
         try {
           await navigator.clipboard.writeText(url);
-          btn.innerHTML = '<i class="fa fa-check mr-2 text-green-600"></i>Gekopieerd!';
-          setTimeout(() => { btn.innerHTML = '<i class="fa fa-link mr-2"></i>Kopieer link'; }, 1500);
-        } catch (e) {
-          alert('Kopiëren mislukt');
+          btn.innerHTML = '<i class="fa-solid fa-check text-emerald-500"></i><span>Gekopieerd!</span>';
+          setTimeout(() => {
+            btn.innerHTML = '<i class="fa-solid fa-link text-slate-400"></i><span>Kopieer link</span>';
+          }, 1600);
+        } catch (error) {
+          btn.innerHTML = '<i class="fa-solid fa-triangle-exclamation text-amber-500"></i><span>Mislukt</span>';
+          setTimeout(() => {
+            btn.innerHTML = '<i class="fa-solid fa-link text-slate-400"></i><span>Kopieer link</span>';
+          }, 1600);
         }
       });
     })();

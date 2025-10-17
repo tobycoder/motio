@@ -391,14 +391,20 @@
         .content-dropdown { z-index: 750 !important; }
     </style>
     {# Tenant branding optioneel via instellingen #}
-    {% if tenant_settings and tenant_settings.brand and (tenant_settings.brand.color1 or tenant_settings.brand.color) %}
+    {% set _brand = tenant_settings.brand if tenant_settings and tenant_settings.brand else {} %}
+    {% set _nav_primary = _brand.color %}
+    {% set _nav_text_color = _brand.color1 %}
+    {% set _nav_hover = _brand.color2 %}
+    {% set _nav_border = _brand.color3 %}
+    {% if _nav_primary %}
     <style>
-      .nav-root { background-color: {{ tenant_settings.brand.color1 or tenant_settings.brand.color }} !important; }
-      .nav-root a:hover { color: #fff !important; }
-      .nav-root .md\:hover\:text-blue-700:hover { color: #fff !important; }
-      .nav-root .text-blue-700 { color: #fff !important; }
+      .nav-root { background-color: {{ _nav_primary }} !important; }
+      .nav-root a { color: {{ _nav_text_color or '#000000' }} !important; }
+      .nav-root a:hover { color: {{ _nav_hover or '#ffffff' }} !important; }
+      .nav-root .md\:hover\:text-blue-700:hover { color: {{ _nav_hover or '#ffffff' }} !important; }
+      .nav-root .text-blue-700 { color: {{ _nav_hover or '#ffffff' }} !important; }
       .nav-root .hover\:bg-gray-100:hover { background-color: rgba(255,255,255,0.12) !important; }
-      .nav-root .border-gray-200 { border-color: rgba(255,255,255,0.2) !important; }
+      .nav-root .border-gray-200 { border-color: {{ _nav_border or 'rgba(255,255,255,0.2)' }} !important; }
     </style>
     {% endif %}
     <script>
@@ -438,10 +444,63 @@
         <div class="app-blob app-blob--three"></div>
         <canvas class="app-gradient-canvas" aria-hidden="true"></canvas>
     </div>
+    {% set _tenant_display_name = tenant_name or 'Motio' %}
+    {% set _tenant_slug_display = (tenant_slug if tenant_slug and tenant_slug != '__global__' else None) %}
+    {% if tenant_slug == '__global__' %}
+        {% set _tenant_slug_display = 'globaal' %}
+    {% endif %}
     <nav class="bg-white/80 backdrop-blur sticky top-0 nav-root border-gray-200 border-b dark:bg-gray-900 dark:border-gray-700">
+        <div class="tenant-brand-banner border-b border-white/10 bg-slate-950/40 text-[11px] font-medium text-white/80 tracking-wide print:hidden">
+            <div class="max-w-screen-xl mx-auto flex flex-wrap items-center justify-between gap-3 px-4 py-1.5">
+                <div class="flex flex-wrap items-center gap-2">
+                    <span class="uppercase text-white/60 tracking-[0.3em]">Tenant</span>
+                    <span class="text-white font-semibold tracking-normal">{{ _tenant_display_name }}</span>
+                    {% if _tenant_slug_display %}
+                        <span class="text-white/60 tracking-normal">({{ _tenant_slug_display }})</span>
+                    {% endif %}
+                </div>
+                <div class="flex flex-wrap items-center gap-2 tracking-normal">
+                    {% if _nav_primary %}
+                        <span class="inline-flex items-center gap-2 rounded-full border border-white/20 bg-white/10 px-2 py-[2px] text-[11px] font-medium uppercase tracking-[0.18em]">
+                            <span class="h-3 w-3 rounded-full border border-white/40 shadow-sm" style="background-color: {{ _nav_primary }};"></span>
+                            Primair {{ _nav_primary }}
+                        </span>
+                    {% else %}
+                        <span class="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-2 py-[2px] text-[11px] font-medium uppercase tracking-[0.18em] text-white/50">
+                            Primair n.v.t.
+                        </span>
+                    {% endif %}
+                    {% if _nav_hover %}
+                        <span class="inline-flex items-center gap-2 rounded-full border border-white/20 bg-white/10 px-2 py-[2px] text-[11px] font-medium uppercase tracking-[0.18em]">
+                            <span class="h-3 w-3 rounded-full border border-white/40 shadow-sm" style="background-color: {{ _nav_hover }};"></span>
+                            Hover {{ _nav_hover }}
+                        </span>
+                    {% else %}
+                        <span class="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-2 py-[2px] text-[11px] font-medium uppercase tracking-[0.18em] text-white/50">
+                            Hover n.v.t.
+                        </span>
+                    {% endif %}
+                    {% if _nav_border %}
+                        <span class="inline-flex items-center gap-2 rounded-full border border-white/20 bg-white/10 px-2 py-[2px] text-[11px] font-medium uppercase tracking-[0.18em]">
+                            <span class="h-3 w-3 rounded-full border border-white/40 shadow-sm" style="background-color: {{ _nav_border }};"></span>
+                            Rand {{ _nav_border }}
+                        </span>
+                    {% else %}
+                        <span class="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-2 py-[2px] text-[11px] font-medium uppercase tracking-[0.18em] text-white/50">
+                            Rand n.v.t.
+                        </span>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
         <div class="max-w-screen-xl flex flex-wrap items-center justify-between mx-auto p-4">
             <a href="{{ url_for('dashboard.home') }}" class="flex items-center space-x-3 rtl:space-x-reverse">
-                {% set _logo = tenant_settings.logo_src if tenant_settings and 'logo_src' in tenant_settings else (tenant_slug and url_for('static', filename='tenants/' ~ tenant_slug ~ '/logo.png')) %}
+                {% set _logo = None %}
+                {% if tenant_settings and tenant_settings.logo_src %}
+                    {% set _logo = tenant_settings.logo_src %}
+                {% elif tenant_slug and tenant_slug != "__global__" %}
+                    {% set _logo = url_for('static', filename='tenants/' ~ tenant_slug ~ '/logo.png') %}
+                {% endif %}
                 <img src="{{ _logo or url_for('static', filename='img/logo_banner.png') }}" class="h-8" alt="{{ tenant_name or 'Motio' }} Logo" />
             </a>
                         <!-- Notifications (bell) -->

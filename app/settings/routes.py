@@ -3,23 +3,39 @@ from flask_login import current_user
 from app.settings import bp
 from app.auth.utils import login_and_active_required
 from app import db
-from app.griffie.routes import APPLICATION_REGISTRY
 from app.models import Tenant
+from app.griffie.routes import APPLICATION_REGISTRY
+from app.tenant_registry.client import LegacyTenant
 
 MANAGEABLE_ROLES = ["griffie", "bestuursadviseur", "gebruiker"]
-GLOBAL_TENANT_SLUG = "__global__"
 
 
 def _resolve_settings_target():
     tenant = getattr(g, "tenant", None)
+    is_global = False
+    if tenant is None:
+        meta = getattr(g, "tenant_meta", None)
+        if meta is not None:
+            if isinstance(meta, LegacyTenant):
+                tenant = meta
+            else:
+                try:
+                    tenant = meta.as_legacy()
+                except AttributeError:
+                    tenant = meta
+            g.tenant = tenant
+        else:
+            fallback = (
+                Tenant.query.filter(Tenant.slug == "__global__").first()
+                or Tenant.query.order_by(Tenant.id.asc()).first()
+            )
+            if fallback:
+                tenant = fallback
+                g.tenant = tenant
+                is_global = True
     if tenant is not None:
-        return tenant, False
-    fallback = Tenant.query.filter(Tenant.slug == GLOBAL_TENANT_SLUG).first()
-    if fallback is None:
-        fallback = Tenant(slug=GLOBAL_TENANT_SLUG, naam="Globale instellingen", actief=True, settings={})
-        db.session.add(fallback)
-        db.session.commit()
-    return fallback, True
+        return tenant, is_global
+    abort(404, "Tenant context ontbreekt")
 
 
 @bp.route("/toepassingen", methods=["GET", "POST"])
@@ -41,8 +57,11 @@ def application_access():
 
         settings["application_roles"] = new_mapping
         tenant.settings = settings
-        db.session.commit()
-        flash("Toegang tot toepassingen bijgewerkt.", "success")
+        if hasattr(tenant, "_sa_instance_state"):
+            db.session.commit()
+            flash("Toegang tot toepassingen bijgewerkt.", "success")
+        else:
+            flash("Instellingen zijn bijgewerkt voor deze sessie. Persistente opslag via Admotio volgt nog.", "info")
         return redirect(url_for("settings.application_access"))
 
     registry_with_roles = []

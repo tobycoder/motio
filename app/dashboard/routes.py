@@ -31,7 +31,14 @@ def _moties_for_user_query(user):
     # Tenant scoping (voorbeeld): filter op actieve tenant indien beschikbaar
     t = getattr(g, 'tenant', None)
     if t:
-        base = base.filter(Motie.tenant_id == t.id)
+        tenant_id = getattr(t, "id", None)
+        if not isinstance(tenant_id, int):
+            try:
+                tenant_id = int(tenant_id)
+            except (TypeError, ValueError):
+                tenant_id = None
+        if tenant_id is not None:
+            base = base.filter(Motie.tenant_id == tenant_id)
     if getattr(user, 'has_role', None) and user.has_role('superadmin'):
         return base
     return base.filter(

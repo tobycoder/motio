@@ -63,7 +63,10 @@ class TenantRegistryClient:
         timeout: float = 3.0,
         cache_ttl: float = 120.0,
     ) -> None:
-        self.base_url = base_url.rstrip("/")
+        normalized_base = base_url.rstrip("/")
+        if normalized_base and not normalized_base.lower().endswith("/api"):
+            normalized_base = f"{normalized_base}/api"
+        self.base_url = normalized_base
         self.api_token = api_token
         self.tenant_id = tenant_id
         self.timeout = timeout
@@ -86,8 +89,11 @@ class TenantRegistryClient:
         query = urlencode({"hostname": hostname})
         payload = self._request_json(f"{endpoint}?{query}")
         tenant_data = None
-        if payload and isinstance(payload.get("tenants"), list):
-            tenant_data = next((item for item in payload["tenants"] if item.get("slug")), None)
+        if payload:
+            if isinstance(payload.get("tenants"), list):
+                tenant_data = next((item for item in payload["tenants"] if item.get("slug")), None)
+            elif isinstance(payload.get("tenant"), dict):
+                tenant_data = payload.get("tenant")
 
         snapshot = self._parse_snapshot(tenant_data)
         self._cache_set(cache_key, snapshot)

@@ -278,17 +278,11 @@ def create_app(config_class=Config):
             remote_meta = tenant_client.get_by_hostname(host) if tenant_client else None
             if remote_meta:
                 g.tenant_meta = remote_meta
-
-            from app.models import TenantDomain, Tenant  # imported lazily
-
-            td = TenantDomain.query.filter(TenantDomain.hostname.ilike(host)).first()
-            if td and td.tenant:
-                g.tenant = td.tenant
-            elif remote_meta:
-                # Probeer lokale tenant te vinden op basis van slug zodat bestaande logica werkt
-                local = Tenant.query.filter(Tenant.slug.ilike(remote_meta.slug)).first()
-                if local:
-                    g.tenant = local
+                try:
+                    g.tenant = remote_meta.as_legacy()
+                except Exception:
+                    g.tenant = remote_meta
+                return
         except Exception:
             # Never let tenant resolution block the request path
             current_app.logger.debug("Tenant resolutie mislukt", exc_info=True)
@@ -499,7 +493,7 @@ def _register_tenant_scoping_events():
     @event.listens_for(db.session, "before_flush")
     def _mt_set_tenant(session, flush_context, instances):
         tenant = getattr(g, 'tenant', None)
-        if not tenant:
+        if not tenant or not hasattr(tenant, "_sa_instance_state"):
             return
         for obj in session.new:
             if hasattr(obj, 'tenant_id') and getattr(obj, 'tenant_id', None) is None:
@@ -514,7 +508,7 @@ def _register_tenant_scoping_events():
         if not execute_state.is_select:
             return
         tenant = getattr(g, 'tenant', None)
-        if not tenant:
+        if not tenant or not hasattr(tenant, "_sa_instance_state"):
             return
         try:
             from app.models import (

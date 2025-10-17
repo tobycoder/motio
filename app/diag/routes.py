@@ -62,7 +62,7 @@ def diag_tenant_health():
     return result, 200
 
 
-@bp.post("/tenant/invalidate")
+@bp.route("/tenant/invalidate", methods=["POST", "GET"])
 def diag_tenant_invalidate():
     token_config = (current_app.config.get("ADMOTIO_WEBHOOK_TOKEN") or "").strip()
     header = request.headers.get("Authorization", "")
@@ -74,9 +74,16 @@ def diag_tenant_invalidate():
         if not incoming_token or incoming_token != token_config:
             return jsonify({"status": "error", "message": "Unauthorized"}), 401
 
-    payload = request.get_json(silent=True) or {}
-    tenant_id = (payload.get("tenant_id") or "").strip()
-    hostname = (payload.get("hostname") or "").strip().lower()
+    if request.method == "GET":
+        tenant_id = (request.args.get("tenant_id") or "").strip()
+        hostname = (request.args.get("hostname") or "").strip().lower()
+    else:
+        payload = request.get_json(silent=True)
+        if not payload and request.form:
+            payload = request.form
+        payload = payload or {}
+        tenant_id = (payload.get("tenant_id") or "").strip()
+        hostname = (payload.get("hostname") or "").strip().lower()
 
     if not tenant_id and not hostname:
         return jsonify({"status": "error", "message": "tenant_id of hostname vereist"}), 400
